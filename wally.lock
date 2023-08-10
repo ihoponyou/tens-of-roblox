@@ -15,7 +15,7 @@ dependencies = []
 [[package]]
 name = "noah/tens-of-roblox"
 version = "0.1.0"
-dependencies = [["Component", "sleitnick/component@2.4.6"], ["Knit", "sleitnick/knit@1.5.1"], ["Trove", "sleitnick/trove@1.0.0"], ["spring", "brittonfischer/spring@0.1.0"]]
+dependencies = [["Component", "sleitnick/component@2.4.6"], ["Knit", "sleitnick/knit@1.5.1"], ["Loader", "sleitnick/loader@2.0.0"], ["Spring", "brittonfischer/spring@0.1.0"], ["Trove", "sleitnick/trove@1.0.0"]]
 
 [[package]]
 name = "sleitnick/comm"
@@ -31,6 +31,11 @@ dependencies = [["Promise", "evaera/promise@4.0.0"], ["Signal", "sleitnick/signa
 name = "sleitnick/knit"
 version = "1.5.1"
 dependencies = [["Comm", "sleitnick/comm@0.3.1"], ["Promise", "evaera/promise@4.0.0"]]
+
+[[package]]
+name = "sleitnick/loader"
+version = "2.0.0"
+dependencies = []
 
 [[package]]
 name = "sleitnick/option"

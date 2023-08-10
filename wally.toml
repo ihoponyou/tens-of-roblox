@@ -8,4 +8,6 @@ realm = "shared"
 Knit = "sleitnick/knit@^1.5"
 Component = "sleitnick/component@2.4.6"
 Trove = "sleitnick/trove@1.0.0"
-spring = "brittonfischer/spring@0.1.0"
+Loader = "sleitnick/loader@2.0.0"
+
+Spring = "brittonfischer/spring@0.1.0"

@@ -1,16 +1,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
+local Loader = require(ReplicatedStorage.Packages.Loader)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
--- Knit.AddControllers(ServerStorage.Source.Controllers)
-for _,v in ServerStorage.Source:GetDescendants() do
-    if v:IsA("ModuleScript") and v.Name:match("Controller$") then
-        require(v)
-    end
-end
-
+Loader.LoadDescendants(ReplicatedStorage.Source.Controllers, Loader.MatchesName("Controller$"))
 
 Knit.Start():andThen(function()
     print("Knit started.")
+    Loader.LoadChildren(ReplicatedStorage.Source.ClientComponents)
 end):catch(warn)

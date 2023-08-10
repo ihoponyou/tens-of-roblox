@@ -1,4 +1,4 @@
-local character = script.Parent
+local character = game.Players.LocalPlayer.Character
 character:WaitForChild("Head")
 character:WaitForChild("Torso")
 character:WaitForChild("Left Arm")

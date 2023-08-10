@@ -5,8 +5,8 @@ local REGEN_RATE = 1/100 -- Regenerate this fraction of MaxHealth per second.
 
 --------------------------------------------------------------------------------
 
-local Character = game.Players.LocalPlayer.Character
-local Humanoid: Humanoid = Character:WaitForChild'Humanoid'
+local Character = script:FindFirstAncestorOfClass("Model")
+local Humanoid: Humanoid = Character:WaitForChild("Humanoid")
 
 --------------------------------------------------------------------------------
 
