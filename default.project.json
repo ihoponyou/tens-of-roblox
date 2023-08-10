@@ -1,0 +1,47 @@
+{
+  "name": "tens-of-roblox",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Source": {
+        "$path": "src/ReplicatedStorage"
+      },
+      "Packages": {
+        "$path": "Packages"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Source": {
+        "$path": "src/ServerScriptService"
+      }
+    },
+
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "Source": {
+        "$path": "src/ServerStorage"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Source": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts"
+        }
+      },
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "Source": {
+          "$path": "src/StarterPlayer/StarterCharacterScripts"
+        }
+      }
+    }
+
+  }
+}
