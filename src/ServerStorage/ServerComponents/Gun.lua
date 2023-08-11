@@ -4,7 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
-local FastCast = require(ReplicatedStorage.Modules.FastCastRedux)
+local FastCast = require(ReplicatedStorage.Packages.FastCastRedux)
 FastCast.DebugLogging = false
 FastCast.VisualizeCasts = false
 
@@ -30,25 +30,23 @@ local function newEvent(parent: Instance, name: string)
 end
 
 function Gun:Construct()
-    print("this is the vscode component")
 	self._trove = Trove.new()
 
 	self.MouseEvent = newEvent(self.Instance, "MouseEvent")
 	self.RecoilEvent = newEvent(self.Instance, "RecoilEvent")
 
     self.Config = self.Instance:FindFirstChild("Configuration")
-	local attributes = self.Config:GetAttributes()
-    print(attributes)
+	local GUN_STATS = self.Config:GetAttributes()
 
-	self.BULLET_SPEED = self.Config:GetAttribute("BulletSpeed")			-- Studs/second - the speed of the bullet
-	self.BULLET_MAXDIST = self.Config:GetAttribute("BulletMaxDistance")	-- The furthest distance the bullet can travel 
-	self.BULLET_GRAVITY = self.Config:GetAttribute("BulletGravity")		-- The amount of gravity applied to the bullet in world space (so yes, you can have sideways gravity)
-	self.MIN_SPREAD_ANGLE = self.Config:GetAttribute("MinSpreadAngle")	-- THIS VALUE IS VERY SENSITIVE. Try to keep changes to it small. The least accurate the bullet can be. This angle value is in degrees. A value of 0 means straight forward. Generally you want to keep this at 0 so there's at least some chance of a 100% accurate shot.
-	self.MAX_SPREAD_ANGLE = self.Config:GetAttribute("MaxSpreadAngle")	-- THIS VALUE IS VERY SENSITIVE. Try to keep changes to it small. The most accurate the bullet can be. This angle value is in degrees. A value of 0 means straight forward. This cannot be less than the value above. A value of 90 will allow the gun to shoot sideways at most, and a value of 180 will allow the gun to shoot backwards at most. Exceeding 180 will not add any more angular varience.
-	self.FIRE_DELAY = self.Config:GetAttribute("FireDelay")				-- The amount of time that must pass after firing the gun before we can fire again.
-	self.BULLETS_PER_SHOT = self.Config:GetAttribute("BulletsPerShot")	-- The amount of bullets to fire every shot. Make this greater than 1 for a shotgun effect.
-	self.CAN_PIERCE = self.Config:GetAttribute("CanPierce")
-	self.DAMAGE = self.Config:GetAttribute("Damage") or 5
+	self.BULLET_SPEED = 	GUN_STATS.BulletSpeed		-- Studs/second - the speed of the bullet
+	self.BULLET_MAXDIST =	GUN_STATS.BulletMaxDistance	-- The furthest distance the bullet can travel 
+	self.BULLET_GRAVITY = 	GUN_STATS.BulletGravity		-- The amount of gravity applied to the bullet in world space (so yes, you can have sideways gravity)
+	self.MIN_SPREAD_ANGLE = GUN_STATS.MinSpreadAngle	-- THIS VALUE IS VERY SENSITIVE. Try to keep changes to it small. The least accurate the bullet can be. This angle value is in degrees. A value of 0 means straight forward. Generally you want to keep this at 0 so there's at least some chance of a 100% accurate shot.
+	self.MAX_SPREAD_ANGLE = GUN_STATS.MaxSpreadAngle	-- THIS VALUE IS VERY SENSITIVE. Try to keep changes to it small. The most accurate the bullet can be. This angle value is in degrees. A value of 0 means straight forward. This cannot be less than the value above. A value of 90 will allow the gun to shoot sideways at most, and a value of 180 will allow the gun to shoot backwards at most. Exceeding 180 will not add any more angular varience.
+	self.FIRE_DELAY = 		GUN_STATS.FireDelay			-- The amount of time that must pass after firing the gun before we can fire again.
+	self.BULLETS_PER_SHOT = GUN_STATS.BulletsPerShot	-- The amount of bullets to fire every shot. Make this greater than 1 for a shotgun effect.
+	self.CAN_PIERCE = 		GUN_STATS.CanPierce
+	self.DAMAGE = 			GUN_STATS.Damage or 5
 	
 	self.Handle = self.Instance:FindFirstChild("Handle")
 	self.FirePoint = self.Handle:FindFirstChild("GunFirePoint")

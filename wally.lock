@@ -8,6 +8,11 @@ version = "0.1.0"
 dependencies = []
 
 [[package]]
+name = "encodedvenom/fastcastredux"
+version = "0.1.3"
+dependencies = [["Signal", "sleitnick/signal@1.5.0"]]
+
+[[package]]
 name = "evaera/promise"
 version = "4.0.0"
 dependencies = []
@@ -15,7 +20,7 @@ dependencies = []
 [[package]]
 name = "noah/tens-of-roblox"
 version = "0.1.0"
-dependencies = [["Component", "sleitnick/component@2.4.6"], ["Knit", "sleitnick/knit@1.5.1"], ["Loader", "sleitnick/loader@2.0.0"], ["Spring", "brittonfischer/spring@0.1.0"], ["Trove", "sleitnick/trove@1.0.0"]]
+dependencies = [["Component", "sleitnick/component@2.4.6"], ["FastCastRedux", "encodedvenom/fastcastredux@0.1.3"], ["Knit", "sleitnick/knit@1.5.1"], ["Loader", "sleitnick/loader@2.0.0"], ["Signal", "sleitnick/signal@1.5.0"], ["Spring", "brittonfischer/spring@0.1.0"], ["Trove", "sleitnick/trove@1.0.0"]]
 
 [[package]]
 name = "sleitnick/comm"
