@@ -47,25 +47,29 @@ function CameraController:Unlock()
 	self.LockedChanged:Fire(false)
 end
 
+function CameraController:IncrementRotation(degrees: Vector3)
+	self.AdditionalRotation += degrees
+end
+
 
 
 function CameraController:OnKilled()
 	print("killed D:")
-	self.CurrentCamera.CameraSubject = self.Character.Head
+	workspace.CurrentCamera.CameraSubject = self.Character.Head
 end
 
 function CameraController:OnCharacterAdded(character: Model)
 	self.Character = character
 	local humanoid: Humanoid = character:WaitForChild("Humanoid")
-	self.CurrentCamera.CameraSubject = humanoid
+	workspace.CurrentCamera.CameraSubject = humanoid
 end
 
-local step = 0
+local lastIncrement = Vector3.zero
 function CameraController:OnRenderStepped(deltaTime: number)
-	step += deltaTime
-	if step < 1 then return end
-	step = 0
-	print("step")
+	local cam = workspace.CurrentCamera
+	local originalCFrame = cam.CFrame * CFrame.Angles(-math.rad(lastIncrement.X), -math.rad(lastIncrement.Y), -math.rad(lastIncrement.Z))
+	cam.CFrame = originalCFrame * CFrame.Angles(math.rad(self.AdditionalRotation.X), math.rad(self.AdditionalRotation.Y), math.rad(self.AdditionalRotation.Z))
+	lastIncrement = self.AdditionalRotation
 end
 
 function CameraController:KnitInit()
@@ -81,6 +85,12 @@ function CameraController:KnitStart()
 	end)
     self._trove:Connect(RunService.RenderStepped, function(...)
 		self:OnRenderStepped(...)
+	end)
+
+	game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+		if gameProcessedEvent then return end
+		if input.UserInputState ~= Enum.UserInputState.Begin then return end
+		if input.KeyCode ~= Enum.KeyCode.H then return end
 	end)
 end
 

@@ -180,8 +180,9 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	local simBullet = self.Caster:Fire(self.FirePoint.WorldPosition, direction, modifiedBulletSpeed, self.CastBehavior)
 	-- Optionally use some methods on simBullet here if applicable.
 
+	local verticalKick = 25
+	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, 0)
 	-- Play the sound
-	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), 0, 5)
 	self:PlayFireSound()
 end
 
@@ -193,7 +194,7 @@ function Gun:_onRayHit(cast, raycastResult: RaycastResult, segmentVelocity: Vect
 	if hitPart ~= nil and hitPart.Parent ~= nil then -- Test if we hit something
 		local humanoid = hitPart.Parent:FindFirstChildOfClass("Humanoid") -- Is there a humanoid?
 		if humanoid then
-			print("hit", humanoid.Parent.Name)
+			-- print("hit", humanoid.Parent.Name)
 			humanoid:TakeDamage(self.DAMAGE) -- Damage.
 		end
 		self:MakeParticleFX(hitPoint, normal) -- Particle FX
