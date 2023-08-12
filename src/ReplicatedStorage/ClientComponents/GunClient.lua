@@ -1,9 +1,6 @@
 
-local CollectionService = game:GetService("CollectionService")
-local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -27,7 +24,7 @@ function GunClient:Construct()
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.Config = self.Instance:WaitForChild("Configuration")
 	
-    self.RecoilSpring = Spring.new()
+    self.VerticalRecoilSpring = Spring.new()
 	
 	self._primaryDown = false
 end
@@ -45,9 +42,9 @@ function GunClient:OnEquipped(mouse: Mouse)
 end
 
 function GunClient:OnRecoilEvent(horizontalKick: number, verticalKick: number)
-	print(self.RecoilSpring)
-    self.RecoilSpring:Impulse(10)
-    print(self.RecoilSpring)
+	print(self.VerticalRecoilSpring)
+    self.VerticalRecoilSpring:Impulse(verticalKick)
+    print(self.VerticalRecoilSpring)
 end
 
 function GunClient:OnActivated()

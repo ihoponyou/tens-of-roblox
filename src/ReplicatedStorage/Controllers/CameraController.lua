@@ -1,12 +1,10 @@
-local Players = game:GetService("Players")
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-
-local HealthService, RagdollService
 
 local CameraController = Knit.CreateController {
 	Name = "CameraController";
@@ -24,7 +22,7 @@ local CameraController = Knit.CreateController {
 
 
 function CameraController:LockTo(part)
-	if (self.Locked) then return end
+	if self.Locked then return end
 	
 	local cam = workspace.CurrentCamera
 	self.Locked = true
@@ -38,7 +36,7 @@ function CameraController:LockTo(part)
 end
 
 function CameraController:Unlock()
-	if (not self.Locked) then return end
+	if not self.Locked then return end
 	
 	local cam = workspace.CurrentCamera
 	self.Locked = false
@@ -53,18 +51,21 @@ end
 
 function CameraController:OnKilled()
 	print("killed D:")
-	workspace.CurrentCamera.CameraSubject = self.Character.Head
+	self.CurrentCamera.CameraSubject = self.Character.Head
 end
 
 function CameraController:OnCharacterAdded(character: Model)
 	self.Character = character
 	local humanoid: Humanoid = character:WaitForChild("Humanoid")
-	workspace.CurrentCamera.CameraSubject = humanoid
+	self.CurrentCamera.CameraSubject = humanoid
 end
 
+local step = 0
 function CameraController:OnRenderStepped(deltaTime: number)
-    local currentRotation = self.CurrentCamera.Cframe.
-    local originalRotation = 
+	step += deltaTime
+	if step < 1 then return end
+	step = 0
+	print("step")
 end
 
 function CameraController:KnitInit()
@@ -72,9 +73,15 @@ function CameraController:KnitInit()
 end
 
 function CameraController:KnitStart()
-	if Knit.Player.Character then self:OnCharacterAdded(Knit.Player.Character) end
-	self._trove:Connect(Knit.Player.CharacterAdded, function(...) self:OnCharacterAdded(...) end)
-    self._trove:Connect(RunService.RenderStepped, function(...) self:OnRenderStepped(...) end)
+	if Knit.Player.Character then
+		self:OnCharacterAdded(Knit.Player.Character)
+	end
+	self._trove:Connect(Knit.Player.CharacterAdded, function(...)
+		self:OnCharacterAdded(...)
+	end)
+    self._trove:Connect(RunService.RenderStepped, function(...)
+		self:OnRenderStepped(...)
+	end)
 end
 
 function CameraController:Destroy()
