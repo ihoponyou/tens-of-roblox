@@ -91,6 +91,7 @@ function CameraController:KnitStart()
 		if gameProcessedEvent then return end
 		if input.UserInputState ~= Enum.UserInputState.Begin then return end
 		if input.KeyCode ~= Enum.KeyCode.H then return end
+		print("bump")
 	end)
 end
 

@@ -23,12 +23,29 @@ function GunClient:Construct()
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.Config = self.Instance:WaitForChild("Configuration")
 
-	self.RecoilSpring = Spring.new(Vector3.zero)
-	self.RecoilSpring.Speed = 20
-	self.RecoilIndicator = Instance.new("TextLabel")
-	self.RecoilIndicator.Parent = Knit.Player.PlayerGui:WaitForChild("Main")
-	self.RecoilIndicator.Name = "RecoilIndicator"
-	self.RecoilIndicator.Position = UDim2.new(0.25, 0, 0.5, 0 )
+	self.RecoilSpring = Spring.new(Vector3.new(0,0,0))
+	self.RecoilSpring.Speed = 5
+
+	local playerGui = Knit.Player.PlayerGui
+
+	local gunGui = playerGui:FindFirstChild("GunGui")
+	if not gunGui then
+		gunGui = Instance.new("ScreenGui")
+		gunGui.Parent = playerGui
+		gunGui.Name = "GunGui"
+		gunGui.Enabled = false
+	end
+	self.GunGui = gunGui
+
+	local recoilIndicator = self.GunGui:FindFirstChild("RecoilIndicator")
+	if not recoilIndicator then
+		recoilIndicator = Instance.new("TextLabel")
+		recoilIndicator.Parent = self.GunGui
+		recoilIndicator.Name = "RecoilIndicator"
+		recoilIndicator.Position = UDim2.new(0.25, 0, 0.5, 0 )
+		recoilIndicator.BackgroundTransparency = 1
+	end
+	self.RecoilIndicator = recoilIndicator
 
 	self._primaryDown = false
 end
@@ -41,12 +58,14 @@ end
 
 function GunClient:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
+	self.GunGui.Enabled = true
 	self.Mouse = mouse
 	self:UpdateMouseIcon()
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
-	self.RecoilSpring:Impulse(Vector3.new(verticalKick*5, horizontalKick, 0))
+	self.RecoilSpring:Impulse(Vector3.new(verticalKick, horizontalKick, 0))
+	-- print(self.RecoilSpring.Position)
 end
 
 function GunClient:OnActivated()
@@ -65,6 +84,7 @@ end
 
 function GunClient:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
+	self.GunGui.Enabled = false
 	self._primaryDown = false
 	self:UpdateMouseIcon()
 end
@@ -75,10 +95,21 @@ function GunClient:OnStepped(deltaTime: number)
 	end
 end
 
+local step = 0
+local function toRoundedString(number: number): string
+	local num = math.round(number)
+	return tostring(num)
+end
+
+local lastOffset = Vector3.new()
 function GunClient:OnRenderStepped(deltaTime: number)
-	local springPosition = self.RecoilSpring.Position
-	workspace.CurrentCamera.CFrame = CFrame.Angles(math.rad(springPosition.X), 0, 0) + workspace.CurrentCamera.CFrame.Position
-	self.RecoilIndicator.Text = tostring(springPosition.X)
+	-- local cam = workspace.CurrentCamera
+	-- local x, y, z = cam.CFrame.Rotation:ToEulerAnglesXYZ()  -- converts rotation matrix to orientation vector (in degrees)
+	-- local currentRotation = Vector3.new(x, y, z) * (180 / math.pi)
+	-- if currentRotation ~= nil then print(currentRotation) end
+	self.RecoilIndicator.Text = (toRoundedString(self.RecoilSpring.Position.X))
+	-- workspace.CurrentCamera.CFrame = CFrame.Angles(math.rad(currentRotation.X-lastOffset.X+self.RecoilSpring.Position.X), 0, 0)
+	-- lastOffset = self.RecoilSpring.Position
 end
 
 function GunClient:Start()
@@ -103,6 +134,7 @@ function GunClient:Start()
 		self:OnStepped(...)
 	end)
 	self._trove:Connect(RunService.RenderStepped, function(...)
+		print(...) 
 		self:OnRenderStepped(...)
 	end)
 end
