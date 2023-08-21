@@ -8,14 +8,14 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local CameraController = Knit.CreateController {
 	Name = "CameraController";
-	
+
 	Distance = 20;
 	Locked = false;
 	RenderName = "CustomCamRender";
 	Priority = Enum.RenderPriority.Camera.Value;
 
     AdditionalRotation = Vector3.zero;
-	
+
 	LockedChanged = Signal.new();
 }
 
@@ -64,15 +64,26 @@ function CameraController:OnCharacterAdded(character: Model)
 	workspace.CurrentCamera.CameraSubject = humanoid
 end
 
-local lastIncrement = Vector3.zero
 function CameraController:OnRenderStepped(deltaTime: number)
 	local cam = workspace.CurrentCamera
-	local originalCFrame = cam.CFrame * CFrame.Angles(-math.rad(lastIncrement.X), -math.rad(lastIncrement.Y), -math.rad(lastIncrement.Z))
+	local originalCFrame = cam.CFrame * CFrame.Angles(-math.rad(self._lastIncrement.X), -math.rad(self._lastIncrement.Y), -math.rad(self._lastIncrement.Z))
 	cam.CFrame = originalCFrame * CFrame.Angles(math.rad(self.AdditionalRotation.X), math.rad(self.AdditionalRotation.Y), math.rad(self.AdditionalRotation.Z))
-	lastIncrement = self.AdditionalRotation
+	self._lastIncrement = self.AdditionalRotation
+
+	-- local currentOffset = self.RecoilSpring.Position
+	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
+	-- workspace.CurrentCamera.CFrame *= CFrame.Angles(math.rad(currentOffset.X-self._lastOffset.X), 0, 0)
+	-- self._lastOffset = self.RecoilSpring.Position
 end
 
 function CameraController:KnitInit()
+	-- workspace.CurrentCamera:GetPropertyChangedSignal("CameraType"):Connect(function()
+	-- 	print(workspace.CurrentCamera.CameraType)
+	-- 	workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+	-- end)
+	-- workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+	self._lastIncrement = Vector3.zero
+
 	self._trove = Trove.new()
 end
 
@@ -83,16 +94,9 @@ function CameraController:KnitStart()
 	self._trove:Connect(Knit.Player.CharacterAdded, function(...)
 		self:OnCharacterAdded(...)
 	end)
-    self._trove:Connect(RunService.RenderStepped, function(...)
-		self:OnRenderStepped(...)
-	end)
-
-	game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
-		if gameProcessedEvent then return end
-		if input.UserInputState ~= Enum.UserInputState.Begin then return end
-		if input.KeyCode ~= Enum.KeyCode.H then return end
-		print("bump")
-	end)
+    -- self._trove:Connect(RunService.RenderStepped, function(...)
+	-- 	self:OnRenderStepped(...)
+	-- end)
 end
 
 function CameraController:Destroy()
