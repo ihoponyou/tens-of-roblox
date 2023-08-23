@@ -8,6 +8,8 @@ local FastCast = require(ReplicatedStorage.Packages.FastCastRedux)
 FastCast.DebugLogging = false
 FastCast.VisualizeCasts = false
 
+local PartCache = require(ReplicatedStorage.Packages.PartCache)
+
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(ServerStorage.Source.ServerComponents.Extensions.Logger)
@@ -47,31 +49,31 @@ function Gun:Construct()
 	self.BULLETS_PER_SHOT = GUN_STATS.BulletsPerShot	-- The amount of bullets to fire every shot. Make this greater than 1 for a shotgun effect.
 	self.CAN_PIERCE = 		GUN_STATS.CanPierce
 	self.DAMAGE = 			GUN_STATS.Damage or 5
-	
+
 	self.Handle = self.Instance:FindFirstChild("Handle")
 	self.FirePoint = self.Handle:FindFirstChild("GunFirePoint")
 	self.FireSound = self.Handle:FindFirstChild("FireSound")
 	self.ImpactParticle = self.Handle:FindFirstChild("ImpactParticle")
-	
+
 	self.Caster = FastCast.new()
-	
+
 	local CastParams = RaycastParams.new()
 	CastParams.IgnoreWater = true
 	CastParams.FilterType = Enum.RaycastFilterType.Exclude
 	CastParams.FilterDescendantsInstances = {}
 	self.CastParams = CastParams
-	
+
 	local CastBehavior = FastCast.newBehavior()
 	CastBehavior.RaycastParams = CastParams
 	CastBehavior.MaxDistance = self.BULLET_MAXDIST
 	CastBehavior.HighFidelityBehavior = FastCast.HighFidelityBehavior.Default
-	CastBehavior.CosmeticBulletTemplate = self.Config.Bullet.Value
-	CastBehavior.CosmeticBulletContainer = workspace:FindFirstChild("ActiveCosmeticBullets")
+	-- CastBehavior.CosmeticBulletContainer = workspace:FindFirstChild("ActiveCosmeticBullets")
+	-- CastBehavior.CosmeticBulletProvider = PartCache.new(self.Config.Bullet.Value, 100, CastBehavior.CosmeticBulletContainer)
 	CastBehavior.Acceleration = self.BULLET_GRAVITY
 	self.CastBehavior = CastBehavior
-	
+
 	self.CanFire = true
-	
+
 	self.Instance.CanBeDropped = false
 	self.Instance.RequiresHandle = false
 end
@@ -181,7 +183,8 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	-- Optionally use some methods on simBullet here if applicable.
 
 	local verticalKick = 25
-	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, 0)
+	local horizontalKick = math.random(-10, 10)
+	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, horizontalKick)
 	-- Play the sound
 	self:PlayFireSound()
 end

@@ -1,6 +1,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
@@ -10,6 +11,7 @@ local CameraController = Knit.CreateController {
 	Name = "CameraController";
 
 	Distance = 20;
+	Sensitivity = 1;
 	Locked = false;
 	RenderName = "CustomCamRender";
 	Priority = Enum.RenderPriority.Camera.Value;
@@ -64,18 +66,6 @@ function CameraController:OnCharacterAdded(character: Model)
 	workspace.CurrentCamera.CameraSubject = humanoid
 end
 
-function CameraController:OnRenderStepped(deltaTime: number)
-	local cam = workspace.CurrentCamera
-	local originalCFrame = cam.CFrame * CFrame.Angles(-math.rad(self._lastIncrement.X), -math.rad(self._lastIncrement.Y), -math.rad(self._lastIncrement.Z))
-	cam.CFrame = originalCFrame * CFrame.Angles(math.rad(self.AdditionalRotation.X), math.rad(self.AdditionalRotation.Y), math.rad(self.AdditionalRotation.Z))
-	self._lastIncrement = self.AdditionalRotation
-
-	-- local currentOffset = self.RecoilSpring.Position
-	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
-	-- workspace.CurrentCamera.CFrame *= CFrame.Angles(math.rad(currentOffset.X-self._lastOffset.X), 0, 0)
-	-- self._lastOffset = self.RecoilSpring.Position
-end
-
 function CameraController:KnitInit()
 	-- workspace.CurrentCamera:GetPropertyChangedSignal("CameraType"):Connect(function()
 	-- 	print(workspace.CurrentCamera.CameraType)
@@ -94,9 +84,6 @@ function CameraController:KnitStart()
 	self._trove:Connect(Knit.Player.CharacterAdded, function(...)
 		self:OnCharacterAdded(...)
 	end)
-    -- self._trove:Connect(RunService.RenderStepped, function(...)
-	-- 	self:OnRenderStepped(...)
-	-- end)
 end
 
 function CameraController:Destroy()

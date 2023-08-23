@@ -66,10 +66,12 @@ function GunClient:OnEquipped(mouse: Mouse)
 	RunService:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
 		self:OnRenderStepped(...)
 	end)
+
+	workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
-	self.RecoilSpring:Impulse(Vector3.new(verticalKick*5, horizontalKick, 0))
+	self.RecoilSpring:Impulse(Vector3.new(verticalKick*5, horizontalKick*5, 0))
 	-- print(self.RecoilSpring.Position)
 end
 
@@ -89,6 +91,8 @@ end
 
 function GunClient:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
+	workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
 	self.GunGui.Enabled = false
@@ -109,8 +113,8 @@ end
 
 function GunClient:OnRenderStepped(deltaTime: number)
 	local currentOffset = self.RecoilSpring.Position
-	self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
-	workspace.CurrentCamera.CFrame *= CFrame.Angles(math.rad(currentOffset.X-self._lastOffset.X), 0, 0)
+	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
+	workspace.CurrentCamera.CFrame *= CFrame.Angles(math.rad(currentOffset.X-self._lastOffset.X), math.rad(currentOffset.Y-self._lastOffset.Y), 0)
 	self._lastOffset = self.RecoilSpring.Position
 end
 
