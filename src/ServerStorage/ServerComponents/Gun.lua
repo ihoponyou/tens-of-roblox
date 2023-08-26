@@ -286,21 +286,11 @@ function Gun:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 	self.CastParams.FilterDescendantsInstances = {self.Instance.Parent}
 	local player: Player = Players:GetPlayerFromCharacter(self.Instance.Parent)
-	player.CameraMode = Enum.CameraMode.LockFirstPerson
 end
-
---function Gun:OnActivated()
---	print(self.Instance.Parent, "activated", self.Instance.Name)
---end
-
---function Gun:OnDeactivated()
---	print(self.Instance.Parent, "deactivated", self.Instance.Name)
---end
 
 function Gun:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
 	local player: Player = self.Instance:FindFirstAncestorOfClass("Player")
-	player.CameraMode = Enum.CameraMode.Classic
 end
 
 function Gun:Start()

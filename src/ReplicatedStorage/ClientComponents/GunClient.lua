@@ -57,6 +57,7 @@ function GunClient:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 	self.RecoilSpring = Spring.new(Vector3.new(0,0,0))
 	self.RecoilSpring.Speed = 10
+	self.RecoilSpring.Damper = 1
 	self._lastOffset = Vector3.new()
 
 	self.GunGui.Enabled = true
@@ -66,8 +67,6 @@ function GunClient:OnEquipped(mouse: Mouse)
 	RunService:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
 		self:OnRenderStepped(...)
 	end)
-
-	workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
@@ -91,7 +90,6 @@ end
 
 function GunClient:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
-	workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
