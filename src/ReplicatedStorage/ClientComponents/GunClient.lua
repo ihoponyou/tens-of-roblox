@@ -55,6 +55,10 @@ end
 
 function GunClient:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
+
+	self.Viewmodel = self._trove:Clone(ReplicatedStorage.Viewmodel)
+	self.Viewmodel.Parent = self.Instance
+
 	self.RecoilSpring = Spring.new(Vector3.new(0,0,0))
 	self.RecoilSpring.Speed = 10
 	self.RecoilSpring.Damper = 1
@@ -90,6 +94,8 @@ end
 
 function GunClient:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
+
+	self.Viewmodel:Destroy()
 
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 

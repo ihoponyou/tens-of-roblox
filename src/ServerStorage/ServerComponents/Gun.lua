@@ -50,10 +50,10 @@ function Gun:Construct()
 	self.CAN_PIERCE = 		GUN_STATS.CanPierce
 	self.DAMAGE = 			GUN_STATS.Damage or 5
 
-	self.Handle = self.Instance:FindFirstChild("Handle")
-	self.FirePoint = self.Handle:FindFirstChild("GunFirePoint")
-	self.FireSound = self.Handle:FindFirstChild("FireSound")
-	self.ImpactParticle = self.Handle:FindFirstChild("ImpactParticle")
+	-- self.Handle = self.Instance:FindFirstChild("Handle")
+	-- self.FirePoint = self.Handle:FindFirstChild("GunFirePoint")
+	-- self.FireSound = self.Handle:FindFirstChild("FireSound")
+	-- self.ImpactParticle = self.Handle:FindFirstChild("ImpactParticle")
 
 	self.Caster = FastCast.new()
 
@@ -67,8 +67,8 @@ function Gun:Construct()
 	CastBehavior.RaycastParams = CastParams
 	CastBehavior.MaxDistance = self.BULLET_MAXDIST
 	CastBehavior.HighFidelityBehavior = FastCast.HighFidelityBehavior.Default
-	-- CastBehavior.CosmeticBulletContainer = workspace:FindFirstChild("ActiveCosmeticBullets")
-	-- CastBehavior.CosmeticBulletProvider = PartCache.new(self.Config.Bullet.Value, 100, CastBehavior.CosmeticBulletContainer)
+	CastBehavior.CosmeticBulletContainer = workspace:FindFirstChild("ActiveCosmeticBullets")
+	CastBehavior.CosmeticBulletProvider = PartCache.new(self.Config.Bullet.Value, 100, CastBehavior.CosmeticBulletContainer)
 	CastBehavior.Acceleration = self.BULLET_GRAVITY
 	self.CastBehavior = CastBehavior
 
