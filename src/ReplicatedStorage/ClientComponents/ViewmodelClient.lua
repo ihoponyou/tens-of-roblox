@@ -12,6 +12,8 @@ local Component = require(ReplicatedStorage.Packages.Component)
 local Spring = require(ReplicatedStorage.Packages.Spring)
 local Logger = require(script.Parent.Extensions.Logger)
 
+local GunClient
+
 local ViewmodelClient = Component.new({
 	Tag = "Viewmodel",
 	Extensions = {
@@ -36,6 +38,10 @@ function ViewmodelClient:Construct()
 	self.ViewbobSpring.Speed = 10
 	self.ViewbobSpring.Damper = 1
 
+	self.LerpValues = {
+		Aiming = Instance.new("NumberValue")
+	}
+
     -- cant clone parts directly or else welds/m6ds get messed up
     local modelClone = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Parent.Name])
     for _,v in modelClone:GetChildren() do
@@ -49,15 +55,19 @@ function ViewmodelClient:Construct()
 end
 
 function ViewmodelClient:Toggle(bool: boolean)
-	self.Enabled = if bool ~= nil then bool else not self.Enabled
+	self.Enabled = if bool==nil then not self.Enabled else bool
 end
 
 function ViewmodelClient:Start()
+	GunClient = require(script.Parent.GunClient)
+
+	self.Gun = GunClient:FromInstance(self.Instance.Parent)
+
 	for _,v in self.Instance.Animations:GetChildren() do
         self.Animations[v.Name] = self._trove:Add(self.Instance.AnimationController:LoadAnimation(v))
 		self.Animations[v.Name]:Play()
     end
-	
+
 	self.Animations.Idle:Play(0, 1, 1)
 	self.Instance.RootPart.CFrame = CFrame.new(0,-100,0)
 
@@ -75,24 +85,26 @@ end
 local startTick = 0
 function ViewmodelClient:Update(deltaTime: number)
 	local mouseDelta = UserInputService:GetMouseDelta()
-	
-	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0)*2)
+
+	local baseOffset: CFrame = self.Instance.Offsets.Base.Value
+	local aimOffset = baseOffset:Lerp(self.Instance.Offsets.Aiming.Value, self.LerpValues.Aiming.Value)
+
+	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0)*if self.Gun.Aiming then 0.5 else 2)
 	local swaySpringPos = self.SwaySpring.Position
 
 	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
 
-	local velocity = self.Character.HumanoidRootPart.AssemblyLinearVelocity
-	local speed = velocity.Magnitude
-	if speed<8 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
+	local humanoid = self.Character.Humanoid
+	local modifier = if self.Gun.Aiming then .1 else .5
+	local humanoidSpeed = humanoid.WalkSpeed*humanoid.MoveDirection.Magnitude
+	if humanoid.MoveDirection.Magnitude < .1 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
 
-	local viewbob = math.sin((tick()-startTick)*speed/5)
-	-- self.ViewbobSpring:Impulse(viewbob)
-	-- print(self.ViewbobSpring.Position)
+	local viewbob = math.sin((tick()-startTick)*(humanoidSpeed)/4)*modifier/4
 
-	local viewbobOffset = CFrame.new(viewbob, viewbob, 0)
-						-- * CFrame.Angles(0, self.ViewbobSpring.Position.Y, self.ViewbobSpring.Position.X)
+	local viewbobOffset = CFrame.new(viewbob, -math.abs(viewbob), 0)
+						* CFrame.Angles(0, 0, 0)
 
-	local finalOffset = self.Instance.Offsets.Base.Value * swayOffset * viewbobOffset
+	local finalOffset = aimOffset * swayOffset * viewbobOffset
 	self.Instance.RootPart.CFrame = self.Camera.CFrame:ToWorldSpace(finalOffset)
 end
 

@@ -1,5 +1,8 @@
+local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -7,7 +10,7 @@ local Component = require(ReplicatedStorage.Packages.Component)
 local Spring = require(ReplicatedStorage.Packages.Spring)
 local Logger = require(script.Parent.Extensions.Logger)
 
-local CameraController
+local ViewmodelClient
 
 local GunClient = Component.new({
 	Tag = "Gun",
@@ -39,7 +42,7 @@ function GunClient:Construct()
 		recoilIndicator = Instance.new("TextLabel")
 		recoilIndicator.Parent = self.GunGui
 		recoilIndicator.Name = "RecoilIndicator"
-		recoilIndicator.Position = UDim2.new(0.25, 0, 0.5, 0 )
+		recoilIndicator.Position = UDim2.new(0.25, 0, 0.5, 0)
 		recoilIndicator.BackgroundTransparency = 1
 	end
 	self.RecoilIndicator = recoilIndicator
@@ -53,13 +56,36 @@ function GunClient:UpdateMouseIcon()
 	end
 end
 
+function GunClient:Aim(bool: boolean)
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	self.Aiming = if bool == nil then not self.Aiming else bool
+	-- print("aiming:", self.Aiming)
+
+	local adsSpeed = .5
+
+	UserInputService.MouseIconEnabled = not self.Aiming
+
+	local tweeningInformation = TweenInfo.new(
+		if self.Aiming then adsSpeed else adsSpeed/2,
+		Enum.EasingStyle.Quart,
+		Enum.EasingDirection.Out)
+	local properties = { Value = if self.Aiming then 1 else 0 }
+
+	TweenService:Create(viewmodel.LerpValues.Aiming, tweeningInformation, properties):Play()
+end
+
+function GunClient:_handleAimInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
+	self:Aim(userInputState == Enum.UserInputState.Begin)
+	return Enum.ContextActionResult.Sink
+end
+
 function GunClient:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 
 	self.Viewmodel = self._trove:Clone(ReplicatedStorage.Viewmodel)
 	self.Viewmodel.Parent = self.Instance
 
-	self.RecoilSpring = Spring.new(Vector3.new(0,0,0))
+	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0))
 	self.RecoilSpring.Speed = 10
 	self.RecoilSpring.Damper = 1
 	self._lastOffset = Vector3.new()
@@ -68,13 +94,17 @@ function GunClient:OnEquipped(mouse: Mouse)
 	self.Mouse = mouse
 	self:UpdateMouseIcon()
 
+	ContextActionService:BindAction("aim" .. self.Instance.Name, function(...)
+		self:_handleAimInput(...)
+	end, true, Enum.UserInputType.MouseButton2)
+
 	RunService:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
 		self:OnRenderStepped(...)
 	end)
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
-	self.RecoilSpring:Impulse(Vector3.new(verticalKick*5, horizontalKick*5, 0))
+	self.RecoilSpring:Impulse(Vector3.new(verticalKick * 5, horizontalKick * 5, 0))
 	-- print(self.RecoilSpring.Position)
 end
 
@@ -97,6 +127,7 @@ function GunClient:OnUnequipped()
 
 	self.Viewmodel:Destroy()
 
+	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
 	self.GunGui.Enabled = false
@@ -118,12 +149,17 @@ end
 function GunClient:OnRenderStepped(deltaTime: number)
 	local currentOffset = self.RecoilSpring.Position
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
-	workspace.CurrentCamera.CFrame *= CFrame.Angles(math.rad(currentOffset.X-self._lastOffset.X), math.rad(currentOffset.Y-self._lastOffset.Y), 0)
+	workspace.CurrentCamera.CFrame *= CFrame.Angles(
+		math.rad(currentOffset.X - self._lastOffset.X),
+		math.rad(currentOffset.Y - self._lastOffset.Y),
+		0
+	)
 	self._lastOffset = self.RecoilSpring.Position
 end
 
 function GunClient:Start()
-	CameraController = Knit.GetController("CameraController")
+	ViewmodelClient = require(script.Parent.ViewmodelClient)
+	-- CameraController = Knit.GetController("CameraController")
 
 	self._trove:Connect(self.RecoilEvent.OnClientEvent, function(...)
 		self:OnRecoilEvent(...)
