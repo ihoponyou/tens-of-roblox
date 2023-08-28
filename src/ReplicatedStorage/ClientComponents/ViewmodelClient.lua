@@ -24,16 +24,20 @@ function ViewmodelClient:Construct()
 
 	self.Enabled = false
     self.Camera = workspace.CurrentCamera
-    self.Character = Knit.Player
+    self.Character = Knit.Player.Character
 
 	self.Animations = {}
 
-	self.SwaySpring = Spring.new(Vector3.new(0,0,0))
+	self.SwaySpring = Spring.new(Vector3.new())
 	self.SwaySpring.Speed = 20
-	self.SwaySpring.Damper = 1
+	self.SwaySpring.Damper = .75 -- lower value = more bounce
+
+	self.ViewbobSpring = Spring.new(0)
+	self.ViewbobSpring.Speed = 10
+	self.ViewbobSpring.Damper = 1
 
     -- cant clone parts directly or else welds/m6ds get messed up
-    local modelClone = self._trove:Clone(ReplicatedStorage.Viewmodels[self.Instance.Parent.Name])
+    local modelClone = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Parent.Name])
     for _,v in modelClone:GetChildren() do
         v.Parent = self.Instance
 		if v:IsA("BasePart") then
@@ -68,12 +72,27 @@ function ViewmodelClient:Start()
     end)
 end
 
+local startTick = 0
 function ViewmodelClient:Update(deltaTime: number)
 	local mouseDelta = UserInputService:GetMouseDelta()
+	
 	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0)*2)
 	local swaySpringPos = self.SwaySpring.Position
 
-	local finalOffset = self.Instance.Offsets.Base.Value * CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
+	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
+
+	local velocity = self.Character.HumanoidRootPart.AssemblyLinearVelocity
+	local speed = velocity.Magnitude
+	if speed<8 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
+
+	local viewbob = math.sin((tick()-startTick)*speed/5)
+	-- self.ViewbobSpring:Impulse(viewbob)
+	-- print(self.ViewbobSpring.Position)
+
+	local viewbobOffset = CFrame.new(viewbob, viewbob, 0)
+						-- * CFrame.Angles(0, self.ViewbobSpring.Position.Y, self.ViewbobSpring.Position.X)
+
+	local finalOffset = self.Instance.Offsets.Base.Value * swayOffset * viewbobOffset
 	self.Instance.RootPart.CFrame = self.Camera.CFrame:ToWorldSpace(finalOffset)
 end
 

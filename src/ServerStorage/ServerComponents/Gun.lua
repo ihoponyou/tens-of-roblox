@@ -51,7 +51,7 @@ function Gun:Construct()
 	self.DAMAGE = 			GUN_STATS.Damage or 5
 
 	-- self.Handle = self.Instance:FindFirstChild("Handle")
-	-- self.FirePoint = self.Handle:FindFirstChild("GunFirePoint")
+	self.FirePoint = self.Instance:FindFirstChild("FirePoint",true)
 	-- self.FireSound = self.Handle:FindFirstChild("FireSound")
 	-- self.ImpactParticle = self.Handle:FindFirstChild("ImpactParticle")
 
