@@ -67,6 +67,7 @@ function ViewmodelClient:Start()
         self.Animations[v.Name] = self._trove:Add(self.Instance.AnimationController:LoadAnimation(v))
 		self.Animations[v.Name]:Play()
     end
+	-- print(self.Animations)
 
 	self.Animations.Idle:Play(0, 1, 1)
 	self.Instance.RootPart.CFrame = CFrame.new(0,-100,0)
@@ -99,9 +100,12 @@ function ViewmodelClient:Update(deltaTime: number)
 	local humanoidSpeed = humanoid.WalkSpeed*humanoid.MoveDirection.Magnitude
 	if humanoid.MoveDirection.Magnitude < .1 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
 
-	local viewbob = math.sin((tick()-startTick)*(humanoidSpeed)/4)*modifier/4
+	local viewbobArgs = (tick()-startTick)*(humanoidSpeed)/4
+	local viewbobScale = modifier/4
+	local viewbobX = math.sin(viewbobArgs)*viewbobScale
+	local viewbobY = math.sin(viewbobArgs*2)*viewbobScale/2
 
-	local viewbobOffset = CFrame.new(viewbob, -math.abs(viewbob), 0)
+	local viewbobOffset = CFrame.new(viewbobX, viewbobY, 0)
 						* CFrame.Angles(0, 0, 0)
 
 	local finalOffset = aimOffset * swayOffset * viewbobOffset

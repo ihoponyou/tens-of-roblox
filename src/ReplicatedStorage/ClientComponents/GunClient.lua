@@ -1,4 +1,5 @@
 local ContextActionService = game:GetService("ContextActionService")
+local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -61,14 +62,12 @@ function GunClient:Aim(bool: boolean)
 	self.Aiming = if bool == nil then not self.Aiming else bool
 	-- print("aiming:", self.Aiming)
 
-	local adsSpeed = .5
+	local adsSpeed = 0.5
 
 	UserInputService.MouseIconEnabled = not self.Aiming
 
-	local tweeningInformation = TweenInfo.new(
-		if self.Aiming then adsSpeed else adsSpeed/2,
-		Enum.EasingStyle.Quart,
-		Enum.EasingDirection.Out)
+	local tweeningInformation =
+		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed / 2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 	local properties = { Value = if self.Aiming then 1 else 0 }
 
 	TweenService:Create(viewmodel.LerpValues.Aiming, tweeningInformation, properties):Play()
@@ -104,6 +103,18 @@ function GunClient:OnEquipped(mouse: Mouse)
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	viewmodel.Animations.Fire:Play()
+	for _, v in pairs(viewmodel.Instance.WeaponRootPart:GetChildren()) do
+		if v:IsA("ParticleEmitter") then
+			v:Emit(v.Rate)
+		end
+	end
+	local soundClone = self._trove:Clone(viewmodel.Instance:FindFirstChild("FireSound", true))
+	soundClone.Parent = viewmodel.Instance.PrimaryPart
+	Debris:AddItem(soundClone, soundClone.TimeLength)
+	soundClone:Play()
+	
 	self.RecoilSpring:Impulse(Vector3.new(verticalKick * 5, horizontalKick * 5, 0))
 	-- print(self.RecoilSpring.Position)
 end
