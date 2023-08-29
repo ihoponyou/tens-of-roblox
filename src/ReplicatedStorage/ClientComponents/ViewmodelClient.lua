@@ -86,30 +86,29 @@ end
 local startTick = 0
 function ViewmodelClient:Update(deltaTime: number)
 	local mouseDelta = UserInputService:GetMouseDelta()
-
-	local baseOffset: CFrame = self.Instance.Offsets.Base.Value
-	local aimOffset = baseOffset:Lerp(self.Instance.Offsets.Aiming.Value, self.LerpValues.Aiming.Value)
-
-	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0)*if self.Gun.Aiming then 0.5 else 2)
-	local swaySpringPos = self.SwaySpring.Position
-
-	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
-
 	local humanoid = self.Character.Humanoid
 	local modifier = if self.Gun.Aiming then .1 else .5
 	local humanoidSpeed = humanoid.WalkSpeed*humanoid.MoveDirection.Magnitude
 	if humanoid.MoveDirection.Magnitude < .1 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
 
+	local baseOffset: CFrame = self.Instance.Offsets.Base.Value
+	local aimOffset = baseOffset:Lerp(self.Instance.Offsets.Aiming.Value, self.LerpValues.Aiming.Value)
+
+	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0)*if self.Gun.Aiming then 0.5 else 3)
+	local swaySpringPos = self.SwaySpring.Position
+
+	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
+
 	local viewbobArgs = (tick()-startTick)*(humanoidSpeed)/4
-	local viewbobScale = modifier/4
-	local viewbobX = math.sin(viewbobArgs)*viewbobScale
+	local viewbobScale = modifier/6
+	local viewbobX = math.sin(viewbobArgs)*viewbobScale -- different functions to do a figure 8
 	local viewbobY = math.sin(viewbobArgs*2)*viewbobScale/2
 
-	local viewbobOffset = CFrame.new(viewbobX, viewbobY, 0)
-						* CFrame.Angles(0, 0, 0)
+	local viewbobOffset = CFrame.new(viewbobX/2, viewbobY, 0)
+						-- * CFrame.Angles(viewbobY/3, -viewbobX/2, 0)
 
 	local finalOffset = aimOffset * swayOffset * viewbobOffset
-	self.Instance.RootPart.CFrame = self.Camera.CFrame:ToWorldSpace(finalOffset)
+	self.Instance.RootPart.CFrame = self.Camera.CFrame * finalOffset
 end
 
 function ViewmodelClient:Stop()
