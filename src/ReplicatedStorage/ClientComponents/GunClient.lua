@@ -103,20 +103,25 @@ function GunClient:OnEquipped(mouse: Mouse)
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
+	self.RecoilSpring:Impulse(Vector3.new(verticalKick * 5, horizontalKick * 5, 0))
+	-- print(self.RecoilSpring.Position)
+
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
-	viewmodel.Animations.Fire:Play()
-	for _, v in pairs(viewmodel.Instance.WeaponRootPart:GetChildren()) do
-		if v:IsA("ParticleEmitter") then
-			v:Emit(v.Rate)
-		end
-	end
+
 	local soundClone = self._trove:Clone(viewmodel.Instance:FindFirstChild("FireSound", true))
 	soundClone.Parent = viewmodel.Instance.PrimaryPart
 	Debris:AddItem(soundClone, soundClone.TimeLength)
 	soundClone:Play()
-	
-	self.RecoilSpring:Impulse(Vector3.new(verticalKick * 5, horizontalKick * 5, 0))
-	-- print(self.RecoilSpring.Position)
+
+	viewmodel.Animations.Fire:Play()
+	for _, v in pairs(viewmodel.Instance.WeaponRootPart.FirePoint:GetChildren()) do
+		if v:IsA("ParticleEmitter") then
+			v.Transparency = NumberSequence.new(v.repTransparency.Value)
+			v:Emit(v.Rate)
+			wait(v.Lifetime.Min)
+			v.Transparency = NumberSequence.new(1)
+		end
+	end
 end
 
 function GunClient:OnActivated()
