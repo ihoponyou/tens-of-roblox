@@ -47,12 +47,7 @@ function Gun:Construct()
 	self.BULLETS_PER_SHOT = GUN_STATS.BulletsPerShot -- The amount of bullets to fire every shot. Make this greater than 1 for a shotgun effect.
 	self.CAN_PIERCE = GUN_STATS.CanPierce
 	self.DAMAGE = GUN_STATS.Damage or 5
-	self.RPM = GUN_STATS.RPM or 800
-
-	-- self.Handle = self.Instance:FindFirstChild("Handle")
-	self.FirePoint = self.Instance:FindFirstChild("FirePoint", true)
-	self.FireSound = self.Instance:FindFirstChild("FireSound", true)
-	-- self.ImpactParticle = self.Handle:FindFirstChild("ImpactParticle")
+	self.RPM = GUN_STATS.RPM or 100
 
 	self.Caster = FastCast.new()
 
@@ -67,8 +62,7 @@ function Gun:Construct()
 	CastBehavior.MaxDistance = self.BULLET_MAXDIST
 	CastBehavior.HighFidelityBehavior = FastCast.HighFidelityBehavior.Default
 	CastBehavior.CosmeticBulletContainer = workspace:FindFirstChild("ActiveCosmeticBullets")
-	CastBehavior.CosmeticBulletProvider =
-		PartCache.new(self.Config.Bullet.Value, 100, CastBehavior.CosmeticBulletContainer)
+	CastBehavior.CosmeticBulletProvider = PartCache.new(self.Config.Bullet.Value, self.RPM, CastBehavior.CosmeticBulletContainer)
 	CastBehavior.Acceleration = self.BULLET_GRAVITY
 	self.CastBehavior = CastBehavior
 
@@ -76,11 +70,24 @@ function Gun:Construct()
 
 	self.Instance.CanBeDropped = false
 	self.Instance.RequiresHandle = false
+
+	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name])
+	if self.Model.Name == "AK-47" then
+		self.Model:ScaleTo(0.762)
+	end
+	self.Model.Name = "GunModel"
+	self.Model.Parent = self.Instance
+
+	self.FirePoint = self.Instance:FindFirstChild("FirePoint", true)
+	self.FireSound = self.Instance:FindFirstChild("FireSound", true)
 end
 
--- A function to play fire sounds. (adapted from FastCast Example Gun)
 function Gun:PlayFireSound()
-	-- self.FireSound:Play()
+	local soundClone: Sound = self._trove:Clone(self.FireSound)
+	soundClone.TimePosition = 0.02
+	soundClone.Parent = self.Character.PrimaryPart
+	soundClone.PlayOnRemove = true
+	soundClone:Destroy()
 end
 
 -- Create the spark effect for the bullet impact (adapted from FastCast Example Gun)
@@ -170,11 +177,11 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	local directionalCF = CFrame.new(Vector3.new(), direction)
 	-- Now, we can use CFrame orientation to our advantage.
 	-- Overwrite the existing Direction value.
-	local direction = (directionalCF * CFrame.fromOrientation(0, 0, RNG:NextNumber(0, TAU)) * CFrame.fromOrientation(
-		math.rad(RNG:NextNumber(self.MIN_SPREAD_ANGLE, self.MAX_SPREAD_ANGLE)),
-		0,
-		0
-	)).LookVector
+	-- local direction = (directionalCF * CFrame.fromOrientation(0, 0, RNG:NextNumber(0, TAU)) * CFrame.fromOrientation(
+	-- 	math.rad(RNG:NextNumber(self.MIN_SPREAD_ANGLE, self.MAX_SPREAD_ANGLE)),
+	-- 	0,
+	-- 	0
+	-- )).LookVector
 
 	-- UPDATE V6: Proper bullet velocity!
 	-- IF YOU DON'T WANT YOUR BULLETS MOVING WITH YOUR CHARACTER, REMOVE THE THREE LINES OF CODE BELOW THIS COMMENT.
@@ -188,8 +195,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 		self.CastBehavior.CanPierceFunction = self._canRayPierce
 	end
 
-	local simBullet =
-		self.Caster:Fire(character.PrimaryPart.Position, direction, modifiedBulletSpeed, self.CastBehavior)
+	local simBullet = self.Caster:Fire(character.PrimaryPart.Position, direction, modifiedBulletSpeed, self.CastBehavior)
 	-- Optionally use some methods on simBullet here if applicable.
 
 	local verticalKick = 25
@@ -303,13 +309,27 @@ end
 
 function Gun:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
-	self.CastParams.FilterDescendantsInstances = { self.Instance.Parent }
-	local player: Player = Players:GetPlayerFromCharacter(self.Instance.Parent)
+	self.Character = self.Instance.Parent
+	self.CastParams.FilterDescendantsInstances = { self.Character }
+
+	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
+
+	self.Model.WeaponRootPart.Holster.Part0 = nil
+	self.Model.WeaponRootPart.Grip.Part0 = self.Character["Right Arm"]
+
+	humanoid:LoadAnimation(self.Model.Animations["3P"].Idle):Play()
 end
 
 function Gun:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
+	self.Character = nil
+
 	local player: Player = self.Instance:FindFirstAncestorOfClass("Player")
+	local character = player.Character
+
+	self.Model.Parent = character
+	self.Model.WeaponRootPart.Grip.Part0 = nil
+	self.Model.WeaponRootPart.Holster.Part0 = character.Torso
 end
 
 function Gun:Start()

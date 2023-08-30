@@ -64,10 +64,9 @@ function ViewmodelClient:Start()
 	self.Gun = GunClient:FromInstance(self.Instance.Parent)
 
 	for _,v in self.Instance.Animations:GetChildren() do
+		if not v:IsA("Animation") then continue end
         self.Animations[v.Name] = self._trove:Add(self.Instance.AnimationController:LoadAnimation(v))
-		self.Animations[v.Name]:Play()
     end
-	-- print(self.Animations)
 
 	self.Animations.Idle:Play(0, 1, 1)
 	self.Instance.RootPart.CFrame = CFrame.new(0,-100,0)
