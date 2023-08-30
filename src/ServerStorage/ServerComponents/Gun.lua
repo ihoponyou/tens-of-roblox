@@ -195,7 +195,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
 	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, horizontalKick)
-	-- Play the sound
+
 	self:PlayFireSound()
 end
 
@@ -313,30 +313,14 @@ function Gun:OnUnequipped()
 end
 
 function Gun:Start()
-	--self._trove:Connect(self.Instance.Activated, function(...) self:OnActivated(...) end)
-	--self._trove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
-	self._trove:Connect(self.Instance.Equipped, function(...)
-		self:OnEquipped(...)
-	end)
-	self._trove:Connect(self.Instance.Unequipped, function(...)
-		self:OnUnequipped(...)
-	end)
+	self._trove:Connect(self.Instance.Equipped, function(...) self:OnEquipped(...) end)
+	self._trove:Connect(self.Instance.Unequipped, function(...) self:OnUnequipped(...) end)
 
-	self._trove:Connect(self.Caster.RayHit, function(...)
-		self:_onRayHit(...)
-	end)
-	self._trove:Connect(self.Caster.RayPierced, function(...)
-		self:_onRayPierced(...)
-	end)
-	self._trove:Connect(self.Caster.LengthChanged, function(...)
-		self:_onRayUpdated(...)
-	end)
-	self._trove:Connect(self.Caster.CastTerminating, function(...)
-		self:_onRayTerminated(...)
-	end)
-	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...)
-		self:OnMouseEvent(...)
-	end)
+	self._trove:Connect(self.Caster.RayHit, function(...) self:_onRayHit(...) end)
+	self._trove:Connect(self.Caster.RayPierced, function(...) self:_onRayPierced(...) end)
+	self._trove:Connect(self.Caster.LengthChanged, function(...) self:_onRayUpdated(...) end)
+	self._trove:Connect(self.Caster.CastTerminating, function(...) self:_onRayTerminated(...) end)
+	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
 end
 
 function Gun:Stop()

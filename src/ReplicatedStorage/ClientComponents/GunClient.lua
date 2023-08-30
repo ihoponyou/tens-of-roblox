@@ -104,7 +104,6 @@ end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
 	self.RecoilSpring:Impulse(Vector3.new(verticalKick * 5, horizontalKick * 5, 0))
-	-- print(self.RecoilSpring.Position)
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
