@@ -107,13 +107,8 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
-	local soundClone = self._trove:Clone(viewmodel.Instance:FindFirstChild("FireSound", true))
-	soundClone.Parent = viewmodel.Instance.PrimaryPart
-	Debris:AddItem(soundClone, soundClone.TimeLength)
-	soundClone:Play()
-
 	viewmodel.Animations.Fire:Play()
-	for _, v in pairs(viewmodel.Instance.WeaponRootPart.FirePoint:GetChildren()) do
+	for _, v in pairs(viewmodel.Instance.Receiver.FirePoint:GetChildren()) do
 		task.spawn(function()
 			if v:IsA("ParticleEmitter") then
 				v.Transparency = NumberSequence.new(v.repTransparency.Value)
