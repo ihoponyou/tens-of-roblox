@@ -80,6 +80,8 @@ function Gun:Construct()
 
 	self.FirePoint = self.Instance:FindFirstChild("FirePoint", true)
 	self.FireSound = self.Instance:FindFirstChild("FireSound", true)
+
+	self.Animations = {}
 end
 
 function Gun:PlayFireSound()
@@ -317,11 +319,18 @@ function Gun:OnEquipped(mouse: Mouse)
 	self.Model.WeaponRootPart.Holster.Part0 = nil
 	self.Model.WeaponRootPart.Grip.Part0 = self.Character["Right Arm"]
 
-	humanoid:LoadAnimation(self.Model.Animations["3P"].Idle):Play()
+	local animations3P = self.Model.Animations["3P"]
+	for _,v in animations3P:GetChildren() do
+		self.Animations[v.Name] =  humanoid:LoadAnimation(v)
+	end
+	self.Animations.Idle:Play()
 end
 
 function Gun:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
+	for _,v in self.Animations do
+		v:Stop()
+	end
 	self.Character = nil
 
 	local player: Player = self.Instance:FindFirstAncestorOfClass("Player")
