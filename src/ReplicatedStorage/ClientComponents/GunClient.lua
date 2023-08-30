@@ -25,6 +25,8 @@ function GunClient:Construct()
 
 	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
+	self.AimEvent = self.Instance:WaitForChild("AimEvent")
+	
 	self.Config = self.Instance:WaitForChild("Configuration")
 
 	local playerGui = Knit.Player.PlayerGui
@@ -60,6 +62,7 @@ end
 function GunClient:Aim(bool: boolean)
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 	self.Aiming = if bool == nil then not self.Aiming else bool
+	self.AimEvent:FireServer(self.Aiming)
 	-- print("aiming:", self.Aiming)
 
 	local adsSpeed = 0.5

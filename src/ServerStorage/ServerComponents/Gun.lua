@@ -23,18 +23,24 @@ local Gun = Component.new({
 local RNG = Random.new()
 local TAU = math.pi * 2
 
-local function newEvent(parent: Instance, name: string)
-	local event = Instance.new("RemoteEvent")
-	event.Parent = parent
-	event.Name = name
-	return event
+local function newNamedInstance(class: string, parent: Instance, name: string)
+	local instance = Instance.new(class)
+	instance.Parent = parent
+	instance.Name = name
+	return instance
 end
 
 function Gun:Construct()
 	self._trove = Trove.new()
 
-	self.MouseEvent = newEvent(self.Instance, "MouseEvent")
-	self.RecoilEvent = newEvent(self.Instance, "RecoilEvent")
+	self.Aiming = false
+	self.CanFire = true
+
+	self.Animations = {}
+
+	self.MouseEvent = newNamedInstance("RemoteEvent", self.Instance, "MouseEvent")
+	self.RecoilEvent = newNamedInstance("RemoteEvent", self.Instance, "RecoilEvent")
+	self.AimEvent = newNamedInstance("RemoteEvent", self.Instance, "AimEvent")
 
 	self.Config = self.Instance:FindFirstChild("Configuration")
 	local GUN_STATS = self.Config:GetAttributes()
@@ -66,8 +72,6 @@ function Gun:Construct()
 	CastBehavior.Acceleration = self.BULLET_GRAVITY
 	self.CastBehavior = CastBehavior
 
-	self.CanFire = true
-
 	self.Instance.CanBeDropped = false
 	self.Instance.RequiresHandle = false
 
@@ -80,8 +84,6 @@ function Gun:Construct()
 
 	self.FirePoint = self.Instance:FindFirstChild("FirePoint", true)
 	self.FireSound = self.Instance:FindFirstChild("FireSound", true)
-
-	self.Animations = {}
 end
 
 function Gun:PlayFireSound()
@@ -92,11 +94,8 @@ function Gun:PlayFireSound()
 	soundClone:Destroy()
 end
 
--- Create the spark effect for the bullet impact (adapted from FastCast Example Gun)
-function Gun:MakeParticleFX(position, normal)
-	if self.ImpactParticle == nil then
-		return
-	end
+function Gun:MakeParticleFX(position, normal) -- (adapted from FastCast Example Gun)
+	if self.ImpactParticle == nil then return end
 
 	-- This is a trick I do with attachments all the time.
 	-- Parent attachments to the Terrain - It counts as a part, and setting position/rotation/etc. of it will be in world space.
@@ -119,7 +118,9 @@ function Gun._reflect(surfaceNormal: Vector3, bulletNormal: Vector3) -- (adapted
 end
 
 function Gun._canRayPierce(cast, rayResult: RaycastResult, segmentVelocity: Vector3) -- (adapted from FastCast Example Gun)
-	-- Let's keep track of how many times we've hit something.
+	-- returns whether or not bullet should pierce
+	local MAX_PIERCES = 3
+
 	local hits = cast.UserData.Hits
 	if hits == nil then
 		-- If the hit data isn't registered, set it to 1 (because this is our first hit)
@@ -129,15 +130,10 @@ function Gun._canRayPierce(cast, rayResult: RaycastResult, segmentVelocity: Vect
 		cast.UserData.Hits += 1
 	end
 
-	-- And if the hit count is over 3, don't allow piercing and instead stop the ray.
-	if cast.UserData.Hits > 3 then
-		return false
-	end
+	if cast.UserData.Hits > MAX_PIERCES then return false end
 
-	-- Now if we make it here, we want our ray to continue.
-	-- This is extra important! If a bullet bounces off of something, maybe we want it to do damage too!
-	-- So let's implement that.
 	local hitPart = rayResult.Instance
+	-- deal damage to ricocheted objects
 	--if hitPart ~= nil and hitPart.Parent ~= nil then
 	--	local humanoid = hitPart.Parent:FindFirstChildOfClass("Humanoid")
 	--	if humanoid then
@@ -153,27 +149,19 @@ function Gun._canRayPierce(cast, rayResult: RaycastResult, segmentVelocity: Vect
 		or material == Enum.Material.Glass
 		or material == Enum.Material.SmoothPlastic
 	then
-		-- Hit glass, plastic, or ice...
 		if hitPart.Transparency >= 0.5 then
-			-- And it's >= half transparent...
-			return true -- Yes! We can pierce.
+			return true
 		end
 	end
 
-	-- And then lastly, return true to tell FC to continue simulating.
 	return false
 end
 
 function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	local character: Model? = self.Instance.Parent
-	-- Called when we want to fire the gun.
-	if character:IsA("Backpack") then
-		return
-	end -- Can't fire if it's not equipped.
+	if character:IsA("Backpack") then return end
 	-- Note: Above isn't in the event as it will prevent the CanFire value from being set as needed.
-	if character:GetAttribute("Ragdolled") then
-		return
-	end
+	if character:GetAttribute("Ragdolled") then return end
 
 	-- UPD. 11 JUNE 2019 - Add support for random angles.
 	local directionalCF = CFrame.new(Vector3.new(), direction)
@@ -205,24 +193,28 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, horizontalKick)
 
 	self:PlayFireSound()
+	if self.Aiming and self.Animations.AimFire ~= nil then
+		self.Animations.AimFire:Play()
+	elseif self.Animations.Fire ~= nil then
+		self.Animations.Fire:Play()
+	end
 end
 
-function Gun:_onRayHit(cast, raycastResult: RaycastResult, segmentVelocity: Vector3, cosmeticBulletObject: BasePart)
-	-- This function will be connected to the Caster's "RayHit" event.
+function Gun:_onRayHit(cast, raycastResult: RaycastResult, segmentVelocity: Vector3, cosmeticBulletObject: BasePart)  -- (adapted from FastCast Example Gun)
 	local hitPart = raycastResult.Instance
 	local hitPoint = raycastResult.Position
 	local normal = raycastResult.Normal
 	if hitPart ~= nil and hitPart.Parent ~= nil then -- Test if we hit something
-		local humanoid = hitPart.Parent:FindFirstChildOfClass("Humanoid") -- Is there a humanoid?
-		if humanoid then
-			-- print("hit", humanoid.Parent.Name)
-			humanoid:TakeDamage(self.DAMAGE) -- Damage.
-		end
+		local humanoid = hitPart.Parent:FindFirstChildOfClass("Humanoid")
 		self:MakeParticleFX(hitPoint, normal) -- Particle FX
+		if not humanoid then return end
+
+		-- print("hit", humanoid.Parent.Name)
+		humanoid:TakeDamage(self.DAMAGE)
 	end
 end
 
-function Gun:_onRayPierced(cast, raycastResult: RaycastResult, segmentVelocity: Vector3, cosmeticBulletObject: BasePart)
+function Gun:_onRayPierced(cast, raycastResult: RaycastResult, segmentVelocity: Vector3, cosmeticBulletObject: BasePart)  -- (adapted from FastCast Example Gun)
 	-- You can do some really unique stuff with pierce behavior - In reality, pierce is just the module's way of asking "Do I keep the bullet going, or do I stop it here?"
 	-- You can make use of this unique behavior in a manner like this, for instance, which causes bullets to be bouncy.
 	local position = raycastResult.Position
@@ -248,9 +240,7 @@ function Gun:_onRayUpdated(
 )
 	-- Whenever the caster steps forward by one unit, this function is called.
 	-- The bullet argument is the same object passed into the fire function.
-	if cosmeticBulletObject == nil then
-		return
-	end
+	if cosmeticBulletObject == nil then return end
 	local bulletLength = cosmeticBulletObject.Size.Z / 2 -- This is used to move the bullet to the right spot based on a CFrame offset
 	local baseCFrame = CFrame.new(segmentOrigin, segmentOrigin + segmentDirection)
 	cosmeticBulletObject.CFrame = baseCFrame * CFrame.new(0, 0, -(length - bulletLength))
@@ -297,9 +287,7 @@ function Gun:_onRayTerminated(cast)
 end
 
 function Gun:OnMouseEvent(player: Player, mousePoint)
-	if not self.CanFire then
-		return
-	end
+	if not self.CanFire then return end
 	self.CanFire = false
 	-- local mouseDirection = (mousePoint - self.FirePoint.WorldPosition).Unit
 	for _ = 1, self.BULLETS_PER_SHOT do
@@ -307,6 +295,17 @@ function Gun:OnMouseEvent(player: Player, mousePoint)
 	end
 	task.wait(60 / self.RPM)
 	self.CanFire = true
+end
+
+function Gun:OnAimEvent(player: Player, isAiming: boolean)
+	if not self.Animations.AimIdle then return end
+	self.Aiming = isAiming
+	local animTrack = self.Animations.AimIdle
+	if isAiming then
+		animTrack:Play()
+	elseif animTrack.IsPlaying then
+		animTrack:Stop()
+	end
 end
 
 function Gun:OnEquipped(mouse: Mouse)
@@ -331,6 +330,7 @@ function Gun:OnUnequipped()
 	for _,v in self.Animations do
 		v:Stop()
 	end
+	self.Animations = {}
 	self.Character = nil
 
 	local player: Player = self.Instance:FindFirstAncestorOfClass("Player")
@@ -349,7 +349,9 @@ function Gun:Start()
 	self._trove:Connect(self.Caster.RayPierced, function(...) self:_onRayPierced(...) end)
 	self._trove:Connect(self.Caster.LengthChanged, function(...) self:_onRayUpdated(...) end)
 	self._trove:Connect(self.Caster.CastTerminating, function(...) self:_onRayTerminated(...) end)
+
 	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
+	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)
 end
 
 function Gun:Stop()
