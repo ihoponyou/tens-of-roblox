@@ -23,10 +23,21 @@ local GunClient = Component.new({
 function GunClient:Construct()
 	self._trove = Trove.new()
 
+	self._primaryDown = false
+
+	self.Model = self.Instance:WaitForChild("GunModel")
+	for _,v in self.Model:GetDescendants() do
+		if v:IsA("BasePart") then
+			local trans = v.Transparency
+			v.LocalTransparencyModifier = 1
+			v.Transparency = trans
+		end
+	end
+
 	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
-	
+
 	self.Config = self.Instance:WaitForChild("Configuration")
 
 	local playerGui = Knit.Player.PlayerGui
@@ -49,8 +60,6 @@ function GunClient:Construct()
 		recoilIndicator.BackgroundTransparency = 1
 	end
 	self.RecoilIndicator = recoilIndicator
-
-	self._primaryDown = false
 end
 
 function GunClient:UpdateMouseIcon()

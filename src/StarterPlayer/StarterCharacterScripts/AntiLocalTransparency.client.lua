@@ -1,3 +1,4 @@
+
 local character = game.Players.LocalPlayer.Character
 character:WaitForChild("Head")
 character:WaitForChild("Torso")
@@ -6,14 +7,20 @@ character:WaitForChild("Left Leg")
 character:WaitForChild("Right Arm")
 character:WaitForChild("Right Leg")
 
-for _, v in script.Parent:GetChildren() do
-	if v:IsA("BasePart") and v.Name ~= "Head" and v.Name ~= "HummanoidRootPart" then
-		print(v, v.LocalTransparencyModifier)
+local function onDescendantAdded(descendant: Instance)
+	if descendant:IsA("BasePart") and descendant.Name ~= "Head" and descendant.Name ~= "HummanoidRootPart" then
+		-- print(descendant, descendant.LocalTransparencyModifier)
 
-		v:GetPropertyChangedSignal("LocalTransparencyModifier"):Connect(function()
-			v.LocalTransparencyModifier = v.Transparency
+		descendant:GetPropertyChangedSignal("LocalTransparencyModifier"):Connect(function()
+			-- print(descendant.LocalTransparencyModifier)
+			-- descendant.LocalTransparencyModifier = descendant.Transparency
 		end)
 
-		v.LocalTransparencyModifier = v.Transparency
+		-- descendant.LocalTransparencyModifier = descendant.Transparency
 	end
 end
+
+for _, v in character:GetChildren() do
+	onDescendantAdded(v)
+end
+character.DescendantAdded:Connect(onDescendantAdded)
