@@ -124,12 +124,13 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
 		task.spawn(function()
 			if v:IsA("ParticleEmitter") then
 				v.Transparency = NumberSequence.new(v.repTransparency.Value)
-				v:Emit(v.Rate)
-				wait(v.Lifetime.Min)
-				v.Transparency = NumberSequence.new(1)
+				v.Enabled = true
+				task.wait(.2)
+				-- v.Enabled = false
+				-- v.Transparency = NumberSequence.new(1)
 			elseif v:IsA("PointLight") then
 				v.Enabled = true
-				wait(.05)
+				task.wait(.2)
 				v.Enabled = false
 			end
 		end)

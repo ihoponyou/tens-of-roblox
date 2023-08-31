@@ -24,7 +24,6 @@ local ViewmodelClient = Component.new({
 function ViewmodelClient:Construct()
 	self._trove = Trove.new()
 
-	self.Enabled = false
     self.Camera = workspace.CurrentCamera
     self.Character = Knit.Player.Character
 
@@ -54,22 +53,18 @@ function ViewmodelClient:Construct()
     modelClone:Destroy()
 end
 
-function ViewmodelClient:Toggle(bool: boolean)
-	self.Enabled = if bool==nil then not self.Enabled else bool
-end
-
 function ViewmodelClient:Start()
 	GunClient = require(script.Parent.GunClient)
 
 	self.Gun = GunClient:FromInstance(self.Instance.Parent)
 
-	for _,v in self.Instance.Animations:GetChildren() do
+	for _,v in self.Instance.Animations["1P"]:GetChildren() do
 		if not v:IsA("Animation") then continue end
         self.Animations[v.Name] = self._trove:Add(self.Instance.AnimationController:LoadAnimation(v))
     end
 
-	self.Animations.Idle:Play(0, 1, 1)
 	self.Instance.RootPart.CFrame = CFrame.new(0,-100,0)
+	self.Animations.Idle:Play(0, 1, 1)
 
 	self.Instance.RootPart.WeaponJoint.Part1 = self.Instance.WeaponRootPart
 	self.Instance["Left Arm"].LeftHand.Part0 = self.Instance.WeaponRootPart
