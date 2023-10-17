@@ -5,7 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local FastCast = require(ReplicatedStorage.Packages.FastCastRedux)
 FastCast.DebugLogging = false
-FastCast.VisualizeCasts = false
+FastCast.VisualizeCasts = true
 
 local PartCache = require(ReplicatedStorage.Packages.PartCache)
 
@@ -16,8 +16,8 @@ local Logger = require(ServerStorage.Source.ServerComponents.Extensions.Logger)
 local Gun = Component.new({
 	Tag = "Gun",
 	Extensions = {
-		Logger,
-	},
+		Logger
+	}
 })
 
 local RNG = Random.new()
@@ -77,7 +77,7 @@ function Gun:Construct()
 
 	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name])
 	if self.Model.Name == "AK-47" then
-		self.Model:ScaleTo(0.762)
+		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
 	end
 	self.Model.Name = "GunModel"
 	self.Model.Parent = self.Instance
@@ -109,7 +109,7 @@ function Gun:MakeParticleFX(position, normal) -- (adapted from FastCast Example 
 
 	-- A potentially better option in favor of this would be to use the Emit method (Particle:Emit(numParticles)) though I prefer this since it adds some natural spacing between the particles.
 	particle.Enabled = true
-	wait(0.05)
+	task.wait(0.05)
 	particle.Enabled = false
 end
 
@@ -159,6 +159,7 @@ end
 
 function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	local character: Model? = self.Instance.Parent
+	if not character then error("Gun firing with no parent") end
 	if character:IsA("Backpack") then return end
 	-- Note: Above isn't in the event as it will prevent the CanFire value from being set as needed.
 	if character:GetAttribute("Ragdolled") then return end
@@ -201,6 +202,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 end
 
 function Gun:_onRayHit(cast, raycastResult: RaycastResult, segmentVelocity: Vector3, cosmeticBulletObject: BasePart)  -- (adapted from FastCast Example Gun)
+	print("ray hit")
 	local hitPart = raycastResult.Instance
 	local hitPoint = raycastResult.Position
 	local normal = raycastResult.Normal
@@ -289,9 +291,9 @@ end
 function Gun:OnMouseEvent(player: Player, mousePoint)
 	if not self.CanFire then return end
 	self.CanFire = false
-	-- local mouseDirection = (mousePoint - self.FirePoint.WorldPosition).Unit
+	local mouseDirection = (mousePoint - self.FirePoint.WorldPosition).Unit
 	for _ = 1, self.BULLETS_PER_SHOT do
-		self:Fire(workspace.CurrentCamera.CFrame.LookVector)
+		self:Fire(mouseDirection)
 	end
 	task.wait(60 / self.RPM)
 	self.CanFire = true
