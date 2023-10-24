@@ -141,7 +141,9 @@ function GunClient:OnActivated()
 	if self.Config:GetAttribute("FullyAutomatic") then
 		self._primaryDown = true
 	else
-		self.MouseEvent:FireServer(self.Mouse.Hit.Position)
+		local lv = workspace.CurrentCamera.CFrame.LookVector
+		print(lv)
+		self.MouseEvent:FireServer(lv)
 	end
 end
 
@@ -165,7 +167,7 @@ end
 
 function GunClient:OnStepped(deltaTime: number)
 	if self._primaryDown then
-		self.MouseEvent:FireServer(self.Mouse.Hit.Position)
+		self.MouseEvent:FireServer(workspace.CurrentCamera.CFrame.LookVector)
 	end
 end
 
