@@ -86,6 +86,7 @@ function GunClient:Aim(bool: boolean)
 end
 
 function GunClient:_handleAimInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
+	if userInputState == Enum.UserInputState.Cancel then return end
 	self:Aim(userInputState == Enum.UserInputState.Begin)
 	return Enum.ContextActionResult.Sink
 end
