@@ -94,7 +94,7 @@ function Gun:PlayFireSound()
 	soundClone:Destroy()
 end
 
-function Gun:MakeParticleFX(position, normal) -- (adapted from FastCast Example Gun)
+function Gun:MakeImpactParticleFX(position, normal) -- makes effects at bullet impacts (adapted from FastCast Example Gun)
 	if self.ImpactParticle == nil then return end
 
 	-- This is a trick I do with attachments all the time.
@@ -118,6 +118,7 @@ function Gun._reflect(surfaceNormal: Vector3, bulletNormal: Vector3) -- (adapted
 end
 
 function Gun._canRayPierce(cast, rayResult: RaycastResult, segmentVelocity: Vector3) -- (adapted from FastCast Example Gun)
+	print("can i pierce?")
 	-- returns whether or not bullet should pierce
 	local MAX_PIERCES = 3
 
@@ -180,7 +181,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	-- We need to make sure the bullet inherits the velocity of the gun as it fires, just like in real life.
 	local humanoidRootPart = self.Instance.Parent:WaitForChild("HumanoidRootPart", 1) -- Add a timeout to this.
 	local myMovementSpeed = humanoidRootPart.Velocity -- To do: It may be better to get this value on the clientside since the server will see this value differently due to ping and such.
-	local modifiedBulletSpeed = (direction * self.BULLET_SPEED) -- + myMovementSpeed	-- We multiply our direction unit by the bullet speed. This creates a Vector3 version of the bullet's velocity at the given speed. We then add MyMovementSpeed to add our body's motion to the velocity.
+	local modifiedBulletSpeed = (direction.Unit * self.BULLET_SPEED) -- + myMovementSpeed	-- We multiply our direction unit by the bullet speed. This creates a Vector3 version of the bullet's velocity at the given speed. We then add MyMovementSpeed to add our body's motion to the velocity.
 
 	if self.CAN_PIERCE then
 		self.CastBehavior.CanPierceFunction = self._canRayPierce
@@ -206,9 +207,10 @@ function Gun:_onRayHit(cast, raycastResult: RaycastResult, segmentVelocity: Vect
 	local hitPart = raycastResult.Instance
 	local hitPoint = raycastResult.Position
 	local normal = raycastResult.Normal
-	if hitPart ~= nil and hitPart.Parent ~= nil then -- Test if we hit something
+	if hitPart ~= nil and hitPart.Parent ~= nil then
+		self:MakeImpactParticleFX(hitPoint, normal)
+
 		local humanoid = hitPart.Parent:FindFirstChildOfClass("Humanoid")
-		self:MakeParticleFX(hitPoint, normal) -- Particle FX
 		if not humanoid then return end
 
 		-- print("hit", humanoid.Parent.Name)
@@ -217,6 +219,7 @@ function Gun:_onRayHit(cast, raycastResult: RaycastResult, segmentVelocity: Vect
 end
 
 function Gun:_onRayPierced(cast, raycastResult: RaycastResult, segmentVelocity: Vector3, cosmeticBulletObject: BasePart)  -- (adapted from FastCast Example Gun)
+	print("ray pierce")
 	-- You can do some really unique stuff with pierce behavior - In reality, pierce is just the module's way of asking "Do I keep the bullet going, or do I stop it here?"
 	-- You can make use of this unique behavior in a manner like this, for instance, which causes bullets to be bouncy.
 	local position = raycastResult.Position
@@ -240,6 +243,7 @@ function Gun:_onRayUpdated(
 	segmentVelocity: Vector3,
 	cosmeticBulletObject: BasePart
 )
+	print("ray update")
 	-- Whenever the caster steps forward by one unit, this function is called.
 	-- The bullet argument is the same object passed into the fire function.
 	if cosmeticBulletObject == nil then return end
@@ -249,6 +253,7 @@ function Gun:_onRayUpdated(
 end
 
 function Gun:_onRayTerminated(cast)
+	print("ray terminate")
 	local cosmeticBullet: Part? = cast.RayInfo.CosmeticBulletObject
 	if cosmeticBullet ~= nil then
 		-- This code here is using an if statement on CastBehavior.CosmeticBulletProvider so that the example gun works out of the box.
@@ -288,12 +293,33 @@ function Gun:_onRayTerminated(cast)
 	end
 end
 
+function Gun:SimpleFire(direction: Vector3)
+	local character: Model? = self.Instance.Parent
+	if not character then error("Gun firing with no parent") end
+	if character:IsA("Backpack") then return end
+	-- Note: Above isn't in the event as it will prevent the CanFire value from being set as needed.
+	if character:GetAttribute("Ragdolled") then return end
+
+	print("blam")
+
+	local verticalKick = 25
+	local horizontalKick = math.random(-10, 10)
+	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, horizontalKick)
+
+	self:PlayFireSound()
+	if self.Aiming and self.Animations.AimFire ~= nil then
+		self.Animations.AimFire:Play()
+	elseif self.Animations.Fire ~= nil then
+		self.Animations.Fire:Play()
+	end
+end
+
 function Gun:OnMouseEvent(player: Player, mousePoint)
 	if not self.CanFire then return end
 	self.CanFire = false
 	local mouseDirection = (mousePoint - self.FirePoint.WorldPosition).Unit
 	for _ = 1, self.BULLETS_PER_SHOT do
-		self:Fire(mouseDirection)
+		self:SimpleFire(mouseDirection)
 	end
 	task.wait(60 / self.RPM)
 	self.CanFire = true
