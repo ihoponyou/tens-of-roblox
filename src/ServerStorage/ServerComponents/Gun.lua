@@ -319,6 +319,7 @@ function Gun:OnEquipped(mouse: Mouse)
 
 	self.Model.WeaponRootPart.Holster.Part0 = nil
 	self.Model.WeaponRootPart.Grip.Part0 = self.Character["Right Arm"]
+	self.Model.Parent = self.Character
 
 	local animations3P = self.Model.Animations["3P"]
 	for _,v in animations3P:GetChildren() do
