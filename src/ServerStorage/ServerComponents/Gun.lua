@@ -96,8 +96,23 @@ function Gun:PlayFireSound()
 	soundClone:Destroy()
 end
 
-function Gun:MakeImpactParticleFX(position, normal) -- makes effects at bullet impacts (adapted from FastCast Example Gun)
-	-- if self.ImpactParticle == nil then return end
+function Gun:DoMuzzleFlash()
+	local firePoint = self.Model.Receiver.FirePoint
+	for _, v in firePoint:GetChildren() do
+		task.spawn(function()
+			if v:IsA("ParticleEmitter") then
+				v.Transparency = NumberSequence.new(v.repTransparency.Value)
+				v.Enabled = true
+				task.wait(.2)
+				v.Enabled = false
+				v.Transparency = NumberSequence.new(1)
+			end
+		end)
+	end
+end
+
+function Gun:MakeImpactParticleFX(position, normal) -- (adapted from FastCast Example Gun)
+	if self.ImpactParticle == nil then return end
 
 	-- This is a trick I do with attachments all the time.
 	-- Parent attachments to the Terrain - It counts as a part, and setting position/rotation/etc. of it will be in world space.
@@ -181,22 +196,24 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	-- IF YOU DON'T WANT YOUR BULLETS MOVING WITH YOUR CHARACTER, REMOVE THE THREE LINES OF CODE BELOW THIS COMMENT.
 	-- Requested by https://www.roblox.com/users/898618/profile/
 	-- We need to make sure the bullet inherits the velocity of the gun as it fires, just like in real life.
-	local humanoidRootPart = self.Instance.Parent:WaitForChild("HumanoidRootPart", 1) -- Add a timeout to this.
-	local myMovementSpeed = humanoidRootPart.Velocity -- To do: It may be better to get this value on the clientside since the server will see this value differently due to ping and such.
-	local modifiedBulletSpeed = (direction.Unit * self.BULLET_SPEED) -- + myMovementSpeed	-- We multiply our direction unit by the bullet speed. This creates a Vector3 version of the bullet's velocity at the given speed. We then add MyMovementSpeed to add our body's motion to the velocity.
+	-- local humanoidRootPart = self.Instance.Parent:WaitForChild("HumanoidRootPart", 1) -- Add a timeout to this.
+	-- local myMovementSpeed = humanoidRootPart.Velocity -- To do: It may be better to get this value on the clientside since the server will see this value differently due to ping and such.
+	-- local modifiedBulletSpeed = (direction * self.BULLET_SPEED) -- + myMovementSpeed	-- We multiply our direction unit by the bullet speed. This creates a Vector3 version of the bullet's velocity at the given speed. We then add MyMovementSpeed to add our body's motion to the velocity.
 
 	if self.CAN_PIERCE then
 		self.CastBehavior.CanPierceFunction = self._canRayPierce
 	end
 
-	local simBullet = self.Caster:Fire(character.PrimaryPart.Position, direction, modifiedBulletSpeed, self.CastBehavior)
+	local headPosition = character.HumanoidRootPart.Position + Vector3.yAxis * 1.5
+	local simBullet = self.Caster:Fire(headPosition, direction.Unit, self.BULLET_SPEED, self.CastBehavior)
 	-- Optionally use some methods on simBullet here if applicable.
 
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
 	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, horizontalKick)
 
-	self:PlayFireSound()
+	-- self:PlayFireSound()
+	-- self:DoMuzzleFlash()
 	if self.Aiming and self.Animations.AimFire ~= nil then
 		self.Animations.AimFire:Play()
 	elseif self.Animations.Fire ~= nil then
@@ -348,6 +365,7 @@ function Gun:OnEquipped(mouse: Mouse)
 
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 
+	self.Model.Parent = self.Character
 	self.Model.WeaponRootPart.Holster.Part0 = nil
 	self.Model.WeaponRootPart.Grip.Part0 = self.Character["Right Arm"]
 	self.Model.Parent = self.Character

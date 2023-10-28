@@ -86,7 +86,7 @@ function GunClient:Aim(bool: boolean)
 end
 
 function GunClient:_handleAimInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
-	if userInputState == Enum.UserInputState.Cancel then return end
+	if userInputState == Enum.UserInputState.Cancel then return Enum.ContextActionResult.Pass end
 	self:Aim(userInputState == Enum.UserInputState.Begin)
 	return Enum.ContextActionResult.Sink
 end
@@ -121,15 +121,16 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
 	viewmodel.Animations.Fire:Play()
-	for _, v in pairs(viewmodel.Instance.Receiver.FirePoint:GetChildren()) do
+	for _, v in viewmodel.Instance.Receiver.FirePoint:GetChildren() do
 		task.spawn(function()
 			if v:IsA("ParticleEmitter") then
 				v.Enabled = true
-				task.wait(.1)
+				task.wait(.05)
 				v.Enabled = false
+				v.Transparency = NumberSequence.new(1)
 			elseif v:IsA("PointLight") then
 				v.Enabled = true
-				task.wait(.1)
+				task.wait(.05)
 				v.Enabled = false
 			end
 		end)
@@ -141,9 +142,7 @@ function GunClient:OnActivated()
 	if self.Config:GetAttribute("FullyAutomatic") then
 		self._primaryDown = true
 	else
-		local lv = workspace.CurrentCamera.CFrame.LookVector
-		print(lv)
-		self.MouseEvent:FireServer(lv)
+		self.MouseEvent:FireServer(workspace.CurrentCamera.CFrame.LookVector)
 	end
 end
 
