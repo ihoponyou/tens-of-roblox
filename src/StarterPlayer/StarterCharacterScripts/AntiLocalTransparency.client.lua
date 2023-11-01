@@ -1,26 +1,36 @@
 
 local character = game.Players.LocalPlayer.Character
-character:WaitForChild("Head")
-character:WaitForChild("Torso")
-character:WaitForChild("Left Arm")
-character:WaitForChild("Left Leg")
-character:WaitForChild("Right Arm")
-character:WaitForChild("Right Leg")
+
+local exclude = {
+	"Head",
+	"HumanoidRootPart",
+	"Left Arm",
+	"Right Arm"
+}
 
 local function onDescendantAdded(descendant: Instance)
-	if descendant:IsA("BasePart") and descendant.Name ~= "Head" and descendant.Name ~= "HummanoidRootPart" then
-		-- print(descendant, descendant.LocalTransparencyModifier)
+	if not descendant:IsA("BasePart") then return end
+	if table.find(exclude, descendant.Name) then return end
+	
+	-- print(descendant, descendant.LocalTransparencyModifier)
 
-		descendant:GetPropertyChangedSignal("LocalTransparencyModifier"):Connect(function()
-			-- print(descendant.LocalTransparencyModifier)
-			-- descendant.LocalTransparencyModifier = descendant.Transparency
-		end)
+	descendant:GetPropertyChangedSignal("LocalTransparencyModifier"):Connect(function()
+		-- print(descendant.LocalTransparencyModifier)
+		descendant.LocalTransparencyModifier = descendant.Transparency
+	end)
 
-		-- descendant.LocalTransparencyModifier = descendant.Transparency
+	descendant.LocalTransparencyModifier = descendant.Transparency
+
+	if descendant.Parent:IsA("Accessory") then
+		--print(descendant.Name)
+		descendant.Transparency = 1
+
 	end
 end
 
-for _, v in character:GetChildren() do
+for _, v in character:GetDescendants() do
 	onDescendantAdded(v)
 end
-character.DescendantAdded:Connect(onDescendantAdded)
+
+local conn = character.DescendantAdded:Connect(onDescendantAdded)
+script.Destroying:Once(function() print("successfully disconnected") conn:Disconnect() end)

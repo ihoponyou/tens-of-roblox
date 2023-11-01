@@ -19,7 +19,7 @@ local Gun = Component.new({
 local RNG = Random.new()
 local TAU = math.pi * 2
 
-local function newNamedInstance(class: string, parent: Instance, name: string)
+local function newNamedInstance(name: string, class: string, parent: Instance)
 	local instance = Instance.new(class)
 	instance.Parent = parent
 	instance.Name = name
@@ -34,11 +34,11 @@ function Gun:Construct()
 
 	self.Animations = {}
 
-	self.MouseEvent = newNamedInstance("RemoteEvent", self.Instance, "MouseEvent")
-	self.RecoilEvent = newNamedInstance("RemoteEvent", self.Instance, "RecoilEvent")
-	self.AimEvent = newNamedInstance("RemoteEvent", self.Instance, "AimEvent")
+	self.MouseEvent = newNamedInstance("MouseEvent", "RemoteEvent", self.Instance)
+	self.RecoilEvent = newNamedInstance("RecoilEvent", "RemoteEvent", self.Instance)
+	self.AimEvent = newNamedInstance("AimEvent", "RemoteEvent", self.Instance)
 
-	self.Config = self.Instance:FindFirstChild("Configuration")
+	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 	local GUN_STATS = self.Config:GetAttributes()
 
 	self.BULLET_SPEED = GUN_STATS.BulletSpeed
@@ -60,11 +60,11 @@ function Gun:Construct()
 	self.Instance.CanBeDropped = false
 	self.Instance.RequiresHandle = false
 
-	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name])
+	-- the serverside gun component refers to the 3rd person gun model
+	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].GunModel)
 	if self.Model.Name == "AK-47" then
 		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
 	end
-	self.Model.Name = "GunModel"
 	self.Model.Parent = self.Instance
 
 	self.FirePoint = self.Instance:FindFirstChild("FirePoint", true)
@@ -164,15 +164,14 @@ function Gun:OnEquipped(mouse: Mouse)
 
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 
-	self.Model.WeaponRootPart.Holster.Part0 = nil
-	self.Model.WeaponRootPart.Grip.Part0 = self.Character["Right Arm"]
 	self.Model.Parent = self.Character
+	self.Character["Right Arm"].RightHand.Part1 = self.Model.PrimaryPart
 
-	local animations3P = self.Model.Animations["3P"]
+	local animations3P = ReplicatedStorage.Weapons[self.Instance.Name].Animations["3P"]
 	for _,v in animations3P:GetChildren() do
 		self.Animations[v.Name] =  humanoid:LoadAnimation(v)
 	end
-	self.Animations.Idle:Play()
+	-- self.Animations.Idle:Play()
 end
 
 function Gun:OnUnequipped()
@@ -187,8 +186,6 @@ function Gun:OnUnequipped()
 	local character = player.Character
 
 	self.Model.Parent = character
-	self.Model.WeaponRootPart.Grip.Part0 = nil
-	self.Model.WeaponRootPart.Holster.Part0 = character.Torso
 end
 
 function Gun:Start()

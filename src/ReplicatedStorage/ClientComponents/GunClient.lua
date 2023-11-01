@@ -25,6 +25,10 @@ function GunClient:Construct()
 
 	self._primaryDown = false
 
+	-- the clientside gun component refers to the 3rd person gun model
+	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
+	-- also, since this is all clientside, the serverside version of the model actually stays
+	-- in the character's hands; thus 3rd person animations work
 	self.Model = self.Instance:WaitForChild("GunModel")
 	for _,v in self.Model:GetDescendants() do
 		if v:IsA("BasePart") then
@@ -38,28 +42,7 @@ function GunClient:Construct()
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
 
-	self.Config = self.Instance:WaitForChild("Configuration")
-
-	local playerGui = Knit.Player.PlayerGui
-
-	local gunGui = playerGui:FindFirstChild("GunGui")
-	if not gunGui then
-		gunGui = Instance.new("ScreenGui")
-		gunGui.Parent = playerGui
-		gunGui.Name = "GunGui"
-		gunGui.Enabled = false
-	end
-	self.GunGui = gunGui
-
-	local recoilIndicator = self.GunGui:FindFirstChild("RecoilIndicator")
-	if not recoilIndicator then
-		recoilIndicator = Instance.new("TextLabel")
-		recoilIndicator.Parent = self.GunGui
-		recoilIndicator.Name = "RecoilIndicator"
-		recoilIndicator.Position = UDim2.new(0.25, 0, 0.5, 0)
-		recoilIndicator.BackgroundTransparency = 1
-	end
-	self.RecoilIndicator = recoilIndicator
+	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 end
 
 function GunClient:UpdateMouseIcon()
@@ -78,11 +61,11 @@ function GunClient:Aim(bool: boolean)
 
 	UserInputService.MouseIconEnabled = not self.Aiming
 
-	local tweeningInformation =
-		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed / 2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-	local properties = { Value = if self.Aiming then 1 else 0 }
+	-- local tweeningInformation =
+	-- 	TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed / 2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	-- local properties = { Value = if self.Aiming then 1 else 0 }
 
-	TweenService:Create(viewmodel.LerpValues.Aiming, tweeningInformation, properties):Play()
+	-- TweenService:Create(viewmodel.LerpValues.Aiming, tweeningInformation, properties):Play()
 end
 
 function GunClient:_handleAimInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
@@ -98,16 +81,19 @@ end
 function GunClient:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 
-	local firePoint = self.Model:FindFirstChild("FirePoint", true)
-	self.Viewmodel = self._trove:Clone(ReplicatedStorage.Viewmodel)
-	self.Viewmodel.Parent = self.Instance
+	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
+	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
+	viewmodelComponent:ToggleVisibility(true)
+
+	local character = Knit.Player.Character
+	viewmodelComponent:Equip(self.Model.PrimaryPart)
+	-- TODO: set part1 of righthand on client to nil so that the gun model can be used in viewmodel
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0))
 	self.RecoilSpring.Speed = 10
 	self.RecoilSpring.Damper = 1
 	self._lastOffset = Vector3.new()
 
-	self.GunGui.Enabled = true
 	self.Mouse = mouse
 	self:UpdateMouseIcon()
 
@@ -156,12 +142,13 @@ end
 function GunClient:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
 
-	self.Viewmodel:Destroy()
+	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
+	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
+	viewmodelComponent:ToggleVisibility(false)
 
 	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
-	self.GunGui.Enabled = false
 	self._primaryDown = false
 	self:UpdateMouseIcon()
 end
