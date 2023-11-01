@@ -193,7 +193,7 @@ end
 
 function Gun:Start()
 	self._trove:Connect(self.Instance.Equipped, function(...) self:OnEquipped(...) end)
-	self._trove:Connect(self.Instance.Unequipped, function(...) self:OnUnequipped(...) end)
+	self._trove:Connect(self.Instance.Unequipped, function() self:OnUnequipped() end)
 
 	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
 	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)

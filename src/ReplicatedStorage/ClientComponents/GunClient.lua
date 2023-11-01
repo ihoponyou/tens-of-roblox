@@ -91,9 +91,14 @@ function GunClient:_handleAimInput(actionName: string, userInputState: Enum.User
 	return Enum.ContextActionResult.Sink
 end
 
+function GunClient:_handleFireInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
+	self._primaryDown = userInputState == Enum.UserInputState.Begin
+end
+
 function GunClient:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 
+	local firePoint = self.Model:FindFirstChild("FirePoint", true)
 	self.Viewmodel = self._trove:Clone(ReplicatedStorage.Viewmodel)
 	self.Viewmodel.Parent = self.Instance
 
@@ -110,6 +115,10 @@ function GunClient:OnEquipped(mouse: Mouse)
 		self:_handleAimInput(...)
 	end, true, Enum.UserInputType.MouseButton2)
 
+	ContextActionService:BindAction("fire" .. self.Instance.Name, function(...)
+		self:_handleFireInput(...)
+	end, true, Enum.UserInputType.MouseButton1)
+
 	RunService:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
 		self:OnRenderStepped(...)
 	end)
@@ -125,24 +134,17 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
 		task.spawn(function()
 			if v:IsA("ParticleEmitter") then
 				v.Enabled = true
-				task.wait(.05)
-				v.Enabled = false
-				v.Transparency = NumberSequence.new(1)
+				task.delay(.05, function()
+					v.Enabled = false
+					v.Transparency = NumberSequence.new(1)
+				end)
 			elseif v:IsA("PointLight") then
 				v.Enabled = true
-				task.wait(.05)
-				v.Enabled = false
+				task.delay(.05, function()
+					v.Enabled = false
+				end)
 			end
 		end)
-	end
-end
-
-function GunClient:OnActivated()
-	--print(self.Instance.Parent, "activated", self.Instance.Name)
-	if self.Config:GetAttribute("FullyAutomatic") then
-		self._primaryDown = true
-	else
-		self.MouseEvent:FireServer(workspace.CurrentCamera.CFrame.LookVector)
 	end
 end
 
@@ -190,24 +192,12 @@ function GunClient:Start()
 	ViewmodelClient = require(script.Parent.ViewmodelClient)
 	-- CameraController = Knit.GetController("CameraController")
 
-	self._trove:Connect(self.RecoilEvent.OnClientEvent, function(...)
-		self:OnRecoilEvent(...)
-	end)
-	self._trove:Connect(self.Instance.Activated, function(...)
-		self:OnActivated(...)
-	end)
-	self._trove:Connect(self.Instance.Deactivated, function(...)
-		self:OnDeactivated(...)
-	end)
-	self._trove:Connect(self.Instance.Equipped, function(...)
-		self:OnEquipped(...)
-	end)
-	self._trove:Connect(self.Instance.Unequipped, function(...)
-		self:OnUnequipped(...)
-	end)
-	self._trove:Connect(RunService.Stepped, function(...)
-		self:OnStepped(...)
-	end)
+	self._trove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
+	self._trove:Connect(self.Instance.Activated, function(...) self:OnActivated(...) end)
+	self._trove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
+	self._trove:Connect(self.Instance.Equipped, function() self:OnEquipped() end)
+	self._trove:Connect(self.Instance.Unequipped, function() self:OnUnequipped() end)
+	self._trove:Connect(RunService.Stepped, function(...) self:OnStepped(...) end)
 end
 
 function GunClient:Stop()
