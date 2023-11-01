@@ -41,6 +41,7 @@ function GunClient:Construct()
 	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
+	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 end
@@ -78,16 +79,14 @@ function GunClient:_handleFireInput(actionName: string, userInputState: Enum.Use
 	self._primaryDown = userInputState == Enum.UserInputState.Begin
 end
 
-function GunClient:OnEquipped(mouse: Mouse)
-	--print(self.Instance.Parent, "equipped", self.Instance.Name)
+function GunClient:_equip(mouse: Mouse)
+	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
 
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 	viewmodelComponent:ToggleVisibility(true)
 
-	local character = Knit.Player.Character
-	viewmodelComponent:Equip(self.Model.PrimaryPart)
-	-- TODO: set part1 of righthand on client to nil so that the gun model can be used in viewmodel
+	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel["Right Arm"]
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0))
 	self.RecoilSpring.Speed = 10
@@ -108,6 +107,27 @@ function GunClient:OnEquipped(mouse: Mouse)
 	RunService:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
 		self:OnRenderStepped(...)
 	end)
+end
+
+function GunClient:_unequip()
+	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
+	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
+	viewmodelComponent:ToggleVisibility(false)
+
+	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
+	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
+
+	self._primaryDown = false
+	self:UpdateMouseIcon()
+end
+
+-- use remote event to prevent race condition while giving gun to viewmodel
+function GunClient:OnEquipEvent(equipped: boolean)
+	if equipped then
+		self:_equip()
+	else
+		self:_unequip()
+	end
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
@@ -139,20 +159,6 @@ function GunClient:OnDeactivated()
 	self._primaryDown = false
 end
 
-function GunClient:OnUnequipped()
-	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
-
-	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
-	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
-	viewmodelComponent:ToggleVisibility(false)
-
-	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
-	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
-
-	self._primaryDown = false
-	self:UpdateMouseIcon()
-end
-
 function GunClient:OnStepped(deltaTime: number)
 	if self._primaryDown then
 		self.MouseEvent:FireServer(workspace.CurrentCamera.CFrame.LookVector)
@@ -180,10 +186,11 @@ function GunClient:Start()
 	-- CameraController = Knit.GetController("CameraController")
 
 	self._trove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
+	self._trove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
+
 	self._trove:Connect(self.Instance.Activated, function(...) self:OnActivated(...) end)
 	self._trove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
-	self._trove:Connect(self.Instance.Equipped, function() self:OnEquipped() end)
-	self._trove:Connect(self.Instance.Unequipped, function() self:OnUnequipped() end)
+
 	self._trove:Connect(RunService.Stepped, function(...) self:OnStepped(...) end)
 end
 

@@ -38,11 +38,6 @@ function ViewmodelClient:ToggleVisibility(show: boolean)
 	self.Instance["Left Arm"].Transparency = if self.Visible then 0 else 1
 end
 
-function ViewmodelClient:Equip(part: BasePart) -- if handle is nil, do nothing | part should be gun's PrimaryPart
-	if part == nil or not part:IsA("BasePart") then return end
-	self.Instance.PrimaryPart.ToolJoint.Part1 = part
-end
-
 local startTick = 0
 function ViewmodelClient:Update(deltaTime: number)
 	local mouseDelta = UserInputService:GetMouseDelta()

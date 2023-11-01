@@ -37,6 +37,7 @@ function Gun:Construct()
 	self.MouseEvent = newNamedInstance("MouseEvent", "RemoteEvent", self.Instance)
 	self.RecoilEvent = newNamedInstance("RecoilEvent", "RemoteEvent", self.Instance)
 	self.AimEvent = newNamedInstance("AimEvent", "RemoteEvent", self.Instance)
+	self.EquipEvent = newNamedInstance("EquipEvent", "RemoteEvent", self.Instance)
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 	local GUN_STATS = self.Config:GetAttributes()
@@ -160,18 +161,22 @@ end
 function Gun:OnEquipped(mouse: Mouse)
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 	self.Character = self.Instance.Parent
+	self.Owner = Players:GetPlayerFromCharacter(self.Character)
 	self.CastParams.FilterDescendantsInstances = { self.Character }
 
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 
 	self.Model.Parent = self.Character
-	self.Character["Right Arm"].RightHand.Part1 = self.Model.PrimaryPart
+	self.Model.PrimaryPart.RootJoint.Part0 = self.Character["Right Arm"]
 
 	local animations3P = ReplicatedStorage.Weapons[self.Instance.Name].Animations["3P"]
 	for _,v in animations3P:GetChildren() do
 		self.Animations[v.Name] =  humanoid:LoadAnimation(v)
 	end
 	-- self.Animations.Idle:Play()
+	print(mouse.ClassName)
+	print(mouse.Icon)
+	self.EquipEvent:FireClient(self.Owner, true)
 end
 
 function Gun:OnUnequipped()
@@ -180,12 +185,10 @@ function Gun:OnUnequipped()
 		v:Stop()
 	end
 	self.Animations = {}
-	self.Character = nil
 
-	local player: Player = self.Instance:FindFirstAncestorOfClass("Player")
-	local character = player.Character
+	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
 
-	self.Model.Parent = character
+	self.EquipEvent:FireClient(self.Owner, false)
 end
 
 function Gun:Start()
