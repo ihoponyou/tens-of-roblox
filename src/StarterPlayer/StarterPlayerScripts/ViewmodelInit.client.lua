@@ -20,6 +20,7 @@ for _,v in viewmodel:GetDescendants() do
 end
 
 ViewmodelClient:WaitForInstance(viewmodel):andThen(function(component)
+    print("viewmodel ready")
     -- component:ToggleVisibility(false)
 end):catch(warn)
 

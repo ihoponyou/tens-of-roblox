@@ -158,7 +158,7 @@ function Gun:OnAimEvent(player: Player, isAiming: boolean)
 	end
 end
 
-function Gun:OnEquipped(mouse: Mouse)
+function Gun:OnEquipped()
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 	self.Character = self.Instance.Parent
 	self.Owner = Players:GetPlayerFromCharacter(self.Character)
@@ -174,8 +174,7 @@ function Gun:OnEquipped(mouse: Mouse)
 		self.Animations[v.Name] =  humanoid:LoadAnimation(v)
 	end
 	-- self.Animations.Idle:Play()
-	print(mouse.ClassName)
-	print(mouse.Icon)
+
 	self.EquipEvent:FireClient(self.Owner, true)
 end
 

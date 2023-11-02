@@ -2,6 +2,8 @@
 -- adapted code from BlackShibe's FPS Framework input/viewmodel controller to component system
 -- https://devforum.roblox.com/t/writing-an-fps-framework-2020/503318
 
+-- NOV 1 2023 | idk how much of it is from this anymore after big refactor but it was very helpful in setting it up regardless
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -18,6 +20,9 @@ local ViewmodelClient = Component.new({
 
 function ViewmodelClient:Construct()
 	self.Visible = true
+
+	self.Animations = {}
+	self.Humanoid = self.Instance:WaitForChild("RigHumanoid")
 
 	self._trove = Trove.new()
 
@@ -38,6 +43,24 @@ function ViewmodelClient:ToggleVisibility(show: boolean)
 	self.Instance["Left Arm"].Transparency = if self.Visible then 0 else 1
 end
 
+function ViewmodelClient:LoadAnimations(animationFolder: Folder)
+	-- empty current animation dict
+	self.Animations = {}
+
+	for _,v in animationFolder:GetDescendants() do
+		if not v:IsA("Animation") then continue end
+		-- index each animation with its name as key and animationtrack as value
+		self.Animations[v.Name] =  self.Humanoid:LoadAnimation(v)
+	end
+end
+
+function ViewmodelClient:PlayAnimation(animationName: string)
+	if animationName == nil or type(animationName) ~= "string" then error("Invalid animation name") end
+	local animationTrack: AnimationTrack = self.Animations[animationName]
+	if animationTrack == nil then error("No loaded animation with name \""..animationName.."\"") end
+	animationTrack:Play()
+end
+
 local startTick = 0
 function ViewmodelClient:Update(deltaTime: number)
 	local mouseDelta = UserInputService:GetMouseDelta()
@@ -47,7 +70,7 @@ function ViewmodelClient:Update(deltaTime: number)
 	-- local humanoidSpeed = humanoid.WalkSpeed*humanoid.MoveDirection.Magnitude
 	-- if humanoid.MoveDirection.Magnitude < .1 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
 
-	local baseOffset: CFrame = CFrame.new(0, -1.25, -1.5)
+	local baseOffset: CFrame = CFrame.new(0, -1.5, -1)
 	--local aimOffset = baseOffset:Lerp(self.Instance.Offsets.Aiming.Value, self.LerpValues.Aiming.Value)
 
 	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0))

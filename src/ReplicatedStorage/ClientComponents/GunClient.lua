@@ -1,11 +1,8 @@
 local ContextActionService = game:GetService("ContextActionService")
-local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Spring = require(ReplicatedStorage.Packages.Spring)
@@ -83,10 +80,13 @@ function GunClient:_equip(mouse: Mouse)
 	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
 
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
+	self.Model.Parent = viewmodel
+	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel["Right Arm"]
+
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 	viewmodelComponent:ToggleVisibility(true)
-
-	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel["Right Arm"]
+	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
+	viewmodelComponent:PlayAnimation("Idle")
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0))
 	self.RecoilSpring.Speed = 10
