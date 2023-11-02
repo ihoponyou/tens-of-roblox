@@ -1,16 +1,19 @@
 
 local character = game.Players.LocalPlayer.Character
 
-local exclude = {
+local hide = {
 	"Head",
 	"HumanoidRootPart",
 	"Left Arm",
-	"Right Arm"
+	"Right Arm",
+	-- "Torso",
+	-- "Left Leg",
+	-- "Right Leg"
 }
 
 local function onDescendantAdded(descendant: Instance)
 	if not descendant:IsA("BasePart") then return end
-	if table.find(exclude, descendant.Name) then return end
+	if table.find(hide, descendant.Name) then return end
 	
 	-- print(descendant, descendant.LocalTransparencyModifier)
 

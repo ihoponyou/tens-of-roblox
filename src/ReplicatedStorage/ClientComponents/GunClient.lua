@@ -1,6 +1,8 @@
 local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -16,6 +18,13 @@ local GunClient = Component.new({
 		Logger,
 	},
 })
+
+local function newNamedInstance(name: string, class: string, parent: Instance)
+	local instance = Instance.new(class)
+	instance.Parent = parent
+	instance.Name = name
+	return instance
+end
 
 function GunClient:Construct()
 	self._trove = Trove.new()
@@ -41,12 +50,8 @@ function GunClient:Construct()
 	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
-end
 
-function GunClient:UpdateMouseIcon()
-	if self.Mouse and not self.Instance.Parent:IsA("Backpack") then
-		self.Mouse.Icon = "rbxasset://textures/GunCursor.png"
-	end
+	self.AimPercent = newNamedInstance("AimPercent", "NumberValue", self.Model)
 end
 
 function GunClient:Aim(bool: boolean)
@@ -59,11 +64,11 @@ function GunClient:Aim(bool: boolean)
 
 	UserInputService.MouseIconEnabled = not self.Aiming
 
-	-- local tweeningInformation =
-	-- 	TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed / 2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-	-- local properties = { Value = if self.Aiming then 1 else 0 }
+	local tweeningInformation =
+		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed / 2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	local properties = { Value = if self.Aiming then 1 else 0 }
 
-	-- TweenService:Create(viewmodel.LerpValues.Aiming, tweeningInformation, properties):Play()
+	TweenService:Create(self.AimPercent, tweeningInformation, properties):Play()
 end
 
 function GunClient:_handleAimInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
@@ -76,8 +81,11 @@ function GunClient:_handleFireInput(actionName: string, userInputState: Enum.Use
 	self._primaryDown = userInputState == Enum.UserInputState.Begin
 end
 
-function GunClient:_equip(mouse: Mouse)
+function GunClient:_equip()
 	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
+
+	local mouse = Players.LocalPlayer:GetMouse()
+	mouse.Icon = "rbxasset://textures/GunCursor.png"
 
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	self.Model.Parent = viewmodel
@@ -92,9 +100,6 @@ function GunClient:_equip(mouse: Mouse)
 	self.RecoilSpring.Speed = 10
 	self.RecoilSpring.Damper = 1
 	self._lastOffset = Vector3.new()
-
-	self.Mouse = mouse
-	self:UpdateMouseIcon()
 
 	ContextActionService:BindAction("aim" .. self.Instance.Name, function(...)
 		self:_handleAimInput(...)
@@ -114,11 +119,15 @@ function GunClient:_unequip()
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 	viewmodelComponent:ToggleVisibility(false)
 
+	self.Model.Parent = self.Instance
+
 	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
 	self._primaryDown = false
-	self:UpdateMouseIcon()
+
+	local mouse = Players.LocalPlayer:GetMouse()
+	mouse.Icon = ""
 end
 
 -- use remote event to prevent race condition while giving gun to viewmodel
@@ -131,27 +140,17 @@ function GunClient:OnEquipEvent(equipped: boolean)
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
-	self.RecoilSpring:Impulse(Vector3.new(verticalKick * 5, horizontalKick * 5, 0))
+	self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
 	viewmodel.Animations.Fire:Play()
-	for _, v in viewmodel.Instance.Receiver.FirePoint:GetChildren() do
-		task.spawn(function()
-			if v:IsA("ParticleEmitter") then
-				v.Enabled = true
-				task.delay(.05, function()
-					v.Enabled = false
-					v.Transparency = NumberSequence.new(1)
-				end)
-			elseif v:IsA("PointLight") then
-				v.Enabled = true
-				task.delay(.05, function()
-					v.Enabled = false
-				end)
-			end
-		end)
-	end
+
+	workspace.CurrentCamera.CFrame *= CFrame.Angles(
+		math.rad(verticalKick/10),
+		math.rad(horizontalKick/10),
+		0
+	)
 end
 
 function GunClient:OnDeactivated()
@@ -171,13 +170,13 @@ local function toRoundedString(number: number): string
 end
 
 function GunClient:OnRenderStepped(deltaTime: number)
-	local currentOffset = self.RecoilSpring.Position
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+
+	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
+	viewmodel.PositionOffset = Vector3.new(0, -recoilSpringPos.Y/10, recoilSpringPos.Y/5)
+	viewmodel.RotationOffset = Vector3.new(recoilSpringPos.Y/20, recoilSpringPos.X/20, 0)
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
-	workspace.CurrentCamera.CFrame *= CFrame.Angles(
-		math.rad(currentOffset.X - self._lastOffset.X),
-		math.rad(currentOffset.Y - self._lastOffset.Y),
-		0
-	)
+
 	self._lastOffset = self.RecoilSpring.Position
 end
 

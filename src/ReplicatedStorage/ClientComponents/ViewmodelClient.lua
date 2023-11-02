@@ -24,6 +24,9 @@ function ViewmodelClient:Construct()
 	self.Animations = {}
 	self.Humanoid = self.Instance:WaitForChild("RigHumanoid")
 
+	self.PositionOffset = Vector3.new()
+	self.RotationOffset = Vector3.new() -- xyz angles in radians
+
 	self._trove = Trove.new()
 
 	self.SwaySpring = Spring.new(Vector3.new()) -- "sways" viewmodel in response to mouse movement
@@ -66,18 +69,18 @@ function ViewmodelClient:Update(deltaTime: number)
 	local mouseDelta = UserInputService:GetMouseDelta()
 	local character = Players.LocalPlayer.Character
 	if not character then return end
-	-- local humanoid = character.Humanoid
-	-- local humanoidSpeed = humanoid.WalkSpeed*humanoid.MoveDirection.Magnitude
+	local humanoid = character.Humanoid
+	local humanoidSpeed = humanoid.WalkSpeed*humanoid.MoveDirection.Magnitude
 	-- if humanoid.MoveDirection.Magnitude < .1 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
 
-	local baseOffset: CFrame = CFrame.new(0, -1.5, -1)
+	local baseOffset: CFrame = self.Instance.BaseOffset.Value
 	--local aimOffset = baseOffset:Lerp(self.Instance.Offsets.Aiming.Value, self.LerpValues.Aiming.Value)
 
 	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0))
 	local swaySpringPos = self.SwaySpring.Position
 
 	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
-						* CFrame.new(-swaySpringPos.X/50, 0, 0)
+						* CFrame.new(swaySpringPos.X/25, 0, 0)
 
 	-- local viewbobArgs = (tick()-startTick)*(humanoidSpeed)/4
 	-- local viewbobScale = 1/6
@@ -85,9 +88,12 @@ function ViewmodelClient:Update(deltaTime: number)
 	-- local viewbobY = math.sin(viewbobArgs*2)*viewbobScale/2
 
 	-- local viewbobOffset = CFrame.new(viewbobX/2, viewbobY, 0)
-						-- * CFrame.Angles(viewbobY/3, -viewbobX/2, 0)
+	-- 					* CFrame.Angles(viewbobY/3, -viewbobX/2, 0)
 
-	local finalOffset = swayOffset
+	local totalOffset = CFrame.new(self.PositionOffset)
+						* CFrame.Angles(self.RotationOffset.X, self.RotationOffset.Y, self.RotationOffset.Z)
+
+	local finalOffset = swayOffset * totalOffset
 	self.Instance.RootPart.CFrame = workspace.CurrentCamera.CFrame * baseOffset * finalOffset
 end
 
