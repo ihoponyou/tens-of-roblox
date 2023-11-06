@@ -6,15 +6,15 @@ local hide = {
 	"HumanoidRootPart",
 	"Left Arm",
 	"Right Arm",
-	-- "Torso",
-	-- "Left Leg",
-	-- "Right Leg"
+	"Torso",
+	"Left Leg",
+	"Right Leg"
 }
 
 local function onDescendantAdded(descendant: Instance)
 	if not descendant:IsA("BasePart") then return end
 	if table.find(hide, descendant.Name) then return end
-	
+
 	-- print(descendant, descendant.LocalTransparencyModifier)
 
 	descendant:GetPropertyChangedSignal("LocalTransparencyModifier"):Connect(function()

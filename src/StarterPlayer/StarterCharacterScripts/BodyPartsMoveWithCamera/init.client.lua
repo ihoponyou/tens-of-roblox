@@ -6,72 +6,74 @@ local Camera = game.Workspace.CurrentCamera
 local Player = game.Players.LocalPlayer
 
 local char = Player.Character
-local origRightS = char:WaitForChild("Torso"):WaitForChild("Right Shoulder").C0
-local origLeftS = char:WaitForChild("Torso"):WaitForChild("Left Shoulder").C0
-local origNeck = char:WaitForChild("Torso"):WaitForChild("Neck").C0
+local torso = char:WaitForChild("Torso")
+local rightShoulderOrigin = torso:WaitForChild("Right Shoulder").C0
+local leftShoulderOrigin = torso:WaitForChild("Left Shoulder").C0
+local neckOrigin = torso:WaitForChild("Neck").C0
 
 local m = Player:GetMouse()
 
 local IsEquipped = false
 
 RunService.RenderStepped:Connect(function()
-	if IsEquipped == true then
+	if IsEquipped then
+		local cameraToMouse = m.Origin.Position - m.Hit.Position
 
-		if char.Torso:FindFirstChild("Right Shoulder") then
-			char.Torso["Right Shoulder"].C0 = char.Torso["Right Shoulder"].C0:Lerp(CFrame.new(1, .65, 0) * CFrame.Angles(-math.asin((m.Origin.p - m.Hit.p).unit.y), 1.55, 0) , 0.1)
+		if torso:FindFirstChild("Right Shoulder") then
+			local rightShoulder: Motor6D = torso["Right Shoulder"]
+			rightShoulder.C0 = rightShoulder.C0:Lerp(
+				CFrame.new(1, 0.65, 0) * CFrame.Angles(-math.asin(cameraToMouse.Unit.Y), 1.55, 0),
+				0.1
+			)
 		end
-		if char.Torso:FindFirstChild("Left Shoulder") then
-			char.Torso["Left Shoulder"].C0 = char.Torso["Left Shoulder"].C0:Lerp(CFrame.new(-1, .65, 0) * CFrame.Angles(-math.asin((m.Origin.p - m.Hit.p).unit.y), -1.55, 0) , 0.1)
+		if torso:FindFirstChild("Left Shoulder") then
+			local leftShoulder: Motor6D = torso["Left Shoulder"]
+			leftShoulder.C0 = leftShoulder.C0:Lerp(
+				CFrame.new(-1, 0.65, 0) * CFrame.Angles(-math.asin(cameraToMouse.Unit.Y), -1.55, 0),
+				0.1
+			)
 		end
-		if char.Torso:FindFirstChild("Neck") then
-			char.Torso["Neck"].C0 = char.Torso["Neck"].C0:Lerp(CFrame.new(0, 1, 0) * CFrame.Angles(-math.asin((m.Origin.p - m.Hit.p).unit.y) + 1.55, 3.15, 0), 0.2)
+		if torso:FindFirstChild("Neck") then
+			local neck: Motor6D = torso.Neck
+			neck.C0 =
+				neck.C0:Lerp(CFrame.new(0, 1, 0) * CFrame.Angles(-math.asin(cameraToMouse.Unit.Y) + 1.55, 3.15, 0), 0.2)
 		end
-
 	else
-
-		if char.Torso:FindFirstChild("Right Shoulder") then
-			char.Torso["Right Shoulder"].C0 = char.Torso["Right Shoulder"].C0:lerp(origRightS, 0.1)
+		if torso:FindFirstChild("Right Shoulder") then
+			local rightShoulder: Motor6D = torso["Right Shoulder"]
+			rightShoulder.C0 = rightShoulder.C0:Lerp(rightShoulderOrigin, 0.1)
 		end
-
-		if char.Torso:FindFirstChild("Left Shoulder") then
-			char.Torso["Left Shoulder"].C0 = char.Torso["Left Shoulder"].C0:lerp(origLeftS, 0.1)
+		if torso:FindFirstChild("Left Shoulder") then
+			local leftShoulder: Motor6D = torso["Left Shoulder"]
+			leftShoulder.C0 = leftShoulder.C0:Lerp(leftShoulderOrigin, 0.1)
 		end
-
-		if char.Torso:FindFirstChild("Neck") then
-			char.Torso["Neck"].C0 = char.Torso["Neck"].C0:lerp(origNeck, 0.1)
-
-		end
-	end
-end)
-
-char.ChildAdded:Connect(function()
-	for i,v in pairs(char:GetChildren()) do
-		if v:IsA("Tool") then
-			if not v:FindFirstChild("HoldArmsStill") then
-				IsEquipped = true
-			end
+		if torso:FindFirstChild("Neck") then
+			local neck: Motor6D = torso.Neck
+			neck.C0 = neck.C0:Lerp(neckOrigin, 0.2)
 		end
 	end
 end)
 
-updateEvent.OnClientEvent:Connect(function(PlrAgain, neckCFrame, RsCFrame, LsCFrame)
-	local Neck = PlrAgain.Character.Torso:FindFirstChild("Neck", true)
-	local Rs = PlrAgain.Character.Torso:FindFirstChild("Right Shoulder", true)
-	local Ls = PlrAgain.Character.Torso:FindFirstChild("Left Shoulder", true)
+updateEvent.OnClientEvent:Connect(function(toUpdate: Player, newNeckC0, newRsC0, newLsC0)
+	local character = toUpdate.Character
+	if not character then return end
+	local neck = character.Torso:FindFirstChild("Neck")
+	local rs = character.Torso:FindFirstChild("Right Shoulder")
+	local ls = character.Torso:FindFirstChild("Left Shoulder")
 
-	if Neck then
-		Neck.C0 = neckCFrame
+	if neck then
+		neck.C0 = newNeckC0
 	end
 
-	if Rs then
-		Rs.C0 = RsCFrame
+	if rs then
+		rs.C0 = newRsC0
 	end
 
-	if Ls then
-		Ls.C0 = LsCFrame
+	if ls then
+		ls.C0 = newLsC0
 	end
 end)
 
-while wait(2) do -- you can change here if you want
-	updateEvent:FireServer(char.Torso["Neck"].C0, char.Torso["Right Shoulder"].C0, char.Torso["Left Shoulder"].C0)
+while task.wait(2) do -- you can change here if you want
+	updateEvent:FireServer(torso["Neck"].C0, torso["Right Shoulder"].C0, torso["Left Shoulder"].C0)
 end

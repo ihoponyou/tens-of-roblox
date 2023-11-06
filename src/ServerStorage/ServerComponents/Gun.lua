@@ -173,7 +173,7 @@ function Gun:OnEquipped()
 	for _,v in animations3P:GetChildren() do
 		self.Animations[v.Name] =  humanoid:LoadAnimation(v)
 	end
-	-- self.Animations.Idle:Play()
+	self.Animations.Idle:Play()
 
 	self.EquipEvent:FireClient(self.Owner, true)
 end

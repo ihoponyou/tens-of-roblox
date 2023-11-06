@@ -19,6 +19,10 @@ local GunClient = Component.new({
 	},
 })
 
+local CUSTOM_SCALES = {
+	["AK-47"] = 1
+}
+
 local function newNamedInstance(name: string, class: string, parent: Instance)
 	local instance = Instance.new(class)
 	instance.Parent = parent
@@ -36,6 +40,12 @@ function GunClient:Construct()
 	-- also, since this is all clientside, the serverside version of the model actually stays
 	-- in the character's hands; thus 3rd person animations work
 	self.Model = self.Instance:WaitForChild("GunModel")
+
+	local scale = CUSTOM_SCALES[self.Instance.Name]
+	if scale~=nil then
+		self.Model:ScaleTo(scale)
+	end
+
 	for _,v in self.Model:GetDescendants() do
 		if v:IsA("BasePart") then
 			local trans = v.Transparency
@@ -119,7 +129,7 @@ function GunClient:_unequip()
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 	viewmodelComponent:ToggleVisibility(false)
 
-	self.Model.Parent = self.Instance
+	self.Model.PrimaryPart.RootJoint.Part0 = nil
 
 	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
