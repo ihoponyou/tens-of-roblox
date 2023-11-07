@@ -63,7 +63,7 @@ function Gun:Construct()
 
 	-- the serverside gun component refers to the 3rd person gun model
 	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].GunModel)
-	if self.Model.Name == "AK-47" then
+	if self.Instance.Name == "AK-47" then
 		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
 	end
 	self.Model.Parent = self.Instance
@@ -161,7 +161,6 @@ end
 function Gun:OnEquipped()
 	--print(self.Instance.Parent, "equipped", self.Instance.Name)
 	self.Character = self.Instance.Parent
-	self.Owner = Players:GetPlayerFromCharacter(self.Character)
 	self.CastParams.FilterDescendantsInstances = { self.Character }
 
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
@@ -191,6 +190,22 @@ function Gun:OnUnequipped()
 end
 
 function Gun:Start()
+
+	-- TODO: this may introduce a race condition in (un)equip event handlers where self.Owner is not yet updated
+	local function OnInstanceAncestryChanged(child: Instance, parent: Instance)
+		if child ~= self.Instance then return end
+		local owner = nil
+		if parent.ClassName == "Model" then
+			owner = Players:GetPlayerFromCharacter(parent)
+		elseif parent.ClassName == "Backpack" then
+			owner = parent.Parent
+		end
+		self.Owner = owner
+		self.Instance:SetAttribute("OwnerID", owner.UserId)
+	end
+	OnInstanceAncestryChanged(self.Instance, self.Instance.Parent)
+	self._trove:Connect(self.Instance.AncestryChanged, OnInstanceAncestryChanged)
+
 	self._trove:Connect(self.Instance.Equipped, function(...) self:OnEquipped(...) end)
 	self._trove:Connect(self.Instance.Unequipped, function() self:OnUnequipped() end)
 

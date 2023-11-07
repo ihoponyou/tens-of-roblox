@@ -8,7 +8,9 @@ local UserInputService = game:GetService("UserInputService")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Spring = require(ReplicatedStorage.Packages.Spring)
-local Logger = require(script.Parent.Extensions.Logger)
+
+local ClientComponents = ReplicatedStorage.Source.ClientComponents
+local Logger = require(ClientComponents.Extensions.Logger)
 
 local ViewmodelClient
 
@@ -32,6 +34,8 @@ end
 
 function GunClient:Construct()
 	self._trove = Trove.new()
+	self._localPlayerTrove = Trove.new()
+	self._trove:Add(self._localPlayerTrove)
 
 	self._primaryDown = false
 
@@ -130,6 +134,8 @@ function GunClient:_unequip()
 	viewmodelComponent:ToggleVisibility(false)
 
 	self.Model.PrimaryPart.RootJoint.Part0 = nil
+	self.Model.Parent = self.Instance
+	self.Model:PivotTo(CFrame.new())
 
 	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
@@ -190,17 +196,34 @@ function GunClient:OnRenderStepped(deltaTime: number)
 	self._lastOffset = self.RecoilSpring.Position
 end
 
+function GunClient:_setupForLocalPlayer()
+	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
+	self._localPlayerTrove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
+
+	self._localPlayerTrove:Connect(self.Instance.Activated, function(...) self:OnActivated(...) end)
+	self._localPlayerTrove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
+
+	self._localPlayerTrove:Connect(RunService.Stepped, function(...) self:OnStepped(...) end)
+end
+
+function GunClient:_cleanUpForLocalPlayer()
+	self._localPlayerTrove:Clean()
+end
+
 function GunClient:Start()
 	ViewmodelClient = require(script.Parent.ViewmodelClient)
 	-- CameraController = Knit.GetController("CameraController")
 
-	self._trove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
-	self._trove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
+	local function OwnerIDChanged()
+		if self.Instance:GetAttribute("OwnerID") == Players.LocalPlayer.UserId then
+			self:_setupForLocalPlayer()
+		else
+			self:_cleanUpForLocalPlayer()
+		end
+	end
 
-	self._trove:Connect(self.Instance.Activated, function(...) self:OnActivated(...) end)
-	self._trove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
-
-	self._trove:Connect(RunService.Stepped, function(...) self:OnStepped(...) end)
+	OwnerIDChanged()
+	self._trove:Connect(self.Instance:GetAttributeChangedSignal("OwnerID"), OwnerIDChanged)
 end
 
 function GunClient:Stop()

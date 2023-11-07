@@ -12,7 +12,12 @@ for _,v in viewmodel:GetDescendants() do
     if not (v:IsA("Accessory")) then continue end
     v:Destroy()
 end
-viewmodel.RigHumanoid:ApplyDescription(game.Players:GetHumanoidDescriptionFromUserId(player.UserId))
+viewmodel.RigHumanoid:ApplyDescription(
+    if player.UserId < 0 then
+        ReplicatedStorage.GuestDescription
+    else
+        game.Players:GetHumanoidDescriptionFromUserId(player.UserId)
+)
 -- remove unused accessories
 for _,v in viewmodel:GetDescendants() do
     if not (v:IsA("Accessory")) then continue end
