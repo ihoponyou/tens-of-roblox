@@ -39,29 +39,32 @@ function GunClient:Construct()
 
 	self._primaryDown = false
 
-	-- the clientside gun component refers to the 3rd person gun model
-	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
-	-- also, since this is all clientside, the serverside version of the model actually stays
-	-- in the character's hands; thus 3rd person animations work
-	self.Model = self.Instance:WaitForChild("GunModel")
-
-	local scale = CUSTOM_SCALES[self.Instance.Name]
-	if scale~=nil then
-		self.Model:ScaleTo(scale)
-	end
-
-	for _,v in self.Model:GetDescendants() do
-		if v:IsA("BasePart") then
-			local trans = v.Transparency
-			v.LocalTransparencyModifier = 1
-			v.Transparency = trans
-		end
-	end
+	-- for _,v in self.Model:GetDescendants() do
+	-- 	if v:IsA("BasePart") then
+	-- 		local trans = v.Transparency
+	-- 		v.LocalTransparencyModifier = 1
+	-- 		v.Transparency = trans
+	-- 	end
+	-- end
 
 	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
 	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
+	self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
+	self._trove:Connect(self.ModelLoaded.OnClientEvent, function(model)
+		self.Model = model
+		local scale = CUSTOM_SCALES[self.Instance.Name]
+		if scale~=nil then
+			self.Model:ScaleTo(scale)
+		end
+	end)
+
+	-- the clientside gun component refers to the 3rd person gun model
+	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
+	-- also, since this is all clientside, the serverside version of the model actually stays
+	-- in the character's hands; thus 3rd person animations work
+	-- self.Model = self.Instance:WaitForChild("GunModel")
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 

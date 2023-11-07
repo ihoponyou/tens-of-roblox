@@ -38,6 +38,7 @@ function Gun:Construct()
 	self.RecoilEvent = newNamedInstance("RecoilEvent", "RemoteEvent", self.Instance)
 	self.AimEvent = newNamedInstance("AimEvent", "RemoteEvent", self.Instance)
 	self.EquipEvent = newNamedInstance("EquipEvent", "RemoteEvent", self.Instance)
+	self.ModelLoaded = newNamedInstance("ModelLoaded", "RemoteEvent", self.Instance)
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 	local GUN_STATS = self.Config:GetAttributes()
@@ -66,10 +67,9 @@ function Gun:Construct()
 	if self.Instance.Name == "AK-47" then
 		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
 	end
-	self.Model.Parent = self.Instance
 
-	self.FirePoint = self.Instance:FindFirstChild("FirePoint", true)
-	self.FireSound = self.Instance:FindFirstChild("FireSound", true)
+	self.FirePoint = self.Model:FindFirstChild("FirePoint", true)
+	self.FireSound = self.Model:FindFirstChild("FireSound", true)
 
 	self.ImpactParticle = self.Model.Receiver:FindFirstChild("ImpactParticle")
 end
@@ -190,7 +190,6 @@ function Gun:OnUnequipped()
 end
 
 function Gun:Start()
-
 	-- TODO: this may introduce a race condition in (un)equip event handlers where self.Owner is not yet updated
 	local function OnInstanceAncestryChanged(child: Instance, parent: Instance)
 		if child ~= self.Instance then return end
@@ -205,6 +204,12 @@ function Gun:Start()
 	end
 	OnInstanceAncestryChanged(self.Instance, self.Instance.Parent)
 	self._trove:Connect(self.Instance.AncestryChanged, OnInstanceAncestryChanged)
+
+	self.Model.Parent = self.Instance
+	if self.Owner ~= nil then
+		self.Model.Parent = self.Owner.Character
+	end
+	self.ModelLoaded:FireClient(self.Owner, self.Model)
 
 	self._trove:Connect(self.Instance.Equipped, function(...) self:OnEquipped(...) end)
 	self._trove:Connect(self.Instance.Unequipped, function() self:OnUnequipped() end)
