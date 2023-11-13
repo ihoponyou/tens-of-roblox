@@ -6,6 +6,6 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 Loader.LoadDescendants(ReplicatedStorage.Source.Controllers, Loader.MatchesName("Controller$"))
 
 Knit.Start():andThen(function()
-    print("Knit started.")
+    -- print("Knit started.")
     Loader.LoadChildren(ReplicatedStorage.Source.ClientComponents)
 end):catch(warn)

@@ -14,6 +14,8 @@ local Logger = require(ClientComponents.Extensions.Logger)
 
 local ViewmodelClient
 
+local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
+
 local GunClient = Component.new({
 	Tag = "Gun",
 	Extensions = {
@@ -24,13 +26,6 @@ local GunClient = Component.new({
 local CUSTOM_SCALES = {
 	["AK-47"] = 1
 }
-
-local function newNamedInstance(name: string, class: string, parent: Instance)
-	local instance = Instance.new(class)
-	instance.Parent = parent
-	instance.Name = name
-	return instance
-end
 
 function GunClient:Construct()
 	self._trove = Trove.new()
@@ -69,7 +64,7 @@ function GunClient:Construct()
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 
-	self.AimPercent = newNamedInstance("AimPercent", "NumberValue", self.Model)
+	self.AimPercent = NamedInstance.new("AimPercent", "NumberValue", self.Model)
 end
 
 function GunClient:Aim(bool: boolean)

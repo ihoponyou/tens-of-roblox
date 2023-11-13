@@ -7,6 +7,6 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 Loader.LoadDescendants(ServerStorage.Source.Services, Loader.MatchesName("Services$"))
 
 Knit.Start():andThen(function()
-    print("Knit started.")
+    -- print("Knit started.")
     Loader.LoadChildren(ServerStorage.Source.ServerComponents)
 end):catch(warn)

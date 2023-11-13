@@ -9,6 +9,8 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(ServerStorage.Source.ServerComponents.Extensions.Logger)
 
+local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
+
 local Gun = Component.new({
 	Tag = "Gun",
 	Extensions = {
@@ -19,13 +21,6 @@ local Gun = Component.new({
 local RNG = Random.new()
 local TAU = math.pi * 2
 
-local function newNamedInstance(name: string, class: string, parent: Instance)
-	local instance = Instance.new(class)
-	instance.Parent = parent
-	instance.Name = name
-	return instance
-end
-
 function Gun:Construct()
 	self._trove = Trove.new()
 
@@ -34,11 +29,11 @@ function Gun:Construct()
 
 	self.Animations = {}
 
-	self.MouseEvent = newNamedInstance("MouseEvent", "RemoteEvent", self.Instance)
-	self.RecoilEvent = newNamedInstance("RecoilEvent", "RemoteEvent", self.Instance)
-	self.AimEvent = newNamedInstance("AimEvent", "RemoteEvent", self.Instance)
-	self.EquipEvent = newNamedInstance("EquipEvent", "RemoteEvent", self.Instance)
-	self.ModelLoaded = newNamedInstance("ModelLoaded", "RemoteEvent", self.Instance)
+	self.MouseEvent = NamedInstance.new("MouseEvent", "RemoteEvent", self.Instance)
+	self.RecoilEvent = NamedInstance.new("RecoilEvent", "RemoteEvent", self.Instance)
+	self.AimEvent = NamedInstance.new("AimEvent", "RemoteEvent", self.Instance)
+	self.EquipEvent = NamedInstance.new("EquipEvent", "RemoteEvent", self.Instance)
+	self.ModelLoaded = NamedInstance.new("ModelLoaded", "RemoteEvent", self.Instance)
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 	local GUN_STATS = self.Config:GetAttributes()
@@ -158,20 +153,26 @@ function Gun:OnAimEvent(player: Player, isAiming: boolean)
 	end
 end
 
-function Gun:OnEquipped()
-	--print(self.Instance.Parent, "equipped", self.Instance.Name)
-	self.Character = self.Instance.Parent
-	self.CastParams.FilterDescendantsInstances = { self.Character }
-
+function Gun:LoadAnimations()
+	local character = self.Character
+	if not character then warn("cannot load animations without character") end
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
-
-	self.Model.Parent = self.Character
-	self.Model.PrimaryPart.RootJoint.Part0 = self.Character["Right Arm"]
 
 	local animations3P = ReplicatedStorage.Weapons[self.Instance.Name].Animations["3P"]
 	for _,v in animations3P:GetChildren() do
 		self.Animations[v.Name] =  humanoid:LoadAnimation(v)
 	end
+end
+
+function Gun:OnEquipped()
+	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
+	self.Character = self.Instance.Parent
+	self.CastParams.FilterDescendantsInstances = { self.Character }
+
+	self:LoadAnimations()
+
+	self.Model.Parent = self.Character
+	self.Model.PrimaryPart.RootJoint.Part0 = self.Character["Right Arm"]
 	self.Animations.Idle:Play()
 
 	self.EquipEvent:FireClient(self.Owner, true)
@@ -182,9 +183,9 @@ function Gun:OnUnequipped()
 	for _,v in self.Animations do
 		v:Stop()
 	end
-	self.Animations = {}
 
 	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
+	self.Animations.Holster:Play()
 
 	self.EquipEvent:FireClient(self.Owner, false)
 end
@@ -207,8 +208,12 @@ function Gun:Start()
 
 	self.Model.Parent = self.Instance
 	if self.Owner ~= nil then
-		self.Model.Parent = self.Owner.Character
-		self.Model.Parent = self.Instance
+		self.Character = self.Owner.Character
+		self.Model.Parent = self.Character
+		self:LoadAnimations()
+		
+		self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
+	self.Animations.Holster:Play()
 	end
 	self.ModelLoaded:FireClient(self.Owner, self.Model)
 

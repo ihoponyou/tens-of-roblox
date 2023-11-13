@@ -29,6 +29,8 @@ function ViewmodelClient:Construct()
 
 	self._trove = Trove.new()
 
+	self.SwayScale = 1
+
 	self.SwaySpring = Spring.new(Vector3.new()) -- "sways" viewmodel in response to mouse movement
 	self.SwaySpring.Speed = 20
 	self.SwaySpring.Damper = .75 -- lower value = more bounce
@@ -90,10 +92,10 @@ function ViewmodelClient:Update(deltaTime: number)
 	-- local viewbobOffset = CFrame.new(viewbobX/2, viewbobY, 0)
 	-- 					* CFrame.Angles(viewbobY/3, -viewbobX/2, 0)
 
-	local totalOffset = CFrame.new(self.PositionOffset)
+	local customOffset = CFrame.new(self.PositionOffset)
 						* CFrame.Angles(self.RotationOffset.X, self.RotationOffset.Y, self.RotationOffset.Z)
 
-	local finalOffset = swayOffset * totalOffset
+	local finalOffset = customOffset:Lerp(customOffset * swayOffset, self.SwayScale)
 	self.Instance.RootPart.CFrame = workspace.CurrentCamera.CFrame * baseOffset * finalOffset
 end
 
