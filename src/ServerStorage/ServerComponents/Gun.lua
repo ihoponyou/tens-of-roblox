@@ -208,6 +208,7 @@ function Gun:Start()
 	self.Model.Parent = self.Instance
 	if self.Owner ~= nil then
 		self.Model.Parent = self.Owner.Character
+		self.Model.Parent = self.Instance
 	end
 	self.ModelLoaded:FireClient(self.Owner, self.Model)
 

@@ -58,6 +58,7 @@ function GunClient:Construct()
 		if scale~=nil then
 			self.Model:ScaleTo(scale)
 		end
+		self.Model.Parent = self.Instance
 	end)
 
 	-- the clientside gun component refers to the 3rd person gun model
@@ -96,6 +97,7 @@ end
 
 function GunClient:_handleFireInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
 	self._primaryDown = userInputState == Enum.UserInputState.Begin
+	return Enum.ContextActionResult.Sink
 end
 
 function GunClient:_equip()
@@ -192,8 +194,13 @@ function GunClient:OnRenderStepped(deltaTime: number)
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
 	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
-	viewmodel.PositionOffset = Vector3.new(0, -recoilSpringPos.Y/10, recoilSpringPos.Y/5)
-	viewmodel.RotationOffset = Vector3.new(recoilSpringPos.Y/20, recoilSpringPos.X/20, 0)
+	local recoilScale = if self.Aiming then 0.3 else 1
+
+	viewmodel.PositionOffset = Vector3.new(0, recoilScale*recoilSpringPos.Y/20, recoilScale*recoilSpringPos.Y/5)
+	if self.Aiming then
+		viewmodel.PositionOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value.Position
+	end
+	viewmodel.RotationOffset = Vector3.new(recoilScale*recoilSpringPos.Y/20, recoilScale*recoilSpringPos.X/20, 0)
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
 
 	self._lastOffset = self.RecoilSpring.Position
