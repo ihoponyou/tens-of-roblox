@@ -67,12 +67,12 @@ function GunClient:Aim(bool: boolean)
 	self.AimEvent:FireServer(self.Aiming)
 	-- print("aiming:", self.Aiming)
 
-	local adsSpeed = 0.5
+	local adsSpeed = 0.4
 
 	UserInputService.MouseIconEnabled = not self.Aiming
 
 	local tweeningInformation =
-		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed / 2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed * 0.75, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 	local properties = { Value = if self.Aiming then 1 else 0 }
 
 	TweenService:Create(self.AimPercent, tweeningInformation, properties):Play()
