@@ -36,17 +36,7 @@ function Gun:Construct()
 	self.ModelLoaded = NamedInstance.new("ModelLoaded", "RemoteEvent", self.Instance)
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
-	local GUN_STATS = self.Config:GetAttributes()
-
-	self.BULLET_SPEED = GUN_STATS.BulletSpeed
-	self.BULLET_MAXDIST = GUN_STATS.BulletMaxDistance
-	self.BULLET_GRAVITY = GUN_STATS.BulletGravity
-	self.MIN_SPREAD_ANGLE = GUN_STATS.MinSpreadAngle
-	self.MAX_SPREAD_ANGLE = GUN_STATS.MaxSpreadAngle
-	self.BULLETS_PER_SHOT = GUN_STATS.BulletsPerShot
-	self.CAN_PIERCE = GUN_STATS.CanPierce
-	self.DAMAGE = GUN_STATS.Damage or 5
-	self.RPM = GUN_STATS.RPM or 100
+	self.GUN_STATS = self.Config:GetAttributes()
 
 	local CastParams = RaycastParams.new()
 	CastParams.IgnoreWater = true
@@ -57,7 +47,7 @@ function Gun:Construct()
 	self.Instance.CanBeDropped = false
 	self.Instance.RequiresHandle = false
 
-	-- the serverside gun component refers to the 3rd person gun model
+	-- serverside gun.model refers to the 3rd person gun model
 	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].GunModel)
 	if self.Instance.Name == "AK-47" then
 		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
@@ -135,10 +125,10 @@ end
 function Gun:OnMouseEvent(player: Player, direction: Vector3)
 	if not self.CanFire then return end
 	self.CanFire = false
-	for _ = 1, self.BULLETS_PER_SHOT do
+	for _ = 1, self.GUN_STATS.BulletsPerShot do
 		self:Fire(direction)
 	end
-	task.wait(60 / self.RPM)
+	task.wait(60 / self.GUN_STATS.RPM)
 	self.CanFire = true
 end
 

@@ -15,6 +15,7 @@ local Logger = require(ClientComponents.Extensions.Logger)
 local ViewmodelClient
 
 local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
+local NumberLerp = require(ReplicatedStorage.Source.NumberLerp)
 
 local GunClient = Component.new({
 	Tag = "Gun",
@@ -34,18 +35,11 @@ function GunClient:Construct()
 
 	self._primaryDown = false
 
-	-- for _,v in self.Model:GetDescendants() do
-	-- 	if v:IsA("BasePart") then
-	-- 		local trans = v.Transparency
-	-- 		v.LocalTransparencyModifier = 1
-	-- 		v.Transparency = trans
-	-- 	end
-	-- end
-
 	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
 	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
+
 	self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
 	self._trove:Connect(self.ModelLoaded.OnClientEvent, function(model)
 		self.Model = model
@@ -56,7 +50,7 @@ function GunClient:Construct()
 		self.Model.Parent = self.Instance
 	end)
 
-	-- the clientside gun component refers to the 3rd person gun model
+	-- the clientside gun.model refers to the 1st person gun model
 	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
 	-- also, since this is all clientside, the serverside version of the model actually stays
 	-- in the character's hands; thus 3rd person animations work
@@ -117,7 +111,7 @@ function GunClient:_equip()
 
 	ContextActionService:BindAction("aim" .. self.Instance.Name, function(...)
 		self:_handleAimInput(...)
-	end, true, Enum.UserInputType.MouseButton2)
+	end, true, Enum.UserInputType.MouseButton2, Enum.KeyCode.Q)
 
 	ContextActionService:BindAction("fire" .. self.Instance.Name, function(...)
 		self:_handleFireInput(...)
@@ -161,7 +155,7 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
-	viewmodel.Animations.Fire:Play()
+	viewmodel:PlayAnimation("Fire")
 
 	workspace.CurrentCamera.CFrame *= CFrame.Angles(
 		math.rad(verticalKick/10),
@@ -189,14 +183,18 @@ end
 function GunClient:OnRenderStepped(deltaTime: number)
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
-	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
-	local recoilScale = if self.Aiming then 0.3 else 1
+	local aimPercentValue = self.AimPercent.Value
+	-- reduce recoil if aiming
+	local recoilScale = NumberLerp.Lerp(1, 0.25, aimPercentValue)
+	-- reduce sway if aiming
+	viewmodel.SwayScale = 1.1-aimPercentValue/1.1
 
-	viewmodel.PositionOffset = Vector3.new(0, recoilScale*recoilSpringPos.Y/20, recoilScale*recoilSpringPos.Y/5)
-	if self.Aiming then
-		viewmodel.PositionOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value.Position
-	end
-	viewmodel.RotationOffset = Vector3.new(recoilScale*recoilSpringPos.Y/20, recoilScale*recoilSpringPos.X/20, 0)
+	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
+	local recoilPositionOffset = Vector3.new(0, recoilSpringPos.Y/20, recoilSpringPos.Y/3) * recoilScale
+	local aimPositionOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value.Position
+	viewmodel.PositionOffset = recoilPositionOffset:Lerp(aimPositionOffset, aimPercentValue)
+	local recoilRotationOffset = Vector3.new(recoilSpringPos.Y/20, recoilSpringPos.X/20, 0) * recoilScale
+	viewmodel.RotationOffset = recoilRotationOffset
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
 
 	self._lastOffset = self.RecoilSpring.Position
