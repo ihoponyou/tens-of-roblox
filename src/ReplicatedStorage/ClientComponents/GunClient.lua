@@ -138,6 +138,7 @@ function GunClient:_unequip()
 	self.Model:PivotTo(CFrame.new())
 
 	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
+	ContextActionService:UnbindAction("fire" .. self.Instance.Name)
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
 	self._primaryDown = false

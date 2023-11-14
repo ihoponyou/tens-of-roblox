@@ -29,11 +29,11 @@ function ViewmodelClient:Construct()
 
 	self._trove = Trove.new()
 
-	self.SwayScale = 1
-
-	self.SwaySpring = Spring.new(Vector3.new()) -- "sways" viewmodel in response to mouse movement
-	self.SwaySpring.Speed = 20
-	self.SwaySpring.Damper = .75 -- lower value = more bounce
+	self.SwayScale = 1 -- determines how much sway to display
+	self.SwaySensitivity = 1.2 -- scales sway with camera movement; lower will be less responsive and vice versa
+	self.SwaySpring = Spring.new(Vector3.new())
+	self.SwaySpring.Speed = 25
+	self.SwaySpring.Damper = .8 -- lower value = more bounce
 end
 
 function ViewmodelClient:Start()
@@ -68,7 +68,6 @@ end
 
 local startTick = 0
 function ViewmodelClient:Update(deltaTime: number)
-	local mouseDelta = UserInputService:GetMouseDelta()
 	local character = Players.LocalPlayer.Character
 	if not character then return end
 	local humanoid = character.Humanoid
@@ -78,11 +77,12 @@ function ViewmodelClient:Update(deltaTime: number)
 	local baseOffset: CFrame = self.Instance.BaseOffset.Value
 	--local aimOffset = baseOffset:Lerp(self.Instance.Offsets.Aiming.Value, self.LerpValues.Aiming.Value)
 
-	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0))
+	local mouseDelta = UserInputService:GetMouseDelta()
+	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0) * self.SwaySensitivity)
 	local swaySpringPos = self.SwaySpring.Position
 
 	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
-						* CFrame.new(swaySpringPos.X/25, 0, 0)
+						* CFrame.new(0, 0, 0)
 
 	-- local viewbobArgs = (tick()-startTick)*(humanoidSpeed)/4
 	-- local viewbobScale = 1/6
