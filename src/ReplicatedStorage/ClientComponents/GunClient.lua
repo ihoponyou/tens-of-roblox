@@ -24,6 +24,8 @@ local GunClient = Component.new({
 	},
 })
 
+local fieldOfView = 85
+
 local CUSTOM_SCALES = {
 	["AK-47"] = 1
 }
@@ -198,6 +200,8 @@ function GunClient:OnRenderStepped(deltaTime: number)
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
 
 	self._lastOffset = self.RecoilSpring.Position
+	local magnification = 1.25
+	workspace.CurrentCamera.FieldOfView = fieldOfView - ((fieldOfView - (fieldOfView / magnification)) * aimPercentValue)
 end
 
 function GunClient:_setupForLocalPlayer()

@@ -79,6 +79,10 @@ function Gun:DoMuzzleFlash()
 				task.wait(.1)
 				v.Enabled = false
 				v.Transparency = NumberSequence.new(v.transparency.Value)
+			elseif v:IsA("PointLight") then
+				v.Enabled = true
+				task.wait(.1)
+				v.Enabled = false
 			end
 		end)
 	end
@@ -108,6 +112,19 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	if character:GetAttribute("Ragdolled") then return end
 
 	local headPosition = character.HumanoidRootPart.Position + Vector3.yAxis * 1.5
+	local hitscan = workspace:Raycast(headPosition, direction.Unit * self.GUN_STATS.BulletMaxDistance, self.CastParams)
+	if hitscan then
+		if hitscan.Instance.Parent then
+			local humanoid: Humanoid? = hitscan.Instance.Parent:FindFirstChildOfClass("Humanoid")
+			if humanoid ~= nil then
+				-- print("hit", hitscan.Instance.Parent)
+				humanoid:TakeDamage(self.GUN_STATS.Damage)
+				if humanoid.Health - self.GUN_STATS.Damage <= 0 then
+					hitscan.Instance.Parent.Torso:ApplyImpulse(direction.Unit * self.GUN_STATS.Damage*3)
+				end
+			end
+		end
+	end
 
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
