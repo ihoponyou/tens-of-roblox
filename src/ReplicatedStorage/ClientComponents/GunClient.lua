@@ -192,7 +192,7 @@ function GunClient:OnRenderStepped(deltaTime: number)
 	viewmodel.SwayScale = 1.1-aimPercentValue/1.1
 
 	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
-	local recoilPositionOffset = Vector3.new(0, recoilSpringPos.Y/20, recoilSpringPos.Y/3) * recoilScale
+	local recoilPositionOffset = Vector3.new(0, recoilSpringPos.Y/15, recoilSpringPos.Y/3) * recoilScale
 	local aimPositionOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value.Position
 	viewmodel.PositionOffset = recoilPositionOffset:Lerp(aimPositionOffset, aimPercentValue)
 	local recoilRotationOffset = Vector3.new(recoilSpringPos.Y/20, recoilSpringPos.X/20, 0) * recoilScale

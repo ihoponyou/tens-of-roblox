@@ -13,8 +13,6 @@ local RagdollClient = Component.new {
 	};
 }
 
-
-
 function RagdollClient:Construct()
 	self._trove = Trove.new()
 	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid")
@@ -30,6 +28,7 @@ function RagdollClient:OnRagdolledChanged()
 end
 
 function RagdollClient:Start()
+	self.Humanoid.BreakJointsOnDeath = false
 	self._trove:Connect(self.Instance:GetAttributeChangedSignal("Ragdolled"), function() self:OnRagdolledChanged() end)
 end
 

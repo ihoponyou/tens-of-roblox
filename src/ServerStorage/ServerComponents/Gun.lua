@@ -115,12 +115,14 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	local hitscan = workspace:Raycast(headPosition, direction.Unit * self.GUN_STATS.BulletMaxDistance, self.CastParams)
 	if hitscan then
 		if hitscan.Instance.Parent then
+			-- print(hitscan.Instance.Parent)
+			local headshot = (hitscan.Instance.Name == "Head")
 			local humanoid: Humanoid? = hitscan.Instance.Parent:FindFirstChildOfClass("Humanoid")
 			if humanoid ~= nil then
 				-- print("hit", hitscan.Instance.Parent)
-				humanoid:TakeDamage(self.GUN_STATS.Damage)
+				humanoid:TakeDamage(self.GUN_STATS.Damage * if headshot then 2 else 1)
 				if humanoid.Health - self.GUN_STATS.Damage <= 0 then
-					hitscan.Instance.Parent.Torso:ApplyImpulse(direction.Unit * self.GUN_STATS.Damage*3)
+					hitscan.Instance:ApplyImpulse(direction.Unit * self.GUN_STATS.Damage*23)
 				end
 			end
 		end
