@@ -69,7 +69,7 @@ function GunClient:Aim(bool: boolean)
 
 	local adsSpeed = 0.4
 
-	UserInputService.MouseIconEnabled = not self.Aiming
+	-- UserInputService.MouseIconEnabled = not self.Aiming
 
 	local tweeningInformation =
 		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed * 0.75, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)

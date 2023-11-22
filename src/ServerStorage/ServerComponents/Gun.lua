@@ -14,12 +14,9 @@ local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
 local Gun = Component.new({
 	Tag = "Gun",
 	Extensions = {
-		Logger
-	}
+		Logger,
+	},
 })
-
-local RNG = Random.new()
-local TAU = math.pi * 2
 
 function Gun:Construct()
 	self._trove = Trove.new()
@@ -72,18 +69,11 @@ end
 function Gun:DoMuzzleFlash()
 	local firePoint = self.Model.Receiver.FirePoint
 	for _, v in firePoint:GetChildren() do
+		if not v:IsA("ParticleEmitter") and not v:IsA("PointLight") then continue end
 		task.spawn(function()
-			if v:IsA("ParticleEmitter") then
-				v.Transparency = NumberSequence.new(v.repTransparency.Value)
-				v.Enabled = true
-				task.wait(.1)
-				v.Enabled = false
-				v.Transparency = NumberSequence.new(v.transparency.Value)
-			elseif v:IsA("PointLight") then
-				v.Enabled = true
-				task.wait(.1)
-				v.Enabled = false
-			end
+			v.Enabled = true
+			task.wait(0.1)
+			v.Enabled = false
 		end)
 	end
 end
@@ -122,7 +112,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 				-- print("hit", hitscan.Instance.Parent)
 				humanoid:TakeDamage(self.GUN_STATS.Damage * if headshot then 2 else 1)
 				if humanoid.Health - self.GUN_STATS.Damage <= 0 then
-					hitscan.Instance:ApplyImpulse(direction.Unit * self.GUN_STATS.Damage*23)
+					hitscan.Instance:ApplyImpulse(direction.Unit * self.GUN_STATS.Damage * 23)
 				end
 			end
 		end
@@ -143,17 +133,22 @@ end
 
 function Gun:OnMouseEvent(player: Player, direction: Vector3)
 	if not self.CanFire then return end
+
 	self.CanFire = false
 	for _ = 1, self.GUN_STATS.BulletsPerShot do
 		self:Fire(direction)
 	end
+
 	task.wait(60 / self.GUN_STATS.RPM)
+
 	self.CanFire = true
 end
 
 function Gun:OnAimEvent(player: Player, isAiming: boolean)
 	if not self.Animations.AimIdle then return end
+
 	self.Aiming = isAiming
+
 	local animTrack = self.Animations.AimIdle
 	if isAiming then
 		animTrack:Play()
@@ -168,8 +163,8 @@ function Gun:LoadAnimations()
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 
 	local animations3P = ReplicatedStorage.Weapons[self.Instance.Name].Animations["3P"]
-	for _,v in animations3P:GetChildren() do
-		self.Animations[v.Name] =  humanoid:LoadAnimation(v)
+	for _, v in animations3P:GetChildren() do
+		self.Animations[v.Name] = humanoid:LoadAnimation(v)
 	end
 end
 
@@ -190,7 +185,7 @@ end
 
 function Gun:OnUnequipped()
 	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
-	for _,v in self.Animations do
+	for _, v in self.Animations do
 		v:Stop()
 	end
 
@@ -205,12 +200,14 @@ function Gun:Start()
 	-- TODO: this may introduce a race condition in (un)equip event handlers where self.Owner is not yet updated
 	local function OnInstanceAncestryChanged(child: Instance, parent: Instance)
 		if child ~= self.Instance then return end
+
 		local owner = nil
 		if parent.ClassName == "Model" then
 			owner = Players:GetPlayerFromCharacter(parent)
 		elseif parent.ClassName == "Backpack" then
 			owner = parent.Parent
 		end
+
 		self.Owner = owner
 		self.Instance:SetAttribute("OwnerID", owner.UserId)
 	end
@@ -222,9 +219,9 @@ function Gun:Start()
 		self.Character = self.Owner.Character
 		self.Model.Parent = self.Character
 		self:LoadAnimations()
-		
+
 		self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
-	self.Animations.Holster:Play()
+		self.Animations.Holster:Play()
 	end
 	self.ModelLoaded:FireClient(self.Owner, self.Model)
 
