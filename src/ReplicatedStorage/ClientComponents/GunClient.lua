@@ -3,7 +3,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
@@ -62,7 +61,6 @@ function GunClient:Construct()
 end
 
 function GunClient:Aim(bool: boolean)
-	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 	self.Aiming = if bool == nil then not self.Aiming else bool
 	self.AimEvent:FireServer(self.Aiming)
 	-- print("aiming:", self.Aiming)

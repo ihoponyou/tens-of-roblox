@@ -132,6 +132,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 end
 
 function Gun:OnMouseEvent(player: Player, direction: Vector3)
+	if player ~= self.Owner then return end
 	if not self.CanFire then return end
 
 	self.CanFire = false
@@ -145,6 +146,7 @@ function Gun:OnMouseEvent(player: Player, direction: Vector3)
 end
 
 function Gun:OnAimEvent(player: Player, isAiming: boolean)
+	if player ~= self.Owner then return end
 	if not self.Animations.AimIdle then return end
 
 	self.Aiming = isAiming
