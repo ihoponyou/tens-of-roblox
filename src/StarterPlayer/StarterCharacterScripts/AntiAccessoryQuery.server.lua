@@ -7,6 +7,5 @@ character.DescendantAdded:Connect(function(descendant: Instance)
         if not v:IsA("BasePart") then continue end
         v.CanCollide = false
         v.CanQuery = false
-        v.CanTouch = false
     end
 end)

@@ -60,17 +60,15 @@ function Ragdoll:Start()
 
         -- need to clean up joints if the motor gets destroyed
         --      e.g. an explosion
-		v:GetPropertyChangedSignal("Parent"):Connect(function()
-            if v.Parent ~= nil then return end
-			-- print(v.Name, "was destroyed")
-
-            -- "amputate" whatever the joint was connecting
-            local joint = self.Joints[v.Name]
-            joint.Motor.Part1.CanCollide = true
-            joint.Socket:Destroy()
+		self._trove:Connect(v:GetPropertyChangedSignal("Parent"), (function()
+			if v.Parent ~= nil then return end
+			
+			-- "amputate" the connected limb
+			socket:Destroy()
+			v.Part1.CanCollide = true
 
 			self.Joints[v.Name] = nil
-		end)
+		end))
 	end
 
 	self.Humanoid.BreakJointsOnDeath = false

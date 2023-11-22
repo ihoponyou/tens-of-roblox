@@ -2,11 +2,12 @@
 -- adapted code from BlackShibe's FPS Framework input/viewmodel controller to component system
 -- https://devforum.roblox.com/t/writing-an-fps-framework-2020/503318
 
--- NOV 1 2023 | idk how much of it is from this anymore after big refactor but it was very helpful in setting it up regardless
+-- NOV 1 2023 | idk how much of it is from this anymore after big refactor but it was very helpful in getting started regardless
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SocialService = game:GetService("SocialService")
 local UserInputService = game:GetService("UserInputService")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -18,22 +19,39 @@ local ViewmodelClient = Component.new({
 	Extensions = {},
 })
 
+
+local EMPTY_CFRAME = CFrame.new()
+local NO_YAXIS = Vector3.new(1, 0, 1)
+
+type Offset = {
+	Value: Vector3,
+	Alpha: number -- between 0 and 1
+}
+
 function ViewmodelClient:Construct()
+	self._trove = Trove.new()
+
 	self.Visible = true
 
 	self.Animations = {}
 	self.Humanoid = self.Instance:WaitForChild("RigHumanoid")
 
-	self.PositionOffset = Vector3.new()
-	self.RotationOffset = Vector3.new() -- xyz angles in radians
-
-	self._trove = Trove.new()
+	-- dictionary that tracks all applied offsets
+	self.AppliedOffsets = {
+		Base = {Value = self.Instance.BaseOffset.Value, Alpha = 1},
+		Sway = {Value = EMPTY_CFRAME, Alpha = 0},
+	}
 
 	self.SwayScale = 1 -- determines how much sway to display
 	self.SwaySensitivity = 1.2 -- scales sway with camera movement; lower will be less responsive and vice versa
-	self.SwaySpring = Spring.new(Vector3.new())
+	self.SwaySpring = Spring.new(Vector3.zero)
 	self.SwaySpring.Speed = 25
 	self.SwaySpring.Damper = .8 -- lower value = more bounce
+
+	self._time = 0 -- argument for viewbob equations
+	self._viewbobPosition = EMPTY_CFRAME
+
+	self._lastFrameRotation = EMPTY_CFRAME -- the camera's rotation from the previous frame
 end
 
 function ViewmodelClient:Start()
@@ -66,37 +84,71 @@ function ViewmodelClient:PlayAnimation(animationName: string)
 	animationTrack:Play()
 end
 
-local startTick = 0
-function ViewmodelClient:Update(deltaTime: number)
+-- adds an offset to the viewmodel; alpha is like the "scale" of the offset
+function ViewmodelClient:ApplyOffset(name: string, offset: CFrame, alpha: number)
+	if type(name) ~= "string" then error("Invalid offset name") end
+	if typeof(offset) ~= "CFrame" then error("Invalid offset value") end
+	if type(alpha) ~= "number" then error("Invalid offset alpha") end
+
+	self.AppliedOffsets[name] = {
+		Value = offset,
+		Alpha = alpha
+	}
+end
+
+-- removes an offset from the AppliedOffsets table if the offset exists; otherwise does nothing
+function ViewmodelClient:RemoveOffset(name: string)
+	if type(name) ~= "string" then error("Invalid offset name") end
+	self.AppliedOffsets[name] = nil
+end
+
+function ViewmodelClient:_updateSway(deltaTime: number)
+	local camera = workspace.CurrentCamera
+
+	local angleDelta: CFrame = Vector3.new(camera.CFrame.Rotation:ToObjectSpace(self._lastFrameRotation):ToOrientation()) * 150
+	self.SwaySpring:Impulse(Vector3.new(angleDelta.Y, angleDelta.X, 0) * self.SwaySensitivity)
+	local swaySpringPos = self.SwaySpring.Position
+	self:ApplyOffset("Sway", CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0), self.SwayScale)
+end
+
+function ViewmodelClient:_updateViewbob(deltaTime: number)
 	local character = Players.LocalPlayer.Character
 	if not character then return end
-	local humanoid = character.Humanoid
-	local humanoidSpeed = humanoid.WalkSpeed*humanoid.MoveDirection.Magnitude
-	-- if humanoid.MoveDirection.Magnitude < .1 then startTick = tick() end -- this allows the sine to be zero every time the player starts moving (thanks desmos)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	local hrp = character.PrimaryPart
+	if not hrp then return end
 
-	local baseOffset: CFrame = self.Instance.BaseOffset.Value
-	--local aimOffset = baseOffset:Lerp(self.Instance.Offsets.Aiming.Value, self.LerpValues.Aiming.Value)
+	-- https://www.desmos.com/calculator/arxdha4ccb
+	local viewbobFrequency = 1
+	local viewbobAmplitude = 1
+	local walkVelocity = hrp.AssemblyLinearVelocity * NO_YAXIS
+	local speedPercent = walkVelocity.Magnitude / humanoid.WalkSpeed -- what % of my max walk speed am i moving at
+	if humanoid.MoveDirection.Magnitude == 0 then self._time = 0 end
+	self._time += deltaTime * speedPercent
+	if humanoid.MoveDirection.Magnitude ~= 0 then
+		local viewbobX = 0.45 * viewbobAmplitude * math.sin(3.5 * self._time * viewbobFrequency)
+		local viewbobY = 0.15 * viewbobAmplitude * math.sin(3.5 * self._time * viewbobFrequency * 2)
+		self._viewbobPosition = CFrame.new(viewbobX, viewbobY, 0)
+	else
+		self._viewbobPosition = self._viewbobPosition:Lerp(EMPTY_CFRAME, .25)
+	end
+	self:ApplyOffset("Viewbob", self._viewbobPosition, 1)
+end
 
-	local mouseDelta = UserInputService:GetMouseDelta()
-	self.SwaySpring:Impulse(Vector3.new(mouseDelta.X, mouseDelta.Y, 0) * self.SwaySensitivity)
-	local swaySpringPos = self.SwaySpring.Position
+function ViewmodelClient:Update(deltaTime: number)
+	local camera = workspace.CurrentCamera
 
-	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
-						* CFrame.new(0, 0, 0)
+	self:_updateSway(deltaTime)
+	self:_updateViewbob(deltaTime)
 
-	-- local viewbobArgs = (tick()-startTick)*(humanoidSpeed)/4
-	-- local viewbobScale = 1/6
-	-- local viewbobX = math.sin(viewbobArgs)*viewbobScale -- different functions to do a figure 8
-	-- local viewbobY = math.sin(viewbobArgs*2)*viewbobScale/2
+	local finalOffset = EMPTY_CFRAME
+	for _, v: Offset in self.AppliedOffsets do
+		finalOffset = finalOffset:Lerp((finalOffset * v.Value), v.Alpha)
+	end
+	self.Instance.RootPart.CFrame = workspace.CurrentCamera.CFrame * finalOffset
 
-	-- local viewbobOffset = CFrame.new(viewbobX/2, viewbobY, 0)
-	-- 					* CFrame.Angles(viewbobY/3, -viewbobX/2, 0)
-
-	local customOffset = CFrame.new(self.PositionOffset)
-						* CFrame.Angles(self.RotationOffset.X, self.RotationOffset.Y, self.RotationOffset.Z)
-
-	local finalOffset = customOffset:Lerp(customOffset * swayOffset, self.SwayScale)
-	self.Instance.RootPart.CFrame = workspace.CurrentCamera.CFrame * baseOffset * finalOffset
+	self._lastFrameRotation = camera.CFrame.Rotation
 end
 
 function ViewmodelClient:Stop()

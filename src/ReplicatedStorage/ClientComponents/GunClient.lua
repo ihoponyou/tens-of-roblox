@@ -32,8 +32,6 @@ local CUSTOM_SCALES = {
 
 function GunClient:Construct()
 	self._trove = Trove.new()
-	self._localPlayerTrove = Trove.new()
-	self._trove:Add(self._localPlayerTrove)
 
 	self._primaryDown = false
 
@@ -106,7 +104,7 @@ function GunClient:_equip()
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
 	viewmodelComponent:PlayAnimation("Idle")
 
-	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0))
+	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
 	self.RecoilSpring.Speed = 10
 	self.RecoilSpring.Damper = 1
 	self._lastOffset = Vector3.new()
@@ -186,25 +184,38 @@ function GunClient:OnRenderStepped(deltaTime: number)
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
 	local aimPercentValue = self.AimPercent.Value
-	-- reduce recoil if aiming
-	local recoilScale = NumberLerp.Lerp(1, 0.25, aimPercentValue)
-	-- reduce sway if aiming
-	viewmodel.SwayScale = 1.1-aimPercentValue/1.1
+	local recoilScale = NumberLerp.Lerp(1, 0.25, aimPercentValue) -- reduce recoil if aiming
+	viewmodel.SwayScale = 1.1-aimPercentValue/1.1 -- reduce sway if aiming
 
+	local aimOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value
 	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
-	local recoilPositionOffset = Vector3.new(0, recoilSpringPos.Y/15, recoilSpringPos.Y/3) * recoilScale
-	local aimPositionOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value.Position
-	viewmodel.PositionOffset = recoilPositionOffset:Lerp(aimPositionOffset, aimPercentValue)
-	local recoilRotationOffset = Vector3.new(recoilSpringPos.Y/20, recoilSpringPos.X/20, 0) * recoilScale
-	viewmodel.RotationOffset = recoilRotationOffset
+	local recoilPositionOffset = CFrame.new(
+		0,
+		recoilSpringPos.Y/15 * recoilScale,
+		recoilSpringPos.Y/3 * recoilScale
+	)
+	local recoilRotationOffset = CFrame.Angles(
+		recoilSpringPos.Y/20 * recoilScale,
+		recoilSpringPos.X/20 * recoilScale,
+		0
+	)
+
+	viewmodel:ApplyOffset("Aim", aimOffset, aimPercentValue)
+	viewmodel:ApplyOffset("RecoilPosition", recoilPositionOffset, 1)
+	viewmodel:ApplyOffset("RecoilRotation", recoilRotationOffset, 1)
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
 
-	self._lastOffset = self.RecoilSpring.Position
+	-- https://www.desmos.com/calculator/fkrydqig88
 	local magnification = 1.25
 	workspace.CurrentCamera.FieldOfView = fieldOfView - ((fieldOfView - (fieldOfView / magnification)) * aimPercentValue)
+
+	self._lastOffset = self.RecoilSpring.Position
 end
 
 function GunClient:_setupForLocalPlayer()
+	self._localPlayerTrove = Trove.new()
+	self._trove:Add(self._localPlayerTrove)
+
 	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
 	self._localPlayerTrove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
 
