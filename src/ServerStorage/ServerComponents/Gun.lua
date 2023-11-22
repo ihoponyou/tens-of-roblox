@@ -185,6 +185,7 @@ function Gun:OnEquipped()
 	self.Animations.Idle:Play()
 
 	self.EquipEvent:FireClient(self.Owner, true)
+	self.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
 function Gun:OnUnequipped()
@@ -197,6 +198,7 @@ function Gun:OnUnequipped()
 	self.Animations.Holster:Play()
 
 	self.EquipEvent:FireClient(self.Owner, false)
+	self.Owner.CameraMode = Enum.CameraMode.Classic
 end
 
 function Gun:Start()

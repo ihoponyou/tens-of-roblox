@@ -180,29 +180,39 @@ local function toRoundedString(number: number): string
 	return tostring(num)
 end
 
+-- as percent increases, the value of this function will decrease to the minimum
+local function reduceNumberWithMinimum(minimum: number, percent: number)
+	return (minimum-1)*percent+1
+end
+
 function GunClient:OnRenderStepped(deltaTime: number)
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
 	local aimPercentValue = self.AimPercent.Value
 	local recoilScale = NumberLerp.Lerp(1, 0.25, aimPercentValue) -- reduce recoil if aiming
-	viewmodel.SwayScale = 1.1-aimPercentValue/1.1 -- reduce sway if aiming
+	local minimumSwayScale = 0.2
+	viewmodel.SwayScale = reduceNumberWithMinimum(minimumSwayScale, aimPercentValue) -- reduce sway if aiming
 
 	local aimOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value
 	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
 	local recoilPositionOffset = CFrame.new(
 		0,
-		recoilSpringPos.Y/15 * recoilScale,
-		recoilSpringPos.Y/3 * recoilScale
+		0.05 * recoilSpringPos.Y * recoilScale,
+		0.35 * recoilSpringPos.Y * recoilScale
 	)
 	local recoilRotationOffset = CFrame.Angles(
-		recoilSpringPos.Y/20 * recoilScale,
-		recoilSpringPos.X/20 * recoilScale,
+		0.04 * recoilSpringPos.Y * recoilScale,
+		0.04 * recoilSpringPos.X * recoilScale,
 		0
 	)
 
+	local minimumViewbobAlpha = 0.05
+	viewmodel.ViewbobScale = reduceNumberWithMinimum(minimumViewbobAlpha, aimPercentValue)
 	viewmodel:ApplyOffset("Aim", aimOffset, aimPercentValue)
-	viewmodel:ApplyOffset("RecoilPosition", recoilPositionOffset, 1)
-	viewmodel:ApplyOffset("RecoilRotation", recoilRotationOffset, 1)
+	local minimumRecoilPositionAlpha = 0.6
+	viewmodel:ApplyOffset("RecoilPosition", recoilPositionOffset, reduceNumberWithMinimum(minimumRecoilPositionAlpha, aimPercentValue))
+	local minimumRecoilRotationAlpha = 0.8
+	viewmodel:ApplyOffset("RecoilRotation", recoilRotationOffset, reduceNumberWithMinimum(minimumRecoilRotationAlpha, aimPercentValue))
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
 
 	-- https://www.desmos.com/calculator/fkrydqig88

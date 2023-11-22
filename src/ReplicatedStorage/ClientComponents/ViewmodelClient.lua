@@ -43,13 +43,15 @@ function ViewmodelClient:Construct()
 	}
 
 	self.SwayScale = 1 -- determines how much sway to display
-	self.SwaySensitivity = 1.2 -- scales sway with camera movement; lower will be less responsive and vice versa
+	self.SwaySensitivity = 1.4 -- scales sway with camera movement; lower will be less responsive and vice versa
 	self.SwaySpring = Spring.new(Vector3.zero)
 	self.SwaySpring.Speed = 25
 	self.SwaySpring.Damper = .8 -- lower value = more bounce
 
+	self.ViewbobScale = 1
 	self._time = 0 -- argument for viewbob equations
 	self._viewbobPosition = EMPTY_CFRAME
+	self._viewbobRotation = EMPTY_CFRAME
 
 	self._lastFrameRotation = EMPTY_CFRAME -- the camera's rotation from the previous frame
 end
@@ -88,18 +90,28 @@ end
 function ViewmodelClient:ApplyOffset(name: string, offset: CFrame, alpha: number)
 	if type(name) ~= "string" then error("Invalid offset name") end
 	if typeof(offset) ~= "CFrame" then error("Invalid offset value") end
-	if type(alpha) ~= "number" then error("Invalid offset alpha") end
 
 	self.AppliedOffsets[name] = {
 		Value = offset,
-		Alpha = alpha
+		Alpha = 0
 	}
+
+	self:SetOffsetAlpha(name, alpha)
 end
 
 -- removes an offset from the AppliedOffsets table if the offset exists; otherwise does nothing
 function ViewmodelClient:RemoveOffset(name: string)
 	if type(name) ~= "string" then error("Invalid offset name") end
 	self.AppliedOffsets[name] = nil
+end
+
+-- sets the alpha of an applied offset
+function ViewmodelClient:SetOffsetAlpha(name: string, alpha: number)
+	if type(alpha) ~= "number" then error("Invalid offset alpha") end
+	if alpha < 0 or alpha > 1 then error("Offset alpha outside of range [0, 1]: "..alpha) end
+	local offset: Offset = self.AppliedOffsets[name]
+	if not offset then warn("no offset found with name: "..name) return end
+	offset.Alpha = alpha
 end
 
 function ViewmodelClient:_updateSway(deltaTime: number)
@@ -124,16 +136,21 @@ function ViewmodelClient:_updateViewbob(deltaTime: number)
 	local viewbobAmplitude = 1
 	local walkVelocity = hrp.AssemblyLinearVelocity * NO_YAXIS
 	local speedPercent = walkVelocity.Magnitude / humanoid.WalkSpeed -- what % of my max walk speed am i moving at
+
 	if humanoid.MoveDirection.Magnitude == 0 then self._time = 0 end
 	self._time += deltaTime * speedPercent
+
 	if humanoid.MoveDirection.Magnitude ~= 0 then
-		local viewbobX = 0.45 * viewbobAmplitude * math.sin(3.5 * self._time * viewbobFrequency)
-		local viewbobY = 0.15 * viewbobAmplitude * math.sin(3.5 * self._time * viewbobFrequency * 2)
+		local viewbobX = 0.2 * viewbobAmplitude * math.sin(4 * self._time * viewbobFrequency)
+		local viewbobY = 0.1 * viewbobAmplitude * math.sin(4 * self._time * viewbobFrequency * 2)
 		self._viewbobPosition = CFrame.new(viewbobX, viewbobY, 0)
+		-- self._viewbobRotation = CFrame.Angles(0, -viewbobX/3, 0)
 	else
 		self._viewbobPosition = self._viewbobPosition:Lerp(EMPTY_CFRAME, .25)
+		-- self._viewbobRotation = self._viewbobRotation:Lerp(EMPTY_CFRAME, .4)
 	end
-	self:ApplyOffset("Viewbob", self._viewbobPosition, 1)
+
+	self:ApplyOffset("Viewbob", self._viewbobPosition * self._viewbobRotation, self.ViewbobScale)
 end
 
 function ViewmodelClient:Update(deltaTime: number)
