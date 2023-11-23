@@ -7,6 +7,10 @@ local PLAYER_GUI = Players.LocalPlayer:WaitForChild("PlayerGui")
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
 
 local Roact = require(ReplicatedStorage.Packages.Roact)
+Roact.setGlobalConfig({
+    elementTracing = true;
+})
+
 local MainSettings = require(ReplicatedStorage.Source.UIElements.Settings)
 
 local mainSettings = Roact.createElement(MainSettings)
