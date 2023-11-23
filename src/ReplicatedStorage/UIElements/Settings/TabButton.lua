@@ -6,13 +6,13 @@ local Roact = require(ReplicatedStorage.Packages.Roact)
 local TabButton = Roact.Component:extend("TabButton")
 
 function TabButton:init()
-	-- function self.onClicked()
-	-- 	self.props.on_clicked(self.props.Name)
-	-- end
+	function self.onClicked()
+		self.props.on_clicked(self.props.name)
+	end
 end
 
 function TabButton:OnClicked()
-	self.props.on_clicked(self.props.Name)
+	self.props.on_clicked(self.props.name)
 end
 
 function TabButton:render()
@@ -24,13 +24,13 @@ function TabButton:render()
 		LayoutOrder = self.props.layout_order;
 
 		FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Bold);
-		Text = self.props.Name:upper();
+		Text = self.props.name:upper();
 		TextSize = 32;
 		TextStrokeTransparency = 0;
 		TextColor3 = Color3.new(255,255,255);
 
 		[Roact.Event.MouseButton1Click] = function()
-			self:OnClicked()
+			self.props.on_clicked(self.props.name)
 		end;
     })
 end
