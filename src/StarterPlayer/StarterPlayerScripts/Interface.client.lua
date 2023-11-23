@@ -1,4 +1,5 @@
 
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
@@ -13,6 +14,17 @@ Roact.setGlobalConfig({
 
 local MainSettings = require(ReplicatedStorage.Source.UIElements.Settings)
 
+local settingsOpen = false
 local mainSettings = Roact.createElement(MainSettings)
 
-Roact.mount(mainSettings, PLAYER_GUI)
+local handle
+ContextActionService:BindAction("toggle_settings", function(actionName, userInputState, inputObject)
+    if userInputState ~= Enum.UserInputState.Begin then return end
+    settingsOpen = not settingsOpen
+    if settingsOpen then
+        handle = Roact.mount(mainSettings, PLAYER_GUI)
+    else
+        Roact.unmount(handle)
+    end
+    return Enum.ContextActionResult.Pass
+end, true, Enum.KeyCode.M)
