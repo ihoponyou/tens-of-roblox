@@ -13,9 +13,9 @@ return Roact.forwardRef(function(props, ref)
 
 		FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Bold);
 		Text = props.name:upper();
-		TextSize = 32;
+		TextSize = if props.layout_order > 1 then 32 else 40;
 		TextStrokeTransparency = 0;
-		TextColor3 = Color3.new(255,255,255);
+		TextColor3 = if props.layout_order > 1 then Color3.fromHSV(0, 0, 0.7) else Color3.fromHSV(0, 0, 1);
 
 		[Roact.Ref] = ref;
 
