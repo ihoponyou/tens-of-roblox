@@ -12,19 +12,29 @@ Roact.setGlobalConfig({
     elementTracing = true;
 })
 
-local MainSettings = require(ReplicatedStorage.Source.UIElements.Settings)
+local SettingsMenu = require(ReplicatedStorage.Source.UIElements.SettingsMenu)
 
 local settingsOpen = false
-local mainSettings = Roact.createElement(MainSettings)
+local mainSettings = Roact.createElement(SettingsMenu)
+
+local menuBlur = Instance.new("BlurEffect")
+menuBlur.Enabled = false
+menuBlur.Size = 16
+menuBlur.Name = "MenuBlur"
+menuBlur.Parent = workspace.CurrentCamera
 
 local handle
 ContextActionService:BindAction("toggle_settings", function(actionName, userInputState, inputObject)
     if userInputState ~= Enum.UserInputState.Begin then return end
+
     settingsOpen = not settingsOpen
     if settingsOpen then
         handle = Roact.mount(mainSettings, PLAYER_GUI)
     else
         Roact.unmount(handle)
     end
+
+    menuBlur.Enabled = settingsOpen
+
     return Enum.ContextActionResult.Pass
 end, true, Enum.KeyCode.M)

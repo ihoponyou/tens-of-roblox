@@ -1,61 +1,100 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextService = game:GetService("TextService")
+local TweenService = game:GetService("TweenService")
 
 local Roact = require(ReplicatedStorage.Packages.Roact)
-
-local Settings = Roact.Component:extend("MainSettings")
+local SettingsMenu = Roact.Component:extend("SettingsMenu")
 local TabButton = require(script.TabButton)
 local Tab = require(script.Tab)
 
-local tabTitles = {
+local TAB_TITLES = {
 	"Gameplay";
     "Controls";
 	"Video";
     "Audio";
 }
 
-function Settings:init()
-    self.activeTab, self.updateActiveTab = Roact.createBinding(tabTitles[1])
+local TWEEN_INFO = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+
+function SettingsMenu:init()
+    self.activeTab, self.updateActiveTab = Roact.createBinding(TAB_TITLES[1])
     self.tabs = {}
-    for i, tabTitle in tabTitles do
+    self.tabButtons = {}
+    for _, tabTitle in TAB_TITLES do
         self.tabs[tabTitle] = Roact.createRef()
+        self.tabButtons[tabTitle] = Roact.createRef()
     end
+
     self.pageLayoutRef = Roact.createRef()
 end
 
-function Settings:TabButtons()
+function SettingsMenu:SwitchTab(tabName: string)
+    -- print(self.activeTab:getValue(), "->", tabName)
+
+    local oldButton: TextButton = self.tabButtons[self.activeTab:getValue()]:getValue()
+    TweenService:Create(
+        oldButton,
+        TWEEN_INFO,
+        {
+            TextSize = 32,
+            TextColor3 = Color3.fromHSV(0, 0, .7)
+        }
+    ):Play()
+
+    self.updateActiveTab(tabName) -- update active tab
+
+    local activeButton: TextButton = self.tabButtons[tabName]:getValue()
+    TweenService:Create(
+        activeButton,
+        TWEEN_INFO,
+        {
+            TextSize = 40,
+            TextColor3 = Color3.fromHSV(0, 0, 1)
+        }
+    ):Play()
+
+    self.pageLayoutRef:getValue():JumpTo(self.tabs[tabName]:getValue()) -- switch to active tab
+end
+
+function SettingsMenu:TabButtons(): Roact.Fragment
     local tabButtons = {}
-	for index, title: string in tabTitles do
-		tabButtons[title] = Roact.createElement(TabButton, {
-                name = title;
-                layout_order = index;
-                on_clicked = function()
-                    self.pageLayoutRef:getValue():JumpTo(self.tabs[title]:getValue())
-                end
-            })
+	for index, title: string in TAB_TITLES do
+		tabButtons[title.."Button"] = Roact.createElement(TabButton, {
+            name = title;
+            layout_order = index;
+
+            [Roact.Ref] = self.tabButtons[title];
+
+            on_clicked = function(tabName)
+                self:SwitchTab(tabName)
+            end;
+        })
 	end
 	return Roact.createFragment(tabButtons)
 end
 
-function Settings:Tabs(): Roact.Fragment
+-- creates a fragment that contains all settings tabs
+function SettingsMenu:Tabs(props): Roact.Fragment
     local tabs = {}
-    for index, title: string in tabTitles do
-        tabs[title] = Tab({
+    for index, title: string in TAB_TITLES do
+        tabs[title] = Roact.createElement(Tab, {
             name = title;
-            bkg_color = Color3.fromHSV(index/#tabTitles, 1, 1);
+            bkg_color = Color3.fromHSV(index/#TAB_TITLES, 1, 1);
             layout_order = index;
-            [Roact.Ref] = self.tabs[title]
+
+            [Roact.Ref] = self.tabs[title];
         })
     end
     return Roact.createFragment(tabs)
 end
 
-function Settings:Navbar(props)
+function SettingsMenu:Navbar(props)
     return Roact.createElement("Frame", {
         Name = "Navbar";
         AnchorPoint = Vector2.new(0.5, 0);
-        Position = UDim2.new(0.5, 0, 0, 0);
-        Size = UDim2.new(1, 0, 0.05, 0);
+        Position = UDim2.fromScale(0.5, 0);
+        Size = UDim2.fromScale(1, 0.05);
         BackgroundTransparency = 1;
         BorderSizePixel = 0;
     }, {
@@ -70,7 +109,7 @@ function Settings:Navbar(props)
     })
 end
 
-function Settings:render()
+function SettingsMenu:render(): Roact.Element
     return Roact.createElement("ScreenGui",{
         Name = "Menu";
         IgnoreGuiInset = true;
@@ -78,7 +117,7 @@ function Settings:render()
     },{
         MainFrame = Roact.createElement("Frame", {
             Name = "Main";
-            Size = UDim2.new(1, 0, 1, 0);
+            Size = UDim2.fromScale(1, 1);
             BackgroundTransparency = 0.3;
             BackgroundColor3 = Color3.new();
         },{
@@ -91,15 +130,19 @@ function Settings:render()
             UIListLayout = Roact.createElement("UIListLayout", {
                 SortOrder = Enum.SortOrder.LayoutOrder;
             });
+
             Navbar = self:Navbar();
+
             Body = Roact.createElement("Frame", {
                 Name = "Body";
-                Size = UDim2.new(1, 0, 1, 0);
+                Size = UDim2.fromScale(1, 1);
                 LayoutOrder = 1;
+                ClipsDescendants = true;
+                BackgroundTransparency = 1;
             },{
                 PageLayout = Roact.createElement("UIPageLayout", {
                     Animated = false;
-                    Circular = true;
+                    Circular = false;
                     HorizontalAlignment = Enum.HorizontalAlignment.Center;
                     SortOrder = Enum.SortOrder.LayoutOrder;
                     TweenTime = 0.4;
@@ -110,13 +153,13 @@ function Settings:render()
                     PaddingTop = UDim.new(0.02, 0);
                 });
                 Tabs = self:Tabs();
-            })
+            });
         });
     })
 end
 
-function Settings:didMount()
-    self.tabs.Gameplay:getValue()
+function SettingsMenu:didMount()
+    -- self.tabs.Gameplay:getValue()
 end
 
-return Settings
+return SettingsMenu
