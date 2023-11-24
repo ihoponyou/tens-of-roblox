@@ -7,12 +7,14 @@ local PLAYER_GUI = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
 
+local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
 local Roact = require(ReplicatedStorage.Packages.Roact)
 Roact.setGlobalConfig({
     elementTracing = true;
 })
 
-local SettingsMenu = require(ReplicatedStorage.Source.UIElements.SettingsMenu)
+local SettingsMenu = require(UI_ELEMENTS.SettingsMenu)
+local Crosshair = require(UI_ELEMENTS.Crosshair)
 
 local settingsOpen = false
 local mainSettings = Roact.createElement(SettingsMenu)
@@ -38,3 +40,17 @@ ContextActionService:BindAction("toggle_settings", function(actionName, userInpu
 
     return Enum.ContextActionResult.Pass
 end, true, Enum.KeyCode.M)
+
+local crosshair = Roact.createElement(Crosshair, {
+    gap = 3;
+    length = 6;
+    thickness = 2;
+    color = Color3.fromRGB(255, 255, 255);
+})
+local gunGui = Roact.createElement("ScreenGui", {
+    IgnoreGuiInset = true;
+}, {
+    Crosshair = crosshair;
+})
+
+Roact.mount(gunGui, PLAYER_GUI)

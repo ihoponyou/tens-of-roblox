@@ -37,6 +37,7 @@ function GunClient:Construct()
 	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
+	self.ReloadRemoteFunction = self.Instance:WaitForChild("Reload")
 	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
 
 	self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
@@ -76,22 +77,33 @@ function GunClient:Aim(bool: boolean)
 	TweenService:Create(self.AimPercent, tweeningInformation, properties):Play()
 end
 
-function GunClient:_handleAimInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
+function GunClient:Reload()
+	local success = self.ReloadRemoteFunction:InvokeServer()
+	print(success)
+end
+
+function GunClient:_handleAimInput(_, userInputState: Enum.UserInputState, _)
 	if userInputState == Enum.UserInputState.Cancel then return Enum.ContextActionResult.Pass end
 	self:Aim(userInputState == Enum.UserInputState.Begin)
 	return Enum.ContextActionResult.Sink
 end
 
-function GunClient:_handleFireInput(actionName: string, userInputState: Enum.UserInputState, inputObject: InputObject)
+function GunClient:_handleFireInput(_, userInputState: Enum.UserInputState, _)
 	self._primaryDown = userInputState == Enum.UserInputState.Begin
+	return Enum.ContextActionResult.Sink
+end
+
+function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+	self:Reload()
 	return Enum.ContextActionResult.Sink
 end
 
 function GunClient:_equip()
 	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
 
-	local mouse = Players.LocalPlayer:GetMouse()
-	mouse.Icon = "rbxasset://textures/GunCursor.png"
+	-- local mouse = Players.LocalPlayer:GetMouse()
+	-- mouse.Icon = "rbxasset://textures/GunCursor.png"
 
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	self.Model.Parent = viewmodel
@@ -114,6 +126,10 @@ function GunClient:_equip()
 	ContextActionService:BindAction("fire" .. self.Instance.Name, function(...)
 		self:_handleFireInput(...)
 	end, true, Enum.UserInputType.MouseButton1)
+
+	ContextActionService:BindAction("reload"..self.Instance.Name, function(...)
+		self:_handleReloadInput(...)
+	end, true, Enum.KeyCode.R)
 
 	RunService:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
 		self:OnRenderStepped(...)
@@ -227,7 +243,6 @@ function GunClient:_setupForLocalPlayer()
 	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
 	self._localPlayerTrove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
 
-	self._localPlayerTrove:Connect(self.Instance.Activated, function(...) self:OnActivated(...) end)
 	self._localPlayerTrove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
 
 	self._localPlayerTrove:Connect(RunService.Stepped, function(...) self:OnStepped(...) end)

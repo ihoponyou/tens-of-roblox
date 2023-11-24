@@ -22,18 +22,25 @@ function Gun:Construct()
 	self._trove = Trove.new()
 
 	self.Aiming = false
+	self.Firing = false
+	self.Reloading = false
 	self.CanFire = true
+	self.CanReload = true
 
 	self.Animations = {}
 
-	self.MouseEvent = NamedInstance.new("MouseEvent", "RemoteEvent", self.Instance)
-	self.RecoilEvent = NamedInstance.new("RecoilEvent", "RemoteEvent", self.Instance)
-	self.AimEvent = NamedInstance.new("AimEvent", "RemoteEvent", self.Instance)
-	self.EquipEvent = NamedInstance.new("EquipEvent", "RemoteEvent", self.Instance)
-	self.ModelLoaded = NamedInstance.new("ModelLoaded", "RemoteEvent", self.Instance)
+	self.MouseEvent = self._trove:Add(NamedInstance.new("MouseEvent", "RemoteEvent", self.Instance))
+	self.RecoilEvent = self._trove:Add(NamedInstance.new("RecoilEvent", "RemoteEvent", self.Instance))
+	self.AimEvent = self._trove:Add(NamedInstance.new("AimEvent", "RemoteEvent", self.Instance))
+	self.ReloadRemoteFunction = self._trove:Add(NamedInstance.new("Reload", "RemoteFunction", self.Instance))
+	self.EquipEvent = self._trove:Add(NamedInstance.new("EquipEvent", "RemoteEvent", self.Instance))
+	self.ModelLoaded = self._trove:Add(NamedInstance.new("ModelLoaded", "RemoteEvent", self.Instance))
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 	self.GUN_STATS = self.Config:GetAttributes()
+
+	self.Ammo = self.GUN_STATS.MagazineCapacity
+	self.ReserveAmmo = self.GUN_STATS.MagazineCapacity * self.GUN_STATS.ReserveMagazines
 
 	local CastParams = RaycastParams.new()
 	CastParams.IgnoreWater = true
@@ -101,6 +108,8 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	if character:IsA("Backpack") then return end
 	if character:GetAttribute("Ragdolled") then return end
 
+	self.Firing = true
+
 	local headPosition = character.HumanoidRootPart.Position + Vector3.yAxis * 1.5
 	local hitscan = workspace:Raycast(headPosition, direction.Unit * self.GUN_STATS.BulletMaxDistance, self.CastParams)
 	if hitscan then
@@ -129,6 +138,54 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 	elseif self.Animations.Fire ~= nil then
 		self.Animations.Fire:Play()
 	end
+
+	self.Firing = false
+end
+
+function Gun:_refillMagazine(roundsNeeded: number)
+	if self.ReserveAmmo < roundsNeeded then
+		-- dump the rest of the ammo into the mag
+		self.Ammo += self.ReserveAmmo
+		self.ReserveAmmo = 0
+	else
+		self.Ammo += roundsNeeded
+		self.ReserveAmmo -= roundsNeeded
+	end
+end
+
+function Gun:PlayReloadSound()
+	
+end
+
+function Gun:Reload(): boolean?
+	local character: Model? = self.Instance.Parent
+	if not character then error("Gun reloading with no parent") end
+	if character:IsA("Backpack") then return end
+	if character:GetAttribute("Ragdolled") then return end
+
+	self.Reloading = true
+
+	local roundsNeeded = (self.GUN_STATS.MagazineCapacity - self.Ammo)
+	if roundsNeeded < 1 then warn("reloading is pointless") self.Reloading = false return end
+
+	self:PlayReloadSound()
+	if self.Aiming and self.Animations.AimReload ~= nil then
+		self.Animations.AimReload:Play()
+	elseif self.Animations.Reload ~= nil then
+		self.Animations.Reload:Play()
+	end
+
+	self:_refillMagazine(roundsNeeded)
+	self.Reloading = false
+	return true
+end
+
+function Gun:OnReloadInvoked(player: Player)
+	if player ~= self.Owner then error("non owner cannot invoke reload") end
+	if not self.CanReload then warn("cannot currently reload") return end
+	if self.Firing then error("cannot reload; firing") end
+	if self.Reloading then error("already reloading") end
+	return self:Reload()
 end
 
 function Gun:OnMouseEvent(player: Player, direction: Vector3)
@@ -136,12 +193,16 @@ function Gun:OnMouseEvent(player: Player, direction: Vector3)
 	if not self.CanFire then return end
 
 	self.CanFire = false
-	for _ = 1, self.GUN_STATS.BulletsPerShot do
-		self:Fire(direction)
+	if self.Ammo > 0 then
+		self.Ammo -= 1
+
+		-- avoid negative ammo with shotguns
+		for _ = 1, self.GUN_STATS.BulletsPerShot do
+			self:Fire(direction)
+		end
+
+		task.wait(60 / self.GUN_STATS.RPM)
 	end
-
-	task.wait(60 / self.GUN_STATS.RPM)
-
 	self.CanFire = true
 end
 
@@ -232,6 +293,7 @@ function Gun:Start()
 
 	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
 	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)
+	self.ReloadRemoteFunction.OnServerInvoke = function(...) return self:OnReloadInvoked(...) end
 end
 
 function Gun:Stop()

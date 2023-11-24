@@ -75,7 +75,7 @@ function SettingsMenu:TabButtons(): Roact.Fragment
 end
 
 -- creates a fragment that contains all settings tabs
-function SettingsMenu:Tabs(props): Roact.Fragment
+function SettingsMenu:Tabs(): Roact.Fragment
     local tabs = {}
     for index, title: string in TAB_TITLES do
         tabs[title] = Roact.createElement(Tab, {
@@ -89,7 +89,7 @@ function SettingsMenu:Tabs(props): Roact.Fragment
     return Roact.createFragment(tabs)
 end
 
-function SettingsMenu:Navbar(props)
+function SettingsMenu:Navbar()
     return Roact.createElement("Frame", {
         Name = "Navbar";
         AnchorPoint = Vector2.new(0.5, 0);
