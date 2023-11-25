@@ -25,19 +25,21 @@ local GunClient = Component.new({
 
 local fieldOfView = 85
 
-local CUSTOM_SCALES = {
-	["AK-47"] = 1
-}
+local WEAPONS = ReplicatedStorage.Weapons
+local CUSTOM_SCALES = require(script.ModelScales)
+local BOLT_POSITIONS = require(script.BoltPositions)
 
 function GunClient:Construct()
 	self._trove = Trove.new()
 
+	self.HasBoltHoldOpen = WEAPONS[self.Instance.Name].Configuration:GetAttribute("HasBoltHoldOpen")
+	self.BoltHeldOpen = false
 	self._primaryDown = false
 
 	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
-	self.ReloadRemoteFunction = self.Instance:WaitForChild("Reload")
+	self.ReloadEvent = self.Instance:WaitForChild("ReloadEvent")
 	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
 
 	self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
@@ -68,8 +70,6 @@ function GunClient:Aim(bool: boolean)
 
 	local adsSpeed = 0.4
 
-	-- UserInputService.MouseIconEnabled = not self.Aiming
-
 	local tweeningInformation =
 		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed * 0.75, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 	local properties = { Value = if self.Aiming then 1 else 0 }
@@ -78,8 +78,7 @@ function GunClient:Aim(bool: boolean)
 end
 
 function GunClient:Reload()
-	local success = self.ReloadRemoteFunction:InvokeServer()
-	print(success)
+	self.ReloadEvent:FireServer()
 end
 
 function GunClient:_handleAimInput(_, userInputState: Enum.UserInputState, _)
@@ -101,9 +100,6 @@ end
 
 function GunClient:_equip()
 	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
-
-	-- local mouse = Players.LocalPlayer:GetMouse()
-	-- mouse.Icon = "rbxasset://textures/GunCursor.png"
 
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	self.Model.Parent = viewmodel
@@ -150,9 +146,6 @@ function GunClient:_unequip()
 	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
 	self._primaryDown = false
-
-	local mouse = Players.LocalPlayer:GetMouse()
-	mouse.Icon = ""
 end
 
 -- use remote event to prevent race condition while giving gun to viewmodel
@@ -164,11 +157,39 @@ function GunClient:OnEquipEvent(equipped: boolean)
 	end
 end
 
-function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
+function GunClient:ToggleBoltHeldOpen(open: boolean?)
+	self.BoltHeldOpen = if open ~= nil then open else not self.BoltHeldOpen
+
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	-- local boltJoint = self.Model.PrimaryPart:FindFirstChild("Bolt")
+	-- if not boltJoint then warn("no bolt joint") return end
+
+	if self.BoltHeldOpen then
+		print("holding bolt")
+		viewmodel:StopAnimation("Idle", 0)
+		viewmodel:PlayAnimation("IdleOpenBolt", 0)
+		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Open}):Play()
+	else
+		print("closing bolt")
+		viewmodel:StopAnimation("IdleOpenBolt", 0)
+		viewmodel:PlayAnimation("Idle", 0)
+		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Closed}):Play()
+	end
+end
+
+function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number, ammoLeft: number)
 	self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
+	local fireAnimationTrack: AnimationTrack = viewmodel:GetAnimation("Fire")
+	if ammoLeft < 1 and self.HasBoltHoldOpen then
+		fireAnimationTrack:GetMarkerReachedSignal("boltOpen"):Once(function()
+			fireAnimationTrack:AdjustSpeed(0)
+			self:ToggleBoltHeldOpen(true)
+			fireAnimationTrack:Stop(0)
+		end)
+	end
 	viewmodel:PlayAnimation("Fire")
 
 	workspace.CurrentCamera.CFrame *= CFrame.Angles(
@@ -176,6 +197,20 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number)
 		math.rad(horizontalKick/10),
 		0
 	)
+end
+
+function GunClient:OnReloadEvent()
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+
+	if self.HasBoltHoldOpen and self.BoltHeldOpen then
+		viewmodel:PlayAnimation("ReloadOpenBolt")
+	else
+		viewmodel:PlayAnimation("Reload")
+	end
+
+	if self.HasBoltHoldOpen then
+		self:ToggleBoltHeldOpen(false)
+	end
 end
 
 function GunClient:OnDeactivated()
@@ -242,6 +277,7 @@ function GunClient:_setupForLocalPlayer()
 
 	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
 	self._localPlayerTrove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
+	self._localPlayerTrove:Connect(self.ReloadEvent.OnClientEvent, function(...) self:OnReloadEvent(...) end)
 
 	self._localPlayerTrove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
 

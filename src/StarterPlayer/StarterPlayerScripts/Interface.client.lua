@@ -3,6 +3,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
 local PLAYER_GUI = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
@@ -25,21 +26,7 @@ menuBlur.Size = 16
 menuBlur.Name = "MenuBlur"
 menuBlur.Parent = workspace.CurrentCamera
 
-local handle
-ContextActionService:BindAction("toggle_settings", function(actionName, userInputState, inputObject)
-    if userInputState ~= Enum.UserInputState.Begin then return end
 
-    settingsOpen = not settingsOpen
-    if settingsOpen then
-        handle = Roact.mount(mainSettings, PLAYER_GUI)
-    else
-        Roact.unmount(handle)
-    end
-
-    menuBlur.Enabled = settingsOpen
-
-    return Enum.ContextActionResult.Pass
-end, true, Enum.KeyCode.M)
 
 local crosshair = Roact.createElement(Crosshair, {
     gap = 3;
@@ -53,4 +40,24 @@ local gunGui = Roact.createElement("ScreenGui", {
     Crosshair = crosshair;
 })
 
-Roact.mount(gunGui, PLAYER_GUI)
+local settingsTree
+local crosshairTree = Roact.mount(gunGui, PLAYER_GUI)
+UserInputService.MouseIconEnabled = false
+ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
+    if userInputState ~= Enum.UserInputState.Begin then return end
+
+    settingsOpen = not settingsOpen
+    if settingsOpen then
+        UserInputService.MouseIconEnabled = true
+        settingsTree = Roact.mount(mainSettings, PLAYER_GUI)
+        if crosshairTree ~= nil then Roact.unmount(crosshairTree) end
+    else
+        UserInputService.MouseIconEnabled = false
+        crosshairTree =  Roact.mount(gunGui, PLAYER_GUI)
+        if settingsTree ~= nil then Roact.unmount(settingsTree) end
+    end
+
+    menuBlur.Enabled = settingsOpen
+
+    return Enum.ContextActionResult.Pass
+end, true, Enum.KeyCode.M)

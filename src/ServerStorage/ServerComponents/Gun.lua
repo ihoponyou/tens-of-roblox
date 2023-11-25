@@ -25,14 +25,13 @@ function Gun:Construct()
 	self.Firing = false
 	self.Reloading = false
 	self.CanFire = true
-	self.CanReload = true
 
 	self.Animations = {}
 
 	self.MouseEvent = self._trove:Add(NamedInstance.new("MouseEvent", "RemoteEvent", self.Instance))
 	self.RecoilEvent = self._trove:Add(NamedInstance.new("RecoilEvent", "RemoteEvent", self.Instance))
 	self.AimEvent = self._trove:Add(NamedInstance.new("AimEvent", "RemoteEvent", self.Instance))
-	self.ReloadRemoteFunction = self._trove:Add(NamedInstance.new("Reload", "RemoteFunction", self.Instance))
+	self.ReloadEvent = self._trove:Add(NamedInstance.new("ReloadEvent", "RemoteEvent", self.Instance))
 	self.EquipEvent = self._trove:Add(NamedInstance.new("EquipEvent", "RemoteEvent", self.Instance))
 	self.ModelLoaded = self._trove:Add(NamedInstance.new("ModelLoaded", "RemoteEvent", self.Instance))
 
@@ -59,6 +58,7 @@ function Gun:Construct()
 
 	self.FirePoint = self.Model:FindFirstChild("FirePoint", true)
 	self.FireSound = self.Model:FindFirstChild("FireSound", true)
+	self.ReloadSound = self.Model.PrimaryPart:FindFirstChild("ReloadSound", true)
 
 	self.ImpactParticle = self.Model.Receiver:FindFirstChild("ImpactParticle")
 end
@@ -129,7 +129,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
-	self.RecoilEvent:FireClient(Players:GetPlayerFromCharacter(character), verticalKick, horizontalKick)
+	self.RecoilEvent:FireClient(self.Owner, verticalKick, horizontalKick, self.Ammo)
 
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
@@ -154,43 +154,65 @@ function Gun:_refillMagazine(roundsNeeded: number)
 end
 
 function Gun:PlayReloadSound()
-	
+	self.ReloadSound:Play()
 end
 
 function Gun:Reload(): boolean?
+	local roundsNeeded = (self.GUN_STATS.MagazineCapacity - self.Ammo)
+	if roundsNeeded < 1 then
+		-- error("reloading is pointless")
+		return
+	end
+
+	self.Reloading = true
+	self.ReloadEvent:FireClient(self.Owner)
+
+	-- should probably sync this with anim events
+	self:PlayReloadSound()
+
+	local reloadAnim: AnimationTrack
+	if self.Aiming and self.Animations.AimReload ~= nil then
+		reloadAnim = self.Animations.AimReload
+	elseif self.Animations.Reload ~= nil then
+		reloadAnim = self.Animations.Reload
+	end
+
+	if reloadAnim ~= nil then
+		reloadAnim.Stopped:Once(function()
+			self.Reloading = false
+		end)
+		reloadAnim:Play()
+	else
+		self.Reloading = false
+	end
+
+	self:_refillMagazine(roundsNeeded)
+
+end
+
+function Gun:OnReloadEvent(player: Player)
+	if player ~= self.Owner then error("non owner cannot reload") end
+	if self.Firing then error("currently firing") end
+	if self.Reloading then
+		-- error("already reloading")
+		return
+	end
+	if self.ReserveAmmo < 1 then
+		error("no reserve ammo")
+	end
+
 	local character: Model? = self.Instance.Parent
 	if not character then error("Gun reloading with no parent") end
 	if character:IsA("Backpack") then return end
 	if character:GetAttribute("Ragdolled") then return end
 
-	self.Reloading = true
-
-	local roundsNeeded = (self.GUN_STATS.MagazineCapacity - self.Ammo)
-	if roundsNeeded < 1 then warn("reloading is pointless") self.Reloading = false return end
-
-	self:PlayReloadSound()
-	if self.Aiming and self.Animations.AimReload ~= nil then
-		self.Animations.AimReload:Play()
-	elseif self.Animations.Reload ~= nil then
-		self.Animations.Reload:Play()
-	end
-
-	self:_refillMagazine(roundsNeeded)
-	self.Reloading = false
-	return true
-end
-
-function Gun:OnReloadInvoked(player: Player)
-	if player ~= self.Owner then error("non owner cannot invoke reload") end
-	if not self.CanReload then warn("cannot currently reload") return end
-	if self.Firing then error("cannot reload; firing") end
-	if self.Reloading then error("already reloading") end
-	return self:Reload()
+	self:Reload()
 end
 
 function Gun:OnMouseEvent(player: Player, direction: Vector3)
 	if player ~= self.Owner then return end
 	if not self.CanFire then return end
+	if self.Reloading then return end
 
 	self.CanFire = false
 	if self.Ammo > 0 then
@@ -293,7 +315,7 @@ function Gun:Start()
 
 	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
 	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)
-	self.ReloadRemoteFunction.OnServerInvoke = function(...) return self:OnReloadInvoked(...) end
+	self._trove:Connect(self.ReloadEvent.OnServerEvent, function(...) self:OnReloadEvent(...) end)
 end
 
 function Gun:Stop()

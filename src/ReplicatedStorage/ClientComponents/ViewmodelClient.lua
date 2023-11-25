@@ -79,11 +79,22 @@ function ViewmodelClient:LoadAnimations(animationFolder: Folder)
 	end
 end
 
-function ViewmodelClient:PlayAnimation(animationName: string)
-	if animationName == nil or type(animationName) ~= "string" then error("Invalid animation name") end
-	local animationTrack: AnimationTrack = self.Animations[animationName]
+function ViewmodelClient:GetAnimation(animationName: string): AnimationTrack
+	if type(animationName) ~= "string" then error("Invalid animation name") end
+	local animationTrack = self.Animations[animationName]
 	if animationTrack == nil then error("No loaded animation with name \""..animationName.."\"") end
-	animationTrack:Play()
+
+	return self.Animations[animationName]
+end
+
+function ViewmodelClient:PlayAnimation(animationName: string, fadeTime: number?, weight: number?, speed: number?)
+	local animationTrack = self:GetAnimation(animationName)
+	animationTrack:Play(fadeTime or 0.100000001, weight or 1, speed or 1)
+end
+
+function ViewmodelClient:StopAnimation(animationName: string, fadeTime: number?)
+	local animationTrack = self:GetAnimation(animationName)
+	animationTrack:Stop(fadeTime or 0.100000001)
 end
 
 -- adds an offset to the viewmodel; alpha is like the "scale" of the offset
