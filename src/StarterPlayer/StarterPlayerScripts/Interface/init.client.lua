@@ -14,9 +14,8 @@ local Roact = require(ReplicatedStorage.Packages.Roact)
 local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 local RoactRoduxStore = require(script.RoactRoduxStore)
 
-local AmmoCounters = require(script.AmmoCounters)
 local SettingsMenu = require(UI_ELEMENTS.SettingsMenu)
-local Crosshair = require(UI_ELEMENTS.Crosshair)
+local HeadsUpDisplay = require(UI_ELEMENTS.HeadsUpDisplay)
 
 -- Roact.setGlobalConfig({
 --     elementTracing = true;
@@ -34,17 +33,7 @@ local app = Roact.createElement(RoactRodux.StoreProvider, {
     store = RoactRoduxStore.Instance;
 }, {
     SettingsGui = Roact.createElement(SettingsMenu);
-    GunGui = Roact.createElement("ScreenGui", {
-        IgnoreGuiInset = true
-    }, {
-        Crosshair = Roact.createElement(Crosshair, {
-            gap = 3;
-            length = 6;
-            thickness = 2;
-            color = Color3.fromRGB(255, 255, 255);
-        });
-        AmmoCounters = Roact.createElement(AmmoCounters);
-    });
+    HUD = Roact.createElement(HeadsUpDisplay);
 })
 Roact.mount(app, PLAYER_GUI)
 

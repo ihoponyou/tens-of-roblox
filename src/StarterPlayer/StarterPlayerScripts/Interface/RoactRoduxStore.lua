@@ -47,7 +47,7 @@ RoactRoduxStore._reducers = {
 RoactRoduxStore.Reducer = Rodux.combineReducers(RoactRoduxStore._reducers)
 
 RoactRoduxStore.Instance = Rodux.Store.new(RoactRoduxStore.Reducer, nil, {
-    Rodux.loggerMiddleware
+    -- Rodux.loggerMiddleware
 })
 
 return RoactRoduxStore

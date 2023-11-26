@@ -1,6 +1,5 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 
 local Roact = require(ReplicatedStorage.Packages.Roact)
