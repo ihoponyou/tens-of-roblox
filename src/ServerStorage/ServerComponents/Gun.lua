@@ -4,11 +4,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local PartCache = require(ReplicatedStorage.Packages.PartCache)
-
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(ServerStorage.Source.ServerComponents.Extensions.Logger)
-
 local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
 
 local Gun = Component.new({
@@ -17,6 +15,9 @@ local Gun = Component.new({
 		Logger,
 	},
 })
+
+local UPDATE_CURRENT_AMMO_UI = ReplicatedStorage.UIEvents.UpdateCurrentAmmo
+local UPDATE_RESERVE_AMMO_UI = ReplicatedStorage.UIEvents.UpdateReserveAmmo
 
 function Gun:Construct()
 	self._trove = Trove.new()
@@ -145,11 +146,11 @@ end
 function Gun:_refillMagazine(roundsNeeded: number)
 	if self.ReserveAmmo < roundsNeeded then
 		-- dump the rest of the ammo into the mag
-		self.Ammo += self.ReserveAmmo
-		self.ReserveAmmo = 0
+		self:SetCurrentAmmo(self.Ammo + self.ReserveAmmo)
+		self:SetReserveAmmo(0)
 	else
-		self.Ammo += roundsNeeded
-		self.ReserveAmmo -= roundsNeeded
+		self:SetCurrentAmmo(self.Ammo + roundsNeeded)
+		self:SetReserveAmmo(self.ReserveAmmo - roundsNeeded)
 	end
 end
 
@@ -179,15 +180,14 @@ function Gun:Reload(): boolean?
 
 	if reloadAnim ~= nil then
 		reloadAnim.Stopped:Once(function()
+			self:_refillMagazine(roundsNeeded)
 			self.Reloading = false
 		end)
 		reloadAnim:Play()
 	else
+		self:_refillMagazine(roundsNeeded)
 		self.Reloading = false
 	end
-
-	self:_refillMagazine(roundsNeeded)
-
 end
 
 function Gun:OnReloadEvent(player: Player)
@@ -198,7 +198,8 @@ function Gun:OnReloadEvent(player: Player)
 		return
 	end
 	if self.ReserveAmmo < 1 then
-		error("no reserve ammo")
+		-- error("no reserve ammo")
+		return
 	end
 
 	local character: Model? = self.Instance.Parent
@@ -216,7 +217,7 @@ function Gun:OnMouseEvent(player: Player, direction: Vector3)
 
 	self.CanFire = false
 	if self.Ammo > 0 then
-		self.Ammo -= 1
+		self:SetCurrentAmmo(self.Ammo - 1)
 
 		-- avoid negative ammo with shotguns
 		for _ = 1, self.GUN_STATS.BulletsPerShot do
@@ -253,6 +254,16 @@ function Gun:LoadAnimations()
 	end
 end
 
+function Gun:SetCurrentAmmo(ammo: number)
+	self.Ammo = ammo
+	UPDATE_CURRENT_AMMO_UI:FireClient(self.Owner, ammo)
+end
+
+function Gun:SetReserveAmmo(ammo: number)
+	self.ReserveAmmo = ammo
+	UPDATE_RESERVE_AMMO_UI:FireClient(self.Owner, ammo)
+end
+
 function Gun:OnEquipped()
 	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
 	self.Character = self.Instance.Parent
@@ -265,6 +276,8 @@ function Gun:OnEquipped()
 	self.Animations.Idle:Play()
 
 	self.EquipEvent:FireClient(self.Owner, true)
+	UPDATE_CURRENT_AMMO_UI:FireClient(self.Owner, self.Ammo)
+	UPDATE_RESERVE_AMMO_UI:FireClient(self.Owner, self.ReserveAmmo)
 	self.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 

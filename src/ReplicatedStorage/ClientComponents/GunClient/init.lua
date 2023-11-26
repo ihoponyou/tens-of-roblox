@@ -7,14 +7,12 @@ local TweenService = game:GetService("TweenService")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Spring = require(ReplicatedStorage.Packages.Spring)
-
+local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
+local NumberLerp = require(ReplicatedStorage.Source.NumberLerp)
 local ClientComponents = ReplicatedStorage.Source.ClientComponents
 local Logger = require(ClientComponents.Extensions.Logger)
 
 local ViewmodelClient
-
-local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
-local NumberLerp = require(ReplicatedStorage.Source.NumberLerp)
 
 local GunClient = Component.new({
 	Tag = "Gun",
@@ -27,7 +25,7 @@ local fieldOfView = 85
 
 local WEAPONS = ReplicatedStorage.Weapons
 local CUSTOM_SCALES = require(script.ModelScales)
-local BOLT_POSITIONS = require(script.BoltPositions)
+local UI_EVENTS = ReplicatedStorage.UIEvents
 
 function GunClient:Construct()
 	self._trove = Trove.new()
@@ -165,12 +163,12 @@ function GunClient:ToggleBoltHeldOpen(open: boolean?)
 	-- if not boltJoint then warn("no bolt joint") return end
 
 	if self.BoltHeldOpen then
-		print("holding bolt")
+		-- print("holding bolt")
 		viewmodel:StopAnimation("Idle", 0)
 		viewmodel:PlayAnimation("IdleOpenBolt", 0)
 		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Open}):Play()
 	else
-		print("closing bolt")
+		-- print("closing bolt")
 		viewmodel:StopAnimation("IdleOpenBolt", 0)
 		viewmodel:PlayAnimation("Idle", 0)
 		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Closed}):Play()
