@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
-local PLAYER_GUI = Players.LocalPlayer:WaitForChild("PlayerGui")
+local LOCAL_PLAYER = Players.LocalPlayer
+local PLAYER_GUI = LOCAL_PLAYER:WaitForChild("PlayerGui")
 local UI_EVENTS = ReplicatedStorage.UIEvents
 local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
 
@@ -28,42 +29,33 @@ menuBlur.Name = "MenuBlur"
 menuBlur.Parent = workspace.CurrentCamera
 
 local settingsOpen = false
-local settingsGui = Roact.createElement(SettingsMenu)
 
-local function NoInsetGui()
-    return Roact.createElement("ScreenGui", {
-        IgnoreGuiInset = true;
-    })
-end
-
-local crosshairGui = Roact.createElement(NoInsetGui,
-{}, {
-    Crosshair = Roact.createElement(Crosshair, {
-        gap = 3;
-        length = 6;
-        thickness = 2;
-        color = Color3.fromRGB(255, 255, 255);
-    })
+local app = Roact.createElement(RoactRodux.StoreProvider, {
+    store = RoactRoduxStore.Instance;
+}, {
+    SettingsGui = Roact.createElement(SettingsMenu);
+    GunGui = Roact.createElement("ScreenGui", {
+        IgnoreGuiInset = true
+    }, {
+        Crosshair = Roact.createElement(Crosshair, {
+            gap = 3;
+            length = 6;
+            thickness = 2;
+            color = Color3.fromRGB(255, 255, 255);
+        });
+        AmmoCounters = Roact.createElement(AmmoCounters);
+    });
 })
+Roact.mount(app, PLAYER_GUI)
 
-local settingsTree
-local crosshairTree = Roact.mount(crosshairGui, PLAYER_GUI)
-UserInputService.MouseIconEnabled = false
 ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
     if userInputState ~= Enum.UserInputState.Begin then return end
 
     settingsOpen = not settingsOpen
-    if settingsOpen then
-        UserInputService.MouseIconEnabled = true
-        settingsTree = Roact.mount(settingsGui, PLAYER_GUI)
-        if crosshairTree ~= nil then Roact.unmount(crosshairTree) end
-    else
-        UserInputService.MouseIconEnabled = false
-        crosshairTree =  Roact.mount(crosshairGui, PLAYER_GUI)
-        if settingsTree ~= nil then Roact.unmount(settingsTree) end
-    end
-
+    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledSettings(settingsOpen))
+    UserInputService.MouseIconEnabled = settingsOpen
     menuBlur.Enabled = settingsOpen
+    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not settingsOpen)
 
     return Enum.ContextActionResult.Pass
 end, true, Enum.KeyCode.M)
@@ -77,14 +69,6 @@ UI_EVENTS.UpdateReserveAmmo.OnClientEvent:Connect(function(ammo: number)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.UpdatedReserveAmmo(ammo))
 end)
 
+UserInputService.MouseIconEnabled = false
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
-
-local app = Roact.createElement(RoactRodux.StoreProvider, {
-    store = RoactRoduxStore.Instance;
-}, {
-    GunGui = Roact.createElement("ScreenGui",
-    {}, {
-        AmmoCounters = Roact.createElement(AmmoCounters);
-    });
-})
-Roact.mount(app, PLAYER_GUI)
+StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)

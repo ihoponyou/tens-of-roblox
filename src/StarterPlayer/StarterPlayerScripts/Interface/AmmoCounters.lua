@@ -21,7 +21,7 @@ local CurrentAmmoCounter = RoactRodux.connect(
     function(state, props)
         -- print(state)
         return {
-            amount = state.currentAmmo;
+            amount = state.CurrentAmmo;
         }
     end
 )(AmmoLabel)
@@ -29,7 +29,7 @@ local CurrentAmmoCounter = RoactRodux.connect(
 local ReserveAmmoCounter = RoactRodux.connect(
     function(state, props)
         return {
-            amount = state.reserveAmmo;
+            amount = state.ReserveAmmo;
         }
     end
 )(AmmoLabel)

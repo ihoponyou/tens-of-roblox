@@ -36,12 +36,6 @@ function ViewmodelClient:Construct()
 	self.Animations = {}
 	self.Humanoid = self.Instance:WaitForChild("RigHumanoid")
 
-	-- dictionary that tracks all applied offsets
-	self.AppliedOffsets = {
-		Base = {Value = self.Instance.BaseOffset.Value, Alpha = 1},
-		Sway = {Value = EMPTY_CFRAME, Alpha = 0},
-	}
-
 	self.SwayScale = 1 -- determines how much sway to display
 	self.SwaySensitivity = 1.4 -- scales sway with camera movement; lower will be less responsive and vice versa
 	self.SwaySpring = Spring.new(Vector3.zero)
@@ -53,7 +47,16 @@ function ViewmodelClient:Construct()
 	self._viewbobPosition = EMPTY_CFRAME
 	self._viewbobRotation = EMPTY_CFRAME
 
+	self._dragPosition = EMPTY_CFRAME
+
 	self._lastFrameRotation = EMPTY_CFRAME -- the camera's rotation from the previous frame
+
+	-- dictionary that tracks all applied offsets
+	self.AppliedOffsets = {
+		Base = {Value = self.Instance.BaseOffset.Value, Alpha = 1},
+		Sway = {Value = EMPTY_CFRAME, Alpha = self.SwayScale},
+		Viewbob = {Value = EMPTY_CFRAME, Alpha = self.ViewbobScale},
+	}
 end
 
 function ViewmodelClient:Start()
@@ -118,14 +121,14 @@ end
 
 -- sets the alpha of an applied offset
 function ViewmodelClient:SetOffsetAlpha(name: string, alpha: number)
+	local offset: Offset = self.AppliedOffsets[name]
+	if not offset then error("no offset found with name: "..name) end
 	if type(alpha) ~= "number" then error("Invalid offset alpha") end
 	if alpha < 0 or alpha > 1 then error("Offset alpha outside of range [0, 1]: "..alpha) end
-	local offset: Offset = self.AppliedOffsets[name]
-	if not offset then warn("no offset found with name: "..name) return end
 	offset.Alpha = alpha
 end
 
-function ViewmodelClient:_updateSway(deltaTime: number)
+function ViewmodelClient:_updateSway()
 	local camera = workspace.CurrentCamera
 
 	local angleDelta: CFrame = Vector3.new(camera.CFrame.Rotation:ToObjectSpace(self._lastFrameRotation):ToOrientation()) * 150
@@ -164,11 +167,29 @@ function ViewmodelClient:_updateViewbob(deltaTime: number)
 	self:ApplyOffset("Viewbob", self._viewbobPosition * self._viewbobRotation, self.ViewbobScale)
 end
 
+function ViewmodelClient:_updateDrag()
+	local character = Players.LocalPlayer.Character
+	if not character then return end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	local hrp = character.PrimaryPart
+	if not hrp then return end
+
+	-- always a unit vector
+	local wishDirection = hrp.CFrame:VectorToObjectSpace(humanoid.MoveDirection)
+
+	local goal = CFrame.new(0, -0.1 * wishDirection.Magnitude, 0.2 * wishDirection.Magnitude)
+	self._dragPosition = self._dragPosition:Lerp(goal, 0.1)
+
+	self:ApplyOffset("Drag", self._dragPosition, 1)
+end
+
 function ViewmodelClient:Update(deltaTime: number)
 	local camera = workspace.CurrentCamera
 
-	self:_updateSway(deltaTime)
+	self:_updateSway()
 	self:_updateViewbob(deltaTime)
+	self:_updateDrag()
 
 	local finalOffset = EMPTY_CFRAME
 	for _, v: Offset in self.AppliedOffsets do

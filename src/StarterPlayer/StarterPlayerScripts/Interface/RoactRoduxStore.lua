@@ -17,8 +17,15 @@ RoactRoduxStore.Actions = {
             reserveAmmo = newAmmo;
         }
     end;
+    ToggledSettings = function(open: boolean)
+        return {
+            type = "ToggledSettings";
+            settingsOpen = open
+        }
+    end
 }
 
+-- each entry is also an entry in the store's (?) state
 RoactRoduxStore._reducers = {
     CurrentAmmo = Rodux.createReducer(0, {
         UpdatedCurrentAmmo = function(state, action)
@@ -30,15 +37,17 @@ RoactRoduxStore._reducers = {
             return action.reserveAmmo
         end
     });
+    SettingsEnabled = Rodux.createReducer(false, {
+        ToggledSettings = function(state, action)
+            return action.settingsOpen
+        end
+    })
 }
 
-RoactRoduxStore.Reducer = Rodux.combineReducers({
-    currentAmmo = RoactRoduxStore._reducers.CurrentAmmo;
-    reserveAmmo = RoactRoduxStore._reducers.ReserveAmmo;
-})
+RoactRoduxStore.Reducer = Rodux.combineReducers(RoactRoduxStore._reducers)
 
 RoactRoduxStore.Instance = Rodux.Store.new(RoactRoduxStore.Reducer, nil, {
-    -- Rodux.loggerMiddleware
+    Rodux.loggerMiddleware
 })
 
 return RoactRoduxStore

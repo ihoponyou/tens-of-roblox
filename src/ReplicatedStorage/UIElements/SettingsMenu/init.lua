@@ -4,6 +4,7 @@ local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 
 local Roact = require(ReplicatedStorage.Packages.Roact)
+local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 local SettingsMenu = Roact.Component:extend("SettingsMenu")
 local TabButton = require(script.TabButton)
 local Tab = require(script.Tab)
@@ -109,53 +110,70 @@ function SettingsMenu:Navbar()
     })
 end
 
-function SettingsMenu:render(): Roact.Element
-    return Roact.createElement("ScreenGui",{
-        Name = "Menu";
-        IgnoreGuiInset = true;
-        Enabled = true;
+function SettingsMenu:Body()
+    return Roact.createElement("Frame", {
+        Name = "Body";
+        Size = UDim2.fromScale(1, 1);
+        LayoutOrder = 1;
+        ClipsDescendants = true;
+        BackgroundTransparency = 1;
     },{
-        MainFrame = Roact.createElement("Frame", {
-            Name = "Main";
-            Size = UDim2.fromScale(1, 1);
-            BackgroundTransparency = 0.3;
-            BackgroundColor3 = Color3.new();
-        },{
-            UIPadding = Roact.createElement("UIPadding", {
-                PaddingBottom = UDim.new(0.08, 0);
-                PaddingTop = UDim.new(0.1, 0);
-                PaddingLeft = UDim.new(0.1, 0);
-                PaddingRight = UDim.new(0.1, 0);
-            });
-            UIListLayout = Roact.createElement("UIListLayout", {
-                SortOrder = Enum.SortOrder.LayoutOrder;
-            });
-
-            Navbar = self:Navbar();
-
-            Body = Roact.createElement("Frame", {
-                Name = "Body";
-                Size = UDim2.fromScale(1, 1);
-                LayoutOrder = 1;
-                ClipsDescendants = true;
-                BackgroundTransparency = 1;
-            },{
-                PageLayout = Roact.createElement("UIPageLayout", {
-                    Animated = false;
-                    Circular = false;
-                    HorizontalAlignment = Enum.HorizontalAlignment.Center;
-                    SortOrder = Enum.SortOrder.LayoutOrder;
-                    TweenTime = 0.4;
-                    EasingStyle = Enum.EasingStyle.Exponential;
-                    [Roact.Ref] = self.pageLayoutRef
-                });
-                Padding = Roact.createElement("UIPadding", {
-                    PaddingTop = UDim.new(0.02, 0);
-                });
-                Tabs = self:Tabs();
-            });
+        PageLayout = Roact.createElement("UIPageLayout", {
+            Animated = false;
+            Circular = false;
+            HorizontalAlignment = Enum.HorizontalAlignment.Center;
+            SortOrder = Enum.SortOrder.LayoutOrder;
+            TweenTime = 0.4;
+            EasingStyle = Enum.EasingStyle.Exponential;
+            [Roact.Ref] = self.pageLayoutRef
         });
+        Padding = Roact.createElement("UIPadding", {
+            PaddingTop = UDim.new(0.02, 0);
+        });
+        Tabs = self:Tabs();
+    });
+end
+
+local function MainFrame(props)
+    return Roact.createElement("Frame", {
+        Name = "Main";
+        Size = UDim2.fromScale(1, 1);
+        BackgroundTransparency = 0.3;
+        BackgroundColor3 = Color3.new();
+        Visible = props.enabled;
+        [Roact.Children] = props.children;
     })
+end 
+MainFrame = RoactRodux.connect(
+    function(state, props)
+        return {
+            enabled = state.SettingsEnabled
+        }
+    end
+)(MainFrame)
+
+function SettingsMenu:render(): Roact.Element
+    return Roact.createElement("ScreenGui", {
+        IgnoreGuiInset = true;
+    }, {
+        MainFrame = Roact.createElement(MainFrame, {
+            children = {
+                UIPadding = Roact.createElement("UIPadding", {
+                    PaddingBottom = UDim.new(0.08, 0);
+                    PaddingTop = UDim.new(0.1, 0);
+                    PaddingLeft = UDim.new(0.1, 0);
+                    PaddingRight = UDim.new(0.1, 0);
+                });
+                UIListLayout = Roact.createElement("UIListLayout", {
+                    SortOrder = Enum.SortOrder.LayoutOrder;
+                });
+
+                Navbar = self:Navbar();
+
+                Body = self:Body();
+            }
+        });
+    });
 end
 
 function SettingsMenu:didMount()
