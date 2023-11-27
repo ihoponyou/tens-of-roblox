@@ -1,13 +1,17 @@
 
 local TweenService = game:GetService("TweenService")
 
-return function(label: TextLabel, newText)
-	local tween = TweenService:Create(label, TweenInfo.new(0.15), {LineHeight = 3})
-	tween.Completed:Once(function()
-		task.wait(0.1)
-		label.Text = newText
-		label.LineHeight = 0 
-		TweenService:Create(label, TweenInfo.new(0.15), {LineHeight = 1}):Play()
+local RollerEffect = {}
+
+RollerEffect.TweenInfo = TweenInfo.new(0.01)
+
+function RollerEffect.Play(label: TextLabel)
+	local tween = TweenService:Create(label, RollerEffect.TweenInfo, {LineHeight = 3})
+	tween.Completed:Connect(function()
+		label.LineHeight = 0
+		TweenService:Create(label, RollerEffect.TweenInfo, {LineHeight = 1}):Play()
 	end)
-    tween:Play()
+	tween:Play()
 end
+
+return RollerEffect

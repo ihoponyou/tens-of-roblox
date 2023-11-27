@@ -25,12 +25,14 @@ local fieldOfView = 85
 
 local WEAPONS = ReplicatedStorage.Weapons
 local CUSTOM_SCALES = require(script.ModelScales)
-local UI_EVENTS = ReplicatedStorage.UIEvents
 
 function GunClient:Construct()
 	self._trove = Trove.new()
 
-	self.HasBoltHoldOpen = WEAPONS[self.Instance.Name].Configuration:GetAttribute("HasBoltHoldOpen")
+	self.Config = WEAPONS[self.Instance.Name].Configuration
+
+	self.HasBoltHoldOpen = self.Config:GetAttribute("HasBoltHoldOpen")
+	self.ThrowsMagazine = self.Config:GetAttribute("ThrowsMagazine")
 	self.BoltHeldOpen = false
 	self._primaryDown = false
 
@@ -200,11 +202,24 @@ end
 function GunClient:OnReloadEvent()
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
-	if self.HasBoltHoldOpen and self.BoltHeldOpen then
-		viewmodel:PlayAnimation("ReloadOpenBolt")
-	else
-		viewmodel:PlayAnimation("Reload")
+	local reloadAnimationTrack = if self.HasBoltHoldOpen and self.BoltHeldOpen
+	then viewmodel:GetAnimation("ReloadOpenBolt")
+	else viewmodel:GetAnimation("Reload")
+
+	if self.ThrowsMagazine then
+		reloadAnimationTrack:GetMarkerReachedSignal("throw_mag"):Once(function()
+			local magazineClone = self.Model.Magazine:Clone()
+			magazineClone.Parent = workspace
+			magazineClone.CanCollide = true
+			magazineClone.CollisionGroup = "Magazine"
+			local viewmodelRoot = viewmodel.Instance.PrimaryPart
+			magazineClone.AssemblyLinearVelocity =
+				(viewmodelRoot.CFrame.LookVector + -viewmodelRoot.CFrame.RightVector) * 20
+				+ viewmodelRoot.AssemblyLinearVelocity
+			game.Debris:AddItem(magazineClone, 20)
+		end)
 	end
+	reloadAnimationTrack:Play()
 
 	if self.HasBoltHoldOpen then
 		self:ToggleBoltHeldOpen(false)

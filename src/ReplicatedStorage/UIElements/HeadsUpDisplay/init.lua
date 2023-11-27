@@ -10,7 +10,6 @@ local HeadsUpDisplay = Roact.Component:extend("HeadsUpDisplay")
 
 local function MainFrame(props)
     return Roact.createElement("Frame", {
-        Name = "Main";
         Size = UDim2.fromScale(1, 1);
         BackgroundTransparency = 1;
         Visible = props.enabled;
@@ -32,10 +31,10 @@ function HeadsUpDisplay:render()
         MainFrame = Roact.createElement(MainFrame, {
             children = {
                 UIPadding = Roact.createElement("UIPadding", {
-                    PaddingBottom = UDim.new(0.1, 0);
-                    PaddingTop = UDim.new(0.1, 0);
-                    PaddingLeft = UDim.new(0.1, 0);
-                    PaddingRight = UDim.new(0.1, 0);
+                    PaddingBottom = UDim.new(0.03, 0);
+                    PaddingTop = UDim.new(0.03, 0);
+                    PaddingLeft = UDim.new(0.03, 0);
+                    PaddingRight = UDim.new(0.03, 0);
                 });
                 Crosshair = Roact.createElement(Crosshair, {
                     gap = 3;

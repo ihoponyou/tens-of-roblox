@@ -7,8 +7,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local SocialService = game:GetService("SocialService")
-local UserInputService = game:GetService("UserInputService")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
