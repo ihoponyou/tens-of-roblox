@@ -54,6 +54,7 @@ function ViewmodelClient:Construct()
 		Base = {Value = self.Instance.BaseOffset.Value, Alpha = 1},
 		Sway = {Value = EMPTY_CFRAME, Alpha = self.SwayScale},
 		Viewbob = {Value = EMPTY_CFRAME, Alpha = self.ViewbobScale},
+		Drag = {Value = EMPTY_CFRAME, Alpha = 1},
 	}
 end
 
@@ -109,6 +110,14 @@ function ViewmodelClient:ApplyOffset(name: string, offset: CFrame, alpha: number
 	}
 
 	self:SetOffsetAlpha(name, alpha)
+end
+
+function ViewmodelClient:UpdateOffset(name: string, offset: CFrame)
+	if type(name) ~= "string" then error("Invalid offset name") end
+	if typeof(offset) ~= "CFrame" then error("Invalid offset value") end
+	local appliedOffset = self.AppliedOffsets[name]
+	if not appliedOffset then error("No offset to update") end
+	appliedOffset.Value = offset
 end
 
 -- removes an offset from the AppliedOffsets table if the offset exists; otherwise does nothing
@@ -179,7 +188,7 @@ function ViewmodelClient:_updateDrag()
 	local goal = CFrame.new(0, -0.1 * wishDirection.Magnitude, 0.2 * wishDirection.Magnitude)
 	self._dragPosition = self._dragPosition:Lerp(goal, 0.1)
 
-	self:ApplyOffset("Drag", self._dragPosition, 1)
+	self:UpdateOffset("Drag", self._dragPosition)
 end
 
 function ViewmodelClient:Update(deltaTime: number)

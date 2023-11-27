@@ -98,6 +98,20 @@ function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
 	return Enum.ContextActionResult.Sink
 end
 
+function GunClient:_flingMagazine(viewmodel)
+	local magazineClone = self.Model.Magazine:Clone()
+	magazineClone.Parent = workspace
+	magazineClone.CanCollide = true
+	magazineClone.CollisionGroup = "Magazine"
+
+	local viewmodelRoot = viewmodel.PrimaryPart
+	magazineClone.AssemblyLinearVelocity =
+		(viewmodelRoot.CFrame.LookVector + -viewmodelRoot.CFrame.RightVector) * 20
+		+ viewmodelRoot.AssemblyLinearVelocity
+
+	game.Debris:AddItem(magazineClone, 20)
+end
+
 function GunClient:_equip()
 	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
 
@@ -108,6 +122,20 @@ function GunClient:_equip()
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 	viewmodelComponent:ToggleVisibility(true)
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
+	if self.ThrowsMagazine then
+		local reload = viewmodelComponent:GetAnimation("Reload")
+		if reload ~= nil then
+			reload:GetMarkerReachedSignal("throw_mag"):Connect(function()
+				self:_flingMagazine(viewmodel)
+			end)
+		end
+		local reloadOpenBolt = viewmodelComponent:GetAnimation("ReloadOpenBolt")
+		if reloadOpenBolt ~= nil then
+			reloadOpenBolt:GetMarkerReachedSignal("throw_mag"):Connect(function()
+				self:_flingMagazine(viewmodel)
+			end)
+		end
+	end
 	viewmodelComponent:PlayAnimation("Idle")
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
@@ -206,19 +234,7 @@ function GunClient:OnReloadEvent()
 	then viewmodel:GetAnimation("ReloadOpenBolt")
 	else viewmodel:GetAnimation("Reload")
 
-	if self.ThrowsMagazine then
-		reloadAnimationTrack:GetMarkerReachedSignal("throw_mag"):Once(function()
-			local magazineClone = self.Model.Magazine:Clone()
-			magazineClone.Parent = workspace
-			magazineClone.CanCollide = true
-			magazineClone.CollisionGroup = "Magazine"
-			local viewmodelRoot = viewmodel.Instance.PrimaryPart
-			magazineClone.AssemblyLinearVelocity =
-				(viewmodelRoot.CFrame.LookVector + -viewmodelRoot.CFrame.RightVector) * 20
-				+ viewmodelRoot.AssemblyLinearVelocity
-			game.Debris:AddItem(magazineClone, 20)
-		end)
-	end
+	
 	reloadAnimationTrack:Play()
 
 	if self.HasBoltHoldOpen then
@@ -276,6 +292,7 @@ function GunClient:OnRenderStepped(deltaTime: number)
 	local minimumRecoilRotationAlpha = 0.8
 	viewmodel:ApplyOffset("RecoilRotation", recoilRotationOffset, reduceNumberWithMinimum(minimumRecoilRotationAlpha, aimPercentValue))
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
+	viewmodel:SetOffsetAlpha("Drag", 1-aimPercentValue)
 
 	-- https://www.desmos.com/calculator/fkrydqig88
 	local magnification = 1.25
