@@ -26,6 +26,8 @@ local fieldOfView = 85
 local WEAPONS = ReplicatedStorage.Weapons
 local CUSTOM_SCALES = require(script.ModelScales)
 
+local Random = Random.new()
+
 function GunClient:Construct()
 	self._trove = Trove.new()
 
@@ -41,6 +43,8 @@ function GunClient:Construct()
 	self.AimEvent = self.Instance:WaitForChild("AimEvent")
 	self.ReloadEvent = self.Instance:WaitForChild("ReloadEvent")
 	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
+
+	self.CasingModel = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].Casing)
 
 	self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
 	self._trove:Connect(self.ModelLoaded.OnClientEvent, function(model)
@@ -102,14 +106,35 @@ function GunClient:_flingMagazine(viewmodel)
 	local magazineClone = self.Model.Magazine:Clone()
 	magazineClone.Parent = workspace
 	magazineClone.CanCollide = true
-	magazineClone.CollisionGroup = "Magazine"
+	magazineClone.CollisionGroup = "GunDebris"
 
 	local viewmodelRoot = viewmodel.PrimaryPart
 	magazineClone.AssemblyLinearVelocity =
 		(viewmodelRoot.CFrame.LookVector + -viewmodelRoot.CFrame.RightVector) * 20
-		+ viewmodelRoot.AssemblyLinearVelocity
 
 	game.Debris:AddItem(magazineClone, 20)
+end
+
+function GunClient:_ejectCasing()
+	local casingClone = self.CasingModel:Clone()
+	casingClone.Parent = workspace
+	casingClone.CanCollide = true
+	casingClone.CollisionGroup = "GunDebris"
+	local ejectionPoint = self.Model.PrimaryPart.EjectionPoint
+	casingClone.CFrame = ejectionPoint.WorldCFrame * CFrame.Angles(0, math.pi/2, 0)
+
+	casingClone.AssemblyLinearVelocity =
+	(ejectionPoint.WorldCFrame.LookVector * 2 + ejectionPoint.WorldCFrame.RightVector * 0.2  + ejectionPoint.WorldCFrame.UpVector) * 10
+
+	local rotationMultiplier = 1 + Random:NextNumber()
+	local xRotation = 2*math.pi * rotationMultiplier
+	local yRotation = -4*math.pi * rotationMultiplier
+	casingClone.AssemblyAngularVelocity = Vector3.new(xRotation, yRotation, 0)
+
+	-- task.wait(.1)
+	-- casingClone.Anchored = true
+
+	game.Debris:AddItem(casingClone, 20)
 end
 
 function GunClient:_equip()
@@ -122,20 +147,26 @@ function GunClient:_equip()
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 	viewmodelComponent:ToggleVisibility(true)
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
+
 	if self.ThrowsMagazine then
 		local reload = viewmodelComponent:GetAnimation("Reload")
 		if reload ~= nil then
-			reload:GetMarkerReachedSignal("throw_mag"):Connect(function()
+			self._localPlayerTrove:Connect(reload:GetMarkerReachedSignal("throw_mag"), function()
 				self:_flingMagazine(viewmodel)
 			end)
 		end
 		local reloadOpenBolt = viewmodelComponent:GetAnimation("ReloadOpenBolt")
 		if reloadOpenBolt ~= nil then
-			reloadOpenBolt:GetMarkerReachedSignal("throw_mag"):Connect(function()
+			self._localPlayerTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("throw_mag"), function()
 				self:_flingMagazine(viewmodel)
 			end)
 		end
 	end
+
+	self._localPlayerTrove:Connect(viewmodelComponent:GetAnimation("Fire"):GetMarkerReachedSignal("eject"), function()
+		self:_ejectCasing()
+	end)
+
 	viewmodelComponent:PlayAnimation("Idle")
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
