@@ -138,7 +138,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
-	self.RecoilEvent:FireClient(self.Owner, verticalKick, horizontalKick, self.Ammo)
+	self.RecoilEvent:FireClient(self.Equippable.Owner, verticalKick, horizontalKick, self.Ammo)
 
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
@@ -174,7 +174,7 @@ function Gun:Reload()
 	end
 
 	self.Reloading = true
-	self.ReloadEvent:FireClient(self.Owner)
+	self.ReloadEvent:FireClient(self.Equippable.Owner)
 
 	-- should probably sync this with anim events
 	self:PlayReloadSound()
@@ -199,7 +199,7 @@ function Gun:Reload()
 end
 
 function Gun:OnReloadEvent(player: Player)
-	if player ~= self.Owner then error("non owner cannot reload") end
+	if player ~= self.Equippable.Owner then error("non owner cannot reload") end
 	if self.Firing then error("currently firing") end
 	if self.Reloading then
 		-- error("already reloading")
@@ -219,7 +219,7 @@ function Gun:OnReloadEvent(player: Player)
 end
 
 function Gun:OnMouseEvent(player: Player, direction: Vector3)
-	if player ~= self.Owner then return end
+	if player ~= self.Equippable.Owner then return end
 	if not self.CanFire then return end
 	if self.Reloading then return end
 	local character: Model? = self.Instance.Parent
@@ -242,7 +242,7 @@ function Gun:OnMouseEvent(player: Player, direction: Vector3)
 end
 
 function Gun:OnAimEvent(player: Player, isAiming: boolean)
-	if player ~= self.Owner then return end
+	if player ~= self.Equippable.Owner then return end
 	if not self.Animations.AimIdle then return end
 
 	self.Aiming = isAiming
@@ -268,12 +268,12 @@ end
 
 function Gun:SetCurrentAmmo(ammo: number)
 	self.Ammo = ammo
-	UPDATE_CURRENT_AMMO_UI:FireClient(self.Owner, ammo)
+	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equippable.Owner, ammo)
 end
 
 function Gun:SetReserveAmmo(ammo: number)
 	self.ReserveAmmo = ammo
-	UPDATE_RESERVE_AMMO_UI:FireClient(self.Owner, ammo)
+	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equippable.Owner, ammo)
 end
 
 function Gun:OnEquipped(playerWhoEquipped: Player)
@@ -283,14 +283,14 @@ function Gun:OnEquipped(playerWhoEquipped: Player)
 
 	self:LoadAnimations()
 
-	self.Model.Parent = self.Character
+	-- self.Model.Parent = self.Character
 	self.Model.PrimaryPart.RootJoint.Part0 = self.Character["Right Arm"]
 	self.Animations.Idle:Play()
 
-	self.EquipEvent:FireClient(self.Owner, true)
-	UPDATE_CURRENT_AMMO_UI:FireClient(self.Owner, self.Ammo)
-	UPDATE_RESERVE_AMMO_UI:FireClient(self.Owner, self.ReserveAmmo)
-	self.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
+	self.EquipEvent:FireClient(self.Equippable.Owner, true)
+	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equippable.Owner, self.Ammo)
+	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equippable.Owner, self.ReserveAmmo)
+	self.Equippable.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
 function Gun:OnUnequipped()
@@ -302,38 +302,28 @@ function Gun:OnUnequipped()
 	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
 	self.Animations.Holster:Play()
 
-	self.EquipEvent:FireClient(self.Owner, false)
-	self.Owner.CameraMode = Enum.CameraMode.Classic
+	self.EquipEvent:FireClient(self.Equippable.Owner, false)
+	self.Equippable.Owner.CameraMode = Enum.CameraMode.Classic
 end
 
 function Gun:Start()
-	-- TODO: this may introduce a race condition in (un)equip event handlers where self.Owner is not yet updated
-	local function OnInstanceAncestryChanged(child: Instance, parent: Instance)
-		if child ~= self.Instance then return end
+	-- -- TODO: this may introduce a race condition in (un)equip event handlers where self.Equippable.Owner is not yet updated
+	-- local function OnInstanceAncestryChanged(child: Instance, parent: Instance)
+	-- 	if child ~= self.Instance then return end
 
-		local owner = nil
-		if parent.ClassName == "Model" then
-			owner = Players:GetPlayerFromCharacter(parent)
-		elseif parent.ClassName == "Backpack" then
-			owner = parent.Parent
-		end
+	-- 	local owner = nil
+	-- 	if parent.ClassName == "Model" then
+	-- 		owner = Players:GetPlayerFromCharacter(parent)
+	-- 	elseif parent.ClassName == "Backpack" then
+	-- 		owner = parent.Parent
+	-- 	end
 
-		self.Owner = owner
-		self.Instance:SetAttribute("OwnerID", owner.UserId)
-	end
-	OnInstanceAncestryChanged(self.Instance, self.Instance.Parent)
-	self._trove:Connect(self.Instance.AncestryChanged, OnInstanceAncestryChanged)
-
-	self.Model.Parent = self.Instance
-	if self.Owner ~= nil then
-		self.Character = self.Owner.Character
-		self.Model.Parent = self.Character
-		self:LoadAnimations()
-
-		self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
-		self.Animations.Holster:Play()
-	end
-	self.ModelLoaded:FireClient(self.Owner, self.Model)
+	-- 	self.Equippable.Owner = owner
+	-- 	if owner == nil then return end
+	-- 	self.Instance:SetAttribute("OwnerID", owner.UserId)
+	-- end
+	-- OnInstanceAncestryChanged(self.Instance, self.Instance.Parent)
+	-- self._trove:Connect(self.Instance.AncestryChanged, OnInstanceAncestryChanged)
 
 	Equippable:WaitForInstance(self.Instance):andThen(function(component)
 		self.Equippable = component
@@ -345,6 +335,19 @@ function Gun:Start()
 			end
 		end)
 	end)
+
+	self.Model.Parent = self.Instance
+	if self.Equippable.Owner ~= nil then
+		self.Character = self.Equippable.Owner.Character
+		-- self.Model.Parent = self.Character
+		self:LoadAnimations()
+
+		self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
+		self.Animations.Holster:Play()
+	else
+		self.Model.PrimaryPart.CanCollide = true
+	end
+	-- self.ModelLoaded:FireClient(self.Equippable.Owner, self.Model)
 
 	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
 	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)

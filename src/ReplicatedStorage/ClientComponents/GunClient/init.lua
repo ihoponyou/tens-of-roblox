@@ -46,15 +46,16 @@ function GunClient:Construct()
 
 	self.CasingModel = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].Casing)
 
-	self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
-	self._trove:Connect(self.ModelLoaded.OnClientEvent, function(model)
-		self.Model = model
-		local scale = CUSTOM_SCALES[self.Instance.Name]
-		if scale~=nil then
-			self.Model:ScaleTo(scale)
-		end
-		self.Model.Parent = self.Instance
-	end)
+	self.Model = nil
+	-- self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
+	-- self._trove:Connect(self.ModelLoaded.OnClientEvent, function(model)
+	-- 	self.Model = model
+	-- 	local scale = CUSTOM_SCALES[self.Instance.Name]
+	-- 	if scale~=nil then
+	-- 		self.Model:ScaleTo(scale)
+	-- 	end
+	-- 	self.Model.Parent = self.Instance
+	-- end)
 
 	-- the clientside gun.model refers to the 1st person gun model
 	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
@@ -138,15 +139,13 @@ function GunClient:_ejectCasing()
 end
 
 function GunClient:_equip()
-	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
-
 	self._equipTrove = self._localPlayerTrove:Extend()
 
-	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
-	self.Model.Parent = viewmodel
-	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel["Right Arm"]
+	self.Model = self.Instance:WaitForChild("GunModel")
 
+	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
+	viewmodelComponent:HoldModel(self.Model)
 	viewmodelComponent:ToggleVisibility(true)
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
 
@@ -339,7 +338,7 @@ function GunClient:_setupForLocalPlayer()
 end
 
 function GunClient:_cleanUpForLocalPlayer()
-	self._localPlayerTrove:Clean()
+	if self._localPlayerTrove then self._localPlayerTrove:Clean() end
 end
 
 function GunClient:Start()

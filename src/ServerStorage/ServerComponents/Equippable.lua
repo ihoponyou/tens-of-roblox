@@ -34,6 +34,7 @@ function Equippable:_onEquipRequested(player: Player)
     if DEBUG then print(player.Name .. " equipped " .. self.Instance.Name) end
 
     self.Owner = player
+    self.Instance:SetAttribute("OwnerID", player.UserId)
 
     self.EquipEvent:Fire(self.Owner, true)
 end
@@ -44,6 +45,7 @@ function Equippable:_onUnequipRequested(player: Player)
     if DEBUG then print(player.Name .. " unequipped " .. self.Instance.Name) end
 
     self.EquipEvent:Fire(self.Owner, false)
+    self.Owner = nil
 end
 
 function Equippable:Start()

@@ -56,6 +56,9 @@ function ViewmodelClient:Construct()
 		Viewbob = {Value = EMPTY_CFRAME, Alpha = self.ViewbobScale},
 		Drag = {Value = EMPTY_CFRAME, Alpha = 1},
 	}
+
+	-- the m6d that rigs a world model to the viewmodel
+	self.ModelJoint = nil
 end
 
 function ViewmodelClient:Start()
@@ -133,6 +136,17 @@ function ViewmodelClient:SetOffsetAlpha(name: string, alpha: number)
 	if type(alpha) ~= "number" then error("Invalid offset alpha") end
 	if alpha < 0 or alpha > 1 then error("Offset alpha outside of range [0, 1]: "..alpha) end
 	offset.Alpha = alpha
+end
+
+-- model MUST HAVE A RootJoint
+function ViewmodelClient:HoldModel(model: Model)
+	local modelRootJoint: Motor6D = model:FindFirstChild("RootJoint", true)
+	modelRootJoint.Part0 = self.Instance["Right Arm"]
+	self.ModelJoint = modelRootJoint
+end
+
+function ViewmodelClient:ReleaseModel()
+	self.ModelJoint.Part0 = nil
 end
 
 function ViewmodelClient:_updateSway()
