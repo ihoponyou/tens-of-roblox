@@ -1,4 +1,4 @@
-local Players = game:GetService("Players")
+
 local RunService = game:GetService("RunService")
 
 local PlayerExclusive = {}
@@ -12,7 +12,7 @@ function PlayerExclusive.ShouldExtend(component)
     if cleanupFunction == nil then warn(component.Instance.Name.." extends PlayerExclusive without cleanup function") end
 	return onClient and (setupFunction ~= nil or cleanupFunction ~= nil)
 end
-function PlayerExclusive.ShouldConstruct(component)
+function PlayerExclusive.ShouldConstruct(_)
     return true
 end
 

@@ -91,7 +91,6 @@ end
 
 function SettingsMenu:Navbar()
     return Roact.createElement("Frame", {
-        Name = "Navbar";
         AnchorPoint = Vector2.new(0.5, 0);
         Position = UDim2.fromScale(0.5, 0);
         Size = UDim2.fromScale(1, 0.05);
@@ -99,7 +98,6 @@ function SettingsMenu:Navbar()
         BorderSizePixel = 0;
     }, {
         ButtonLayout = Roact.createElement("UIListLayout", {
-            Name = "ButtonLayout";
             FillDirection = Enum.FillDirection.Horizontal;
             HorizontalAlignment = Enum.HorizontalAlignment.Center;
             VerticalAlignment = Enum.VerticalAlignment.Center;
@@ -111,7 +109,6 @@ end
 
 function SettingsMenu:Body()
     return Roact.createElement("Frame", {
-        Name = "Body";
         Size = UDim2.fromScale(1, 1);
         LayoutOrder = 1;
         ClipsDescendants = true;
@@ -135,16 +132,15 @@ end
 
 local function MainFrame(props)
     return Roact.createElement("Frame", {
-        Name = "Main";
         Size = UDim2.fromScale(1, 1);
         BackgroundTransparency = 0.3;
         BackgroundColor3 = Color3.new();
         Visible = props.enabled;
         [Roact.Children] = props.children;
     })
-end 
+end
 MainFrame = RoactRodux.connect(
-    function(state, props)
+    function(state, _)
         return {
             enabled = state.SettingsEnabled
         }

@@ -140,6 +140,8 @@ end
 function GunClient:_equip()
 	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
 
+	self._equipTrove = self._localPlayerTrove:Extend()
+
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	self.Model.Parent = viewmodel
 	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel["Right Arm"]
@@ -151,23 +153,27 @@ function GunClient:_equip()
 	if self.ThrowsMagazine then
 		local reload = viewmodelComponent:GetAnimation("Reload")
 		if reload ~= nil then
-			self._localPlayerTrove:Connect(reload:GetMarkerReachedSignal("throw_mag"), function()
+			self._equipTrove:Connect(reload:GetMarkerReachedSignal("throw_mag"), function()
 				self:_flingMagazine(viewmodel)
 			end)
 		end
 		local reloadOpenBolt = viewmodelComponent:GetAnimation("ReloadOpenBolt")
 		if reloadOpenBolt ~= nil then
-			self._localPlayerTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("throw_mag"), function()
+			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("throw_mag"), function()
 				self:_flingMagazine(viewmodel)
 			end)
 		end
 	end
 
-	self._localPlayerTrove:Connect(viewmodelComponent:GetAnimation("Fire"):GetMarkerReachedSignal("eject"), function()
+	self._equipTrove:Connect(viewmodelComponent:GetAnimation("Fire"):GetMarkerReachedSignal("eject"), function()
 		self:_ejectCasing()
 	end)
 
 	viewmodelComponent:PlayAnimation("Idle")
+
+	self._equipTrove:Add(function()
+		viewmodelComponent:ToggleVisibility(false)
+	end)
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
 	self.RecoilSpring.Speed = 10
@@ -186,23 +192,23 @@ function GunClient:_equip()
 		self:_handleReloadInput(...)
 	end, true, Enum.KeyCode.R)
 
-	RunService:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
+	self._equipTrove:Add(function()
+		ContextActionService:UnbindAction("aim" .. self.Instance.Name)
+		ContextActionService:UnbindAction("fire" .. self.Instance.Name)
+		ContextActionService:UnbindAction("reload" .. self.Instance.Name)
+	end)
+
+	self._equipTrove:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
 		self:OnRenderStepped(...)
 	end)
 end
 
 function GunClient:_unequip()
-	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
-	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
-	viewmodelComponent:ToggleVisibility(false)
+	self._equipTrove:Clean()
 
 	self.Model.PrimaryPart.RootJoint.Part0 = nil
 	self.Model.Parent = self.Instance
 	self.Model:PivotTo(CFrame.new())
-
-	ContextActionService:UnbindAction("aim" .. self.Instance.Name)
-	ContextActionService:UnbindAction("fire" .. self.Instance.Name)
-	RunService:UnbindFromRenderStep("GunClientOnRenderStepped")
 
 	self._primaryDown = false
 end
@@ -265,7 +271,6 @@ function GunClient:OnReloadEvent()
 	then viewmodel:GetAnimation("ReloadOpenBolt")
 	else viewmodel:GetAnimation("Reload")
 
-	
 	reloadAnimationTrack:Play()
 
 	if self.HasBoltHoldOpen then
@@ -273,20 +278,10 @@ function GunClient:OnReloadEvent()
 	end
 end
 
-function GunClient:OnDeactivated()
-	--print(self.Instance.Parent, "deactivated", self.Instance.Name)
-	self._primaryDown = false
-end
-
-function GunClient:OnStepped(deltaTime: number)
+function GunClient:OnStepped()
 	if self._primaryDown then
 		self.MouseEvent:FireServer(workspace.CurrentCamera.CFrame.LookVector)
 	end
-end
-
-local function toRoundedString(number: number): string
-	local num = math.round(number)
-	return tostring(num)
 end
 
 -- as percent increases, the value of this function will decrease to the minimum
@@ -294,7 +289,7 @@ local function reduceNumberWithMinimum(minimum: number, percent: number)
 	return (minimum-1)*percent+1
 end
 
-function GunClient:OnRenderStepped(deltaTime: number)
+function GunClient:OnRenderStepped()
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
 	local aimPercentValue = self.AimPercent.Value
@@ -339,8 +334,6 @@ function GunClient:_setupForLocalPlayer()
 	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
 	self._localPlayerTrove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
 	self._localPlayerTrove:Connect(self.ReloadEvent.OnClientEvent, function(...) self:OnReloadEvent(...) end)
-
-	self._localPlayerTrove:Connect(self.Instance.Deactivated, function(...) self:OnDeactivated(...) end)
 
 	self._localPlayerTrove:Connect(RunService.Stepped, function(...) self:OnStepped(...) end)
 end

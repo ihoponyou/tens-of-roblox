@@ -1,13 +1,15 @@
+local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
-local PartCache = require(ReplicatedStorage.Packages.PartCache)
+local PartCache = require(ReplicatedStorage.Packages.PartCache) -- use for bullet casings maybe
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(ServerStorage.Source.ServerComponents.Extensions.Logger)
 local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
+local Equippable = require(ServerStorage.Source.ServerComponents.Equippable)
 
 local Gun = Component.new({
 	Tag = "Gun",
@@ -15,6 +17,10 @@ local Gun = Component.new({
 		Logger,
 	},
 })
+
+local dependencies: {string} = {
+	"Equippable"
+}
 
 local UPDATE_CURRENT_AMMO_UI = ReplicatedStorage.UIEvents.UpdateCurrentAmmo
 local UPDATE_RESERVE_AMMO_UI = ReplicatedStorage.UIEvents.UpdateReserveAmmo
@@ -48,9 +54,6 @@ function Gun:Construct()
 	CastParams.FilterDescendantsInstances = {}
 	self.CastParams = CastParams
 
-	self.Instance.CanBeDropped = false
-	self.Instance.RequiresHandle = false
-
 	-- serverside gun.model refers to the 3rd person gun model
 	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].GunModel)
 	if self.Instance.Name == "AK-47" then
@@ -62,13 +65,21 @@ function Gun:Construct()
 	self.ReloadSound = self.Model.PrimaryPart:FindFirstChild("ReloadSound", true)
 
 	self.ImpactParticle = self.Model.Receiver:FindFirstChild("ImpactParticle")
+
+	-- a reference to the gun's equippable component
+	self.Equippable = nil
+
+	-- ensure dependencies
+	for _,v in dependencies do
+		CollectionService:AddTag(self.Instance, v)
+	end
 end
 
 function Gun:PlayFireSound()
 	local soundClone: Sound = self._trove:Clone(self.FireSound)
 	soundClone.Parent = self.FireSound.Parent
 	soundClone.TimePosition = 0.02
-	soundClone.Ended:Connect(function(soundId) -- very inefficient but it keeps the sound's position with the firer so it doesnt sound weird
+	soundClone.Ended:Connect(function(_) -- very inefficient but it keeps the sound's position with the firer so it doesnt sound weird
 		soundClone:Destroy()
 	end)
 	soundClone:Play()
@@ -104,10 +115,7 @@ function Gun:MakeImpactParticleFX(position, normal) -- (adapted from FastCast Ex
 end
 
 function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
-	local character: Model? = self.Instance.Parent
-	if not character then error("Gun firing with no parent") end
-	if character:IsA("Backpack") then return end
-	if character:GetAttribute("Ragdolled") then return end
+	local character: Model = self.Instance.Parent
 
 	self.Firing = true
 
@@ -158,7 +166,7 @@ function Gun:PlayReloadSound()
 	self.ReloadSound:Play()
 end
 
-function Gun:Reload(): boolean?
+function Gun:Reload()
 	local roundsNeeded = (self.GUN_STATS.MagazineCapacity - self.Ammo)
 	if roundsNeeded < 1 then
 		-- error("reloading is pointless")
@@ -214,12 +222,16 @@ function Gun:OnMouseEvent(player: Player, direction: Vector3)
 	if player ~= self.Owner then return end
 	if not self.CanFire then return end
 	if self.Reloading then return end
+	local character: Model? = self.Instance.Parent
+	if not character then error("Gun cannot fire with no parent") end
+	if character:IsA("Backpack") then return end
+	if character:GetAttribute("Ragdolled") then return end
 
 	self.CanFire = false
 	if self.Ammo > 0 then
+		-- avoid negative ammo with shotguns
 		self:SetCurrentAmmo(self.Ammo - 1)
 
-		-- avoid negative ammo with shotguns
 		for _ = 1, self.GUN_STATS.BulletsPerShot do
 			self:Fire(direction)
 		end
@@ -264,8 +276,8 @@ function Gun:SetReserveAmmo(ammo: number)
 	UPDATE_RESERVE_AMMO_UI:FireClient(self.Owner, ammo)
 end
 
-function Gun:OnEquipped()
-	-- print(self.Instance.Parent, "equipped", self.Instance.Name)
+function Gun:OnEquipped(playerWhoEquipped: Player)
+	self.Instance.Parent = playerWhoEquipped.Character
 	self.Character = self.Instance.Parent
 	self.CastParams.FilterDescendantsInstances = { self.Character }
 
@@ -282,7 +294,7 @@ function Gun:OnEquipped()
 end
 
 function Gun:OnUnequipped()
-	--print(self.Instance.Parent, "unequipped", self.Instance.Name)
+	print(self.Instance.Parent, "unequipped", self.Instance.Name)
 	for _, v in self.Animations do
 		v:Stop()
 	end
@@ -323,8 +335,16 @@ function Gun:Start()
 	end
 	self.ModelLoaded:FireClient(self.Owner, self.Model)
 
-	self._trove:Connect(self.Instance.Equipped, function(...) self:OnEquipped(...) end)
-	self._trove:Connect(self.Instance.Unequipped, function() self:OnUnequipped() end)
+	Equippable:WaitForInstance(self.Instance):andThen(function(component)
+		self.Equippable = component
+		self._trove:Connect(component.EquipEvent.Event, function(owner: Player, equipped: boolean)
+			if equipped then
+				self:OnEquipped(owner)
+			else
+				self:OnUnequipped()
+			end
+		end)
+	end)
 
 	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
 	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)

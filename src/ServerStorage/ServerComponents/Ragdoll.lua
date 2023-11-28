@@ -32,18 +32,14 @@ function Ragdoll:OnRagdolledChanged()
 	else
 		self.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 	end
+	self:ToggleAllJoints(enabled)
 end
 
 function Ragdoll:OnDied()
-	self:ToggleAllJoints(false)
+	self:ToggleAllJoints(true)
 end
 
-function Ragdoll:Start()
-	local torso: Part = self.Instance:FindFirstChild("Torso")
-	if not torso then
-		error("Ragdoll setup failed; no torso found")
-	end
-
+function Ragdoll:_readJoints(torso: Part)
 	for _, v: Instance in torso:GetChildren() do
 		if not v:IsA("Motor6D") then continue end
 
@@ -62,7 +58,7 @@ function Ragdoll:Start()
         --      e.g. an explosion
 		self._trove:Connect(v:GetPropertyChangedSignal("Parent"), (function()
 			if v.Parent ~= nil then return end
-			
+
 			-- "amputate" the connected limb
 			socket:Destroy()
 			v.Part1.CanCollide = true
@@ -70,30 +66,42 @@ function Ragdoll:Start()
 			self.Joints[v.Name] = nil
 		end))
 	end
+end
+
+function Ragdoll:Start()
+	local torso: Part = self.Instance:FindFirstChild("Torso")
+	if not torso then
+		error("Ragdoll setup failed; no torso found")
+	end
+
+	self:_readJoints(torso)
 
 	self.Humanoid.BreakJointsOnDeath = false
-	self._trove:Connect(self.Humanoid.Died, function()
-		self:OnDied()
+	self._trove:Connect(self.Instance:GetAttributeChangedSignal("Ragdolled"), function()
+		self:OnRagdolledChanged()
 	end)
 end
 
-function Ragdoll:ToggleJoint(jointName: string, enable: boolean?)
+function Ragdoll:ToggleJoint(jointName: string, loose: boolean?)
 	local joint: RagdollJoint = self.Joints[jointName]
 	if not joint then
 		error("No joint of name " .. jointName)
 	end
 
-	joint.Motor.Enabled = if enable == nil then not joint.Motor.Enabled else enable
+	loose = if loose == nil then not joint.Motor.Enabled else loose
+
+	joint.Motor.Enabled = not loose
+	joint.Motor.Part0.CanCollide = loose
 end
 
-function Ragdoll:ToggleAllJoints(enable: boolean?)
-	local ragdolled = if enable == nil then not self.Instance:GetAttribute("Ragdolled") else enable
-	for k, v: RagdollJoint in self.Joints do
-		self:ToggleJoint(k, if enable == nil then not v.Motor.Enabled else enable)
-		ragdolled = if enable == nil then not v.Motor.Enabled else enable
+function Ragdoll:ToggleAllJoints(loose: boolean?)
+	local ragdolled = if loose == nil then not self.Instance:GetAttribute("Ragdolled") else loose
+
+	for k, _: RagdollJoint in self.Joints do
+		self:ToggleJoint(k, ragdolled)
+		-- ragdolled = if enable == nil then not v.Motor.Enabled else enable
 	end
 
-	self.Instance:SetAttribute("Ragdolled", ragdolled)
 	if ragdolled then
 		self.Instance.PrimaryPart.AssemblyLinearVelocity = Vector3.new(100, 100, 100)
 	end
