@@ -18,7 +18,7 @@ local Gun = Component.new({
 	},
 })
 
-local dependencies: {string} = {
+local dependencies = {
 	"Equippable"
 }
 
@@ -55,10 +55,11 @@ function Gun:Construct()
 	self.CastParams = CastParams
 
 	-- serverside gun.model refers to the 3rd person gun model
-	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].GunModel)
+	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].WorldModel)
 	if self.Instance.Name == "AK-47" then
 		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
 	end
+	self.Model.Parent = self.Instance
 
 	self.FirePoint = self.Model:FindFirstChild("FirePoint", true)
 	self.FireSound = self.Model:FindFirstChild("FireSound", true)
@@ -277,6 +278,7 @@ function Gun:SetReserveAmmo(ammo: number)
 end
 
 function Gun:OnEquipped(playerWhoEquipped: Player)
+	self.Model.PrimaryPart.CanCollide = false
 	self.Instance.Parent = playerWhoEquipped.Character
 	self.Character = self.Instance.Parent
 	self.CastParams.FilterDescendantsInstances = { self.Character }
@@ -294,6 +296,7 @@ function Gun:OnEquipped(playerWhoEquipped: Player)
 end
 
 function Gun:OnUnequipped()
+	self.Model.PrimaryPart.CanCollide = true
 	print(self.Instance.Parent, "unequipped", self.Instance.Name)
 	for _, v in self.Animations do
 		v:Stop()

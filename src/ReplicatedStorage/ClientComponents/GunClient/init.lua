@@ -24,7 +24,6 @@ local GunClient = Component.new({
 local fieldOfView = 85
 
 local WEAPONS = ReplicatedStorage.Weapons
-local CUSTOM_SCALES = require(script.ModelScales)
 
 local Random = Random.new()
 
@@ -47,21 +46,11 @@ function GunClient:Construct()
 	self.CasingModel = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].Casing)
 
 	self.Model = nil
-	-- self.ModelLoaded = self.Instance:WaitForChild("ModelLoaded")
-	-- self._trove:Connect(self.ModelLoaded.OnClientEvent, function(model)
-	-- 	self.Model = model
-	-- 	local scale = CUSTOM_SCALES[self.Instance.Name]
-	-- 	if scale~=nil then
-	-- 		self.Model:ScaleTo(scale)
-	-- 	end
-	-- 	self.Model.Parent = self.Instance
-	-- end)
 
 	-- the clientside gun.model refers to the 1st person gun model
 	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
 	-- also, since this is all clientside, the serverside version of the model actually stays
 	-- in the character's hands; thus 3rd person animations work
-	-- self.Model = self.Instance:WaitForChild("GunModel")
 
 	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
 
@@ -119,8 +108,6 @@ end
 function GunClient:_ejectCasing()
 	local casingClone = self.CasingModel:Clone()
 	casingClone.Parent = workspace
-	casingClone.CanCollide = true
-	casingClone.CollisionGroup = "GunDebris"
 	local ejectionPoint = self.Model.PrimaryPart.EjectionPoint
 	casingClone.CFrame = ejectionPoint.WorldCFrame * CFrame.Angles(0, math.pi/2, 0)
 
@@ -141,10 +128,12 @@ end
 function GunClient:_equip()
 	self._equipTrove = self._localPlayerTrove:Extend()
 
-	self.Model = self.Instance:WaitForChild("GunModel")
+	self.Model = self.Instance:WaitForChild("WorldModel")
 
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
+	self.Model.Parent = viewmodel
+	self.Model:ScaleTo(1)
 	viewmodelComponent:HoldModel(self.Model)
 	viewmodelComponent:ToggleVisibility(true)
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
