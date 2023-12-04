@@ -6,6 +6,7 @@ local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 
 local AmmoCounters = require(script.AmmoCounters)
 local Crosshair = require(script.Crosshair)
+local InventorySlots = require(script.InventorySlots)
 local HeadsUpDisplay = Roact.Component:extend("HeadsUpDisplay")
 
 local function MainFrame(props)
@@ -15,7 +16,7 @@ local function MainFrame(props)
         Visible = props.enabled;
         [Roact.Children] = props.children;
     })
-end 
+end
 MainFrame = RoactRodux.connect(
     function(state, props)
         return {
@@ -43,6 +44,7 @@ function HeadsUpDisplay:render()
                     color = Color3.fromRGB(255, 255, 255);
                 });
                 AmmoCounters = Roact.createElement(AmmoCounters);
+                InventorySlots = Roact.createElement(InventorySlots);
             }
         });
     });

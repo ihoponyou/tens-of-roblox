@@ -61,5 +61,6 @@ end)
 UserInputService.MouseIconEnabled = false
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
+StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 
 -- print("Interface loaded")

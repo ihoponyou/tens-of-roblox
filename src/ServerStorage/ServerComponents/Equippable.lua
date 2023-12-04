@@ -3,10 +3,13 @@ local DEBUG = true
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Knit = require(ReplicatedStorage.Packages.Knit)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(script.Parent.Extensions.Logger)
 local Roact = require(ReplicatedStorage.Packages.Roact)
+
+local EQUIPMENT_STATS = require(ReplicatedStorage.Source.EquipmentStats)
 
 local Equippable = Component.new({
 	Tag = "Equippable",
@@ -15,11 +18,14 @@ local Equippable = Component.new({
 	},
 })
 
+local InventoryService
+
 function Equippable:Construct()
     self._trove = Trove.new()
 
     self.Equipped = false
     self.Owner = nil
+    self.SlotType = EQUIPMENT_STATS[self.Instance.Name].SlotType
 
     self.WorldModel = self.Instance:WaitForChild("WorldModel")
 
@@ -35,17 +41,12 @@ function Equippable:Construct()
     self.EquipEvent = self._trove:Add(Instance.new("BindableEvent"))
 end
 
-function Equippable:_showPrompt()
-    Roact.mount(Roact.createElement("BillboardGui"), self.WorldModel.PrimaryPart)
-end
-
-function Equippable:_hidePrompt()
-    -- Roact.unmount(self.PromptGui)
-end
-
 function Equippable:Equip(player: Player)
     local character = player.Character
     if not character then return false end
+
+    local giveSuccess = InventoryService:GiveItem(player, self)
+    if not giveSuccess then return false end
 
     if DEBUG then print(player.Name .. " equipped " .. self.Instance.Name) end
 
@@ -83,6 +84,10 @@ function Equippable:Start()
     self._trove:Connect(self.EquipPrompt.Triggered, function(playerWhoTriggered: Player)
         self:Equip(playerWhoTriggered)
     end)
+
+    Knit.OnStart():andThen(function()
+        InventoryService = Knit.GetService("InventoryService")
+    end):catch(warn)
 end
 
 function Equippable:Stop()

@@ -4,7 +4,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Loader = require(ReplicatedStorage.Packages.Loader)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
-Loader.LoadDescendants(ServerStorage.Source.Services, Loader.MatchesName("Services$"))
+Loader.LoadDescendants(ServerStorage.Source.Services, Loader.MatchesName("Service$"))
 
 Knit.Start():andThen(function()
     -- print("Knit started.")

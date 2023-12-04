@@ -3,14 +3,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Roact = require(ReplicatedStorage.Packages.Roact)
 local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
-local RollerEffect = require(ReplicatedStorage.Source.UIElements.RollerEffect)
 
 local AmmoCounters = Roact.Component:extend("AmmoCounters")
 
 local function AmmoLabel(props)
     return Roact.createElement("TextLabel", {
         Text = props.amount or -1;
-        Size = UDim2.new(0, 90, 0, 40);
+        Size = UDim2.new(0, 60, 0, 40);
         BackgroundTransparency = 1;
         BackgroundColor3 = Color3.fromRGB(163, 162, 165);
         TextStrokeTransparency = 0.5;
@@ -107,7 +106,7 @@ function AmmoCounters:render()
         AnchorPoint = Vector2.new(1, 1);
         Position = UDim2.fromScale(1, 1);
         BackgroundTransparency = 1;
-        Size = UDim2.fromScale(0.11, 0.08)
+        Size = UDim2.fromOffset(0, 40)
     }, {
         ListLayout = Roact.createElement("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal;

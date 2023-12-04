@@ -122,7 +122,7 @@ function GunClient:_ejectCasing()
 	-- task.wait(.1)
 	-- casingClone.Anchored = true
 
-	game.Debris:AddItem(casingClone, 20)
+	game.Debris:AddItem(casingClone, 3)
 end
 
 function GunClient:_equip()
@@ -245,10 +245,10 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number, a
 	end
 	viewmodel:PlayAnimation("Fire")
 
-	workspace.CurrentCamera.CFrame *= CFrame.Angles(
+	TweenService:Create(workspace.CurrentCamera, TweenInfo.new(0.1), { CFrame = CFrame.Angles(
 		math.rad(verticalKick/10),
 		math.rad(horizontalKick/10),
-		0
+		0)}
 	)
 end
 
