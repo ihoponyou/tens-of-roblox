@@ -267,6 +267,12 @@ function GunClient:OnStepped()
 	end
 end
 
+
+-- as percent increases, the value of this function will decrease to the minimum
+local function reduceNumberWithMinimum(minimum: number, percent: number)
+	return (minimum-1)*percent+1
+end
+
 function GunClient:OnRenderStepped()
 	local recoilOffset = self.RecoilSpring.Position
 	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
@@ -281,14 +287,17 @@ function GunClient:OnRenderStepped()
 	-- TODO: maybe make viewmodel a field idk?
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 	local viewmodelRecoil =
-		CFrame.new(0, recoilOffset.Y/10, recoilOffset.Y/5) *
+		CFrame.new(0, -recoilOffset.Y/10, recoilOffset.Y/5) *
 		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
 	viewmodel:UpdateOffset("Recoil", viewmodelRecoil)
-end
 
--- as percent increases, the value of this function will decrease to the minimum
-local function reduceNumberWithMinimum(minimum: number, percent: number)
-	return (minimum-1)*percent+1
+	viewmodel:SetOffsetAlpha("Aim", self.AimPercent.Value)
+
+	CameraController:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.75, self.AimPercent.Value))
+	viewmodel:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.25, self.AimPercent.Value))
+	viewmodel.SwayScale = reduceNumberWithMinimum(0.4, self.AimPercent.Value)
+	viewmodel.ViewbobScale = reduceNumberWithMinimum(0.1, self.AimPercent.Value)
+	viewmodel.PullScale = reduceNumberWithMinimum(0.1, self.AimPercent.Value)
 end
 
 function GunClient:_setupForLocalPlayer()
@@ -297,6 +306,7 @@ function GunClient:_setupForLocalPlayer()
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 	viewmodel:ApplyOffset("Recoil", CFrame.new(), 1)
+	viewmodel:ApplyOffset("Aim", ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value, 0)
 	CameraController:ApplyOffset("Recoil", CFrame.new(), 1)
 
 	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)

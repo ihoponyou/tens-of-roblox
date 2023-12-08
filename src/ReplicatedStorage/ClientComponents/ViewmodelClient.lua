@@ -45,7 +45,8 @@ function ViewmodelClient:Construct()
 	self._viewbobPosition = EMPTY_CFRAME
 	self._viewbobRotation = EMPTY_CFRAME
 
-	self._dragPosition = EMPTY_CFRAME
+	self._pullPosition = EMPTY_CFRAME
+	self.PullScale = 1
 
 	self._lastFrameRotation = EMPTY_CFRAME -- the camera's rotation from the previous frame
 
@@ -54,7 +55,7 @@ function ViewmodelClient:Construct()
 		Base = {Value = self.Instance.BaseOffset.Value, Alpha = 1},
 		Sway = {Value = EMPTY_CFRAME, Alpha = self.SwayScale},
 		Viewbob = {Value = EMPTY_CFRAME, Alpha = self.ViewbobScale},
-		Drag = {Value = EMPTY_CFRAME, Alpha = 1},
+		Pull = {Value = EMPTY_CFRAME, Alpha = self.PullScale},
 	}
 
 	-- the m6d that rigs a world model to the viewmodel
@@ -149,6 +150,7 @@ function ViewmodelClient:ReleaseModel()
 	self.ModelJoint.Part0 = nil
 end
 
+-- when you look around the gun kind of lags
 function ViewmodelClient:_updateSway()
 	local camera = workspace.CurrentCamera
 
@@ -158,6 +160,7 @@ function ViewmodelClient:_updateSway()
 	self:ApplyOffset("Sway", CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0), self.SwayScale)
 end
 
+-- when you walk around the gun bobs
 function ViewmodelClient:_updateViewbob(deltaTime: number)
 	local character = Players.LocalPlayer.Character
 	if not character then return end
@@ -181,14 +184,15 @@ function ViewmodelClient:_updateViewbob(deltaTime: number)
 		self._viewbobPosition = CFrame.new(viewbobX, viewbobY, 0)
 		-- self._viewbobRotation = CFrame.Angles(0, -viewbobX/3, 0)
 	else
-		self._viewbobPosition = self._viewbobPosition:Lerp(EMPTY_CFRAME, .25)
+		self._viewbobPosition = self._viewbobPosition:Lerp(EMPTY_CFRAME, .1)
 		-- self._viewbobRotation = self._viewbobRotation:Lerp(EMPTY_CFRAME, .4)
 	end
 
 	self:ApplyOffset("Viewbob", self._viewbobPosition * self._viewbobRotation, self.ViewbobScale)
 end
 
-function ViewmodelClient:_updateDrag()
+-- when you walk around you pull the gun towards you
+function ViewmodelClient:_updatePull()
 	local character = Players.LocalPlayer.Character
 	if not character then return end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -200,9 +204,9 @@ function ViewmodelClient:_updateDrag()
 	local wishDirection = hrp.CFrame:VectorToObjectSpace(humanoid.MoveDirection)
 
 	local goal = CFrame.new(0, -0.1 * wishDirection.Magnitude, 0.2 * wishDirection.Magnitude)
-	self._dragPosition = self._dragPosition:Lerp(goal, 0.1)
+	self._pullPosition = self._pullPosition:Lerp(goal, 0.1)
 
-	self:UpdateOffset("Drag", self._dragPosition)
+	self:ApplyOffset("Pull", self._pullPosition, self.PullScale)
 end
 
 function ViewmodelClient:Update(deltaTime: number)
@@ -210,7 +214,7 @@ function ViewmodelClient:Update(deltaTime: number)
 
 	self:_updateSway()
 	self:_updateViewbob(deltaTime)
-	self:_updateDrag()
+	self:_updatePull()
 
 	local finalOffset = EMPTY_CFRAME
 	for _, v: Offset in self.AppliedOffsets do
