@@ -11,8 +11,9 @@ local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
 local NumberLerp = require(ReplicatedStorage.Source.NumberLerp)
 local ClientComponents = ReplicatedStorage.Source.ClientComponents
 local Logger = require(ClientComponents.Extensions.Logger)
+local Knit = require(ReplicatedStorage.Packages.Knit)
 
-local ViewmodelClient
+local ViewmodelClient, CameraController
 
 local GunClient = Component.new({
 	Tag = "Gun",
@@ -244,12 +245,6 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number, a
 		end)
 	end
 	viewmodel:PlayAnimation("Fire")
-
-	TweenService:Create(workspace.CurrentCamera, TweenInfo.new(0.1), { CFrame = CFrame.Angles(
-		math.rad(verticalKick/10),
-		math.rad(horizontalKick/10),
-		0)}
-	)
 end
 
 function GunClient:OnReloadEvent()
@@ -272,58 +267,44 @@ function GunClient:OnStepped()
 	end
 end
 
+function GunClient:OnRenderStepped()
+	local recoilOffset = self.RecoilSpring.Position
+	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
+
+	local cameraRecoil = CFrame.Angles(
+		math.rad(recoilOffset.Y * 2),
+		math.rad(recoilOffset.X * 2),
+		0
+	)
+	CameraController:UpdateOffset("Recoil", cameraRecoil)
+
+	-- TODO: maybe make viewmodel a field idk?
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	local viewmodelRecoil =
+		CFrame.new(0, recoilOffset.Y/10, recoilOffset.Y/5) *
+		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
+	viewmodel:UpdateOffset("Recoil", viewmodelRecoil)
+end
+
 -- as percent increases, the value of this function will decrease to the minimum
 local function reduceNumberWithMinimum(minimum: number, percent: number)
 	return (minimum-1)*percent+1
-end
-
-function GunClient:OnRenderStepped()
-	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
-
-	local aimPercentValue = self.AimPercent.Value
-	local recoilScale = NumberLerp.Lerp(1, 0.25, aimPercentValue) -- reduce recoil if aiming
-	local minimumSwayScale = 0.2
-	viewmodel.SwayScale = reduceNumberWithMinimum(minimumSwayScale, aimPercentValue) -- reduce sway if aiming
-
-	local aimOffset = ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value
-	local recoilSpringPos: Vector3 = self.RecoilSpring.Position
-	local recoilPositionOffset = CFrame.new(
-		0,
-		0.05 * recoilSpringPos.Y * recoilScale,
-		0.35 * recoilSpringPos.Y * recoilScale
-	)
-	local recoilRotationOffset = CFrame.Angles(
-		0.04 * recoilSpringPos.Y * recoilScale,
-		0.04 * recoilSpringPos.X * recoilScale,
-		0
-	)
-
-	local minimumViewbobAlpha = 0.05
-	viewmodel.ViewbobScale = reduceNumberWithMinimum(minimumViewbobAlpha, aimPercentValue)
-	viewmodel:ApplyOffset("Aim", aimOffset, aimPercentValue)
-	local minimumRecoilPositionAlpha = 0.6
-	viewmodel:ApplyOffset("RecoilPosition", recoilPositionOffset, reduceNumberWithMinimum(minimumRecoilPositionAlpha, aimPercentValue))
-	local minimumRecoilRotationAlpha = 0.8
-	viewmodel:ApplyOffset("RecoilRotation", recoilRotationOffset, reduceNumberWithMinimum(minimumRecoilRotationAlpha, aimPercentValue))
-	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
-	viewmodel:SetOffsetAlpha("Drag", 1-aimPercentValue)
-
-	-- https://www.desmos.com/calculator/fkrydqig88
-	local magnification = 1.25
-	workspace.CurrentCamera.FieldOfView = fieldOfView - ((fieldOfView - (fieldOfView / magnification)) * aimPercentValue)
-
-	self._lastOffset = self.RecoilSpring.Position
 end
 
 function GunClient:_setupForLocalPlayer()
 	self._localPlayerTrove = Trove.new()
 	self._trove:Add(self._localPlayerTrove)
 
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	viewmodel:ApplyOffset("Recoil", CFrame.new(), 1)
+	CameraController:ApplyOffset("Recoil", CFrame.new(), 1)
+
 	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
 	self._localPlayerTrove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
 	self._localPlayerTrove:Connect(self.ReloadEvent.OnClientEvent, function(...) self:OnReloadEvent(...) end)
 
-	self._localPlayerTrove:Connect(RunService.Stepped, function(...) self:OnStepped(...) end)
+	self._localPlayerTrove:Connect(RunService.Stepped, function() self:OnStepped() end)
+	self._localPlayerTrove:Connect(RunService.RenderStepped, function() self:OnRenderStepped() end)
 end
 
 function GunClient:_cleanUpForLocalPlayer()
@@ -332,7 +313,9 @@ end
 
 function GunClient:Start()
 	ViewmodelClient = require(script.Parent.ViewmodelClient)
-	-- CameraController = Knit.GetController("CameraController")
+	Knit.OnStart():andThen(function()
+		CameraController = Knit.GetController("CameraController")
+	end):catch(warn)
 
 	local function OwnerIDChanged()
 		if self.Instance:GetAttribute("OwnerID") == Players.LocalPlayer.UserId then

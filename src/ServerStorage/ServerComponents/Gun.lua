@@ -245,6 +245,7 @@ end
 function Gun:OnAimEvent(player: Player, isAiming: boolean)
 	if player ~= self.Equippable.Owner then return end
 	if not self.Animations.AimIdle then return end
+	-- print(isAiming)
 
 	self.Aiming = isAiming
 
