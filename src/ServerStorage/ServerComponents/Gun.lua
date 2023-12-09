@@ -338,7 +338,7 @@ function Gun:Start()
 				self:OnUnequipped()
 			end
 		end)
-	end)
+	end):await()
 
 	self.Model.Parent = self.Instance
 	if self.Equippable.Owner ~= nil then

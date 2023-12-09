@@ -11,6 +11,7 @@ local CameraController = Knit.CreateController {
 
 	Distance = 20;
 	Sensitivity = 1;
+	FieldOfView = 90;
 	Locked = false;
 	RenderName = "CustomCamRender";
 	Priority = Enum.RenderPriority.Camera.Value;
@@ -119,6 +120,8 @@ function CameraController:KnitStart()
 	self._trove:Connect(RunService.RenderStepped, function(_)
 		self:OnRenderStepped()
 	end)
+
+	workspace.CurrentCamera.FieldOfView = self.FieldOfView
 end
 
 function CameraController:Destroy()

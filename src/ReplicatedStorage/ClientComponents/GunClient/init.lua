@@ -220,13 +220,13 @@ function GunClient:ToggleBoltHeldOpen(open: boolean?)
 
 	if self.BoltHeldOpen then
 		-- print("holding bolt")
-		viewmodel:StopAnimation("Idle", 0)
 		viewmodel:PlayAnimation("IdleOpenBolt", 0)
+		viewmodel:StopAnimation("Idle", 0)
 		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Open}):Play()
 	else
 		-- print("closing bolt")
-		viewmodel:StopAnimation("IdleOpenBolt", 0)
 		viewmodel:PlayAnimation("Idle", 0)
+		viewmodel:StopAnimation("IdleOpenBolt", 0)
 		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Closed}):Play()
 	end
 end
