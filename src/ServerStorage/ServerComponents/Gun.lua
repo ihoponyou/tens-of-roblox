@@ -264,7 +264,10 @@ function Gun:LoadAnimations()
 
 	local animations3P = ReplicatedStorage.Weapons[self.Instance.Name].Animations["3P"]
 	for _, v in animations3P:GetChildren() do
-		self.Animations[v.Name] = humanoid:LoadAnimation(v)
+		local animTrack: AnimationTrack = humanoid.Animator:LoadAnimation(v)
+		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
+		print(animTrack.Priority)
+		self.Animations[v.Name] = animTrack
 	end
 end
 

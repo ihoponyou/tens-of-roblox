@@ -139,6 +139,16 @@ function GunClient:_equip()
 	viewmodelComponent:ToggleVisibility(true)
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
 
+	if self.HasBoltHoldOpen then
+		local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
+		fireAnimationTrack:GetMarkerReachedSignal("boltOpen"):Connect(function()
+			if not self.BoltHeldOpen then return end
+			fireAnimationTrack:AdjustSpeed(0)
+			self:ToggleBoltHeldOpen(true)
+			fireAnimationTrack:Stop()
+		end)
+	end
+
 	if self.ThrowsMagazine then
 		local reload = viewmodelComponent:GetAnimation("Reload")
 		if reload ~= nil then
@@ -215,34 +225,26 @@ function GunClient:ToggleBoltHeldOpen(open: boolean?)
 	self.BoltHeldOpen = if open ~= nil then open else not self.BoltHeldOpen
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
-	-- local boltJoint = self.Model.PrimaryPart:FindFirstChild("Bolt")
-	-- if not boltJoint then warn("no bolt joint") return end
 
 	if self.BoltHeldOpen then
 		-- print("holding bolt")
 		viewmodel:PlayAnimation("IdleOpenBolt", 0)
 		viewmodel:StopAnimation("Idle", 0)
-		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Open}):Play()
 	else
 		-- print("closing bolt")
 		viewmodel:PlayAnimation("Idle", 0)
 		viewmodel:StopAnimation("IdleOpenBolt", 0)
-		-- TweenService:Create(boltJoint, BOLT_POSITIONS.TweenInfo, {C0 = BOLT_POSITIONS[self.Instance.Name].Closed}):Play()
 	end
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number, ammoLeft: number)
+	self.Ammo = ammoLeft
 	self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
-	local fireAnimationTrack: AnimationTrack = viewmodel:GetAnimation("Fire")
 	if ammoLeft < 1 and self.HasBoltHoldOpen then
-		fireAnimationTrack:GetMarkerReachedSignal("boltOpen"):Once(function()
-			fireAnimationTrack:AdjustSpeed(0)
-			self:ToggleBoltHeldOpen(true)
-			fireAnimationTrack:Stop(0)
-		end)
+		self:ToggleBoltHeldOpen(true)
 	end
 	viewmodel:PlayAnimation("Fire")
 end
@@ -275,7 +277,6 @@ end
 
 function GunClient:OnRenderStepped()
 	local recoilOffset = self.RecoilSpring.Position
-	-- self.RecoilIndicator.Text = ("curr: "..toRoundedString(self.RecoilSpring.Position.X).."\n".."last: "..toRoundedString(self._lastOffset.X))
 
 	local cameraRecoil = CFrame.Angles(
 		math.rad(recoilOffset.Y * 2),
@@ -283,18 +284,16 @@ function GunClient:OnRenderStepped()
 		0
 	)
 	CameraController:UpdateOffset("Recoil", cameraRecoil)
+	CameraController:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.75, self.AimPercent.Value))
 
-	-- TODO: maybe make viewmodel a field idk?
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 	local viewmodelRecoil =
 		CFrame.new(0, -recoilOffset.Y/10, recoilOffset.Y/5) *
 		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
 	viewmodel:UpdateOffset("Recoil", viewmodelRecoil)
-
+	viewmodel:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.25, self.AimPercent.Value))
 	viewmodel:SetOffsetAlpha("Aim", self.AimPercent.Value)
 
-	CameraController:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.75, self.AimPercent.Value))
-	viewmodel:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.25, self.AimPercent.Value))
 	viewmodel.SwayScale = reduceNumberWithMinimum(0.4, self.AimPercent.Value)
 	viewmodel.ViewbobScale = reduceNumberWithMinimum(0.1, self.AimPercent.Value)
 	viewmodel.PullScale = reduceNumberWithMinimum(0.1, self.AimPercent.Value)

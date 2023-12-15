@@ -78,10 +78,14 @@ function ViewmodelClient:LoadAnimations(animationFolder: Folder)
 	-- empty current animation dict
 	self.Animations = {}
 
-	for _,v in animationFolder:GetDescendants() do
+	for _,v: Animation in animationFolder:GetDescendants() do
 		if not v:IsA("Animation") then continue end
+
+		local animTrack: AnimationTrack = self.Humanoid.Animator:LoadAnimation(v)
+		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
 		-- index each animation with its name as key and animationtrack as value
-		self.Animations[v.Name] =  self.Humanoid:LoadAnimation(v)
+		self.Animations[v.Name] = animTrack
+		print(v.Name, "@", self.Animations[v.Name].Priority)
 	end
 end
 
@@ -94,7 +98,8 @@ function ViewmodelClient:GetAnimation(animationName: string): AnimationTrack
 end
 
 function ViewmodelClient:PlayAnimation(animationName: string, fadeTime: number?, weight: number?, speed: number?)
-	local animationTrack = self:GetAnimation(animationName)
+	local animationTrack: AnimationTrack = self:GetAnimation(animationName)
+	if string.match(animationName, "[iI]dle") then animationTrack.Priority = Enum.AnimationPriority.Idle end
 	animationTrack:Play(fadeTime or 0.100000001, weight or 1, speed or 1)
 end
 
