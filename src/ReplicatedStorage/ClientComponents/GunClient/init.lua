@@ -308,6 +308,7 @@ function GunClient:OnRenderStepped()
 		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
 	viewmodel:UpdateOffset("Recoil", viewmodelRecoil)
 	viewmodel:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.25, self.AimPercent.Value))
+	-- viewmodel:UpdateOffset("Aim", ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value) -- for calibrating/debugging
 	viewmodel:SetOffsetAlpha("Aim", self.AimPercent.Value)
 
 	viewmodel.SwayScale = reduceNumberWithMinimum(0.4, self.AimPercent.Value)
