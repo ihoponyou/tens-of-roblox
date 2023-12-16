@@ -144,17 +144,6 @@ function ViewmodelClient:SetOffsetAlpha(name: string, alpha: number)
 	offset.Alpha = alpha
 end
 
--- model MUST HAVE A RootJoint
-function ViewmodelClient:HoldModel(model: Model)
-	local modelRootJoint: Motor6D = model:FindFirstChild("RootJoint", true)
-	modelRootJoint.Part0 = self.Instance["Right Arm"]
-	self.ModelJoint = modelRootJoint
-end
-
-function ViewmodelClient:ReleaseModel()
-	self.ModelJoint.Part0 = nil
-end
-
 -- when you look around the gun kind of lags
 function ViewmodelClient:_updateSway()
 	local camera = workspace.CurrentCamera

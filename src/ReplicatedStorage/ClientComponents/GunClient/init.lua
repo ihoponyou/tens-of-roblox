@@ -1,3 +1,6 @@
+
+local EMPTY_CFRAME = CFrame.new()
+
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -135,13 +138,19 @@ function GunClient:_equip()
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 	self.Model.Parent = viewmodel
 	self.Model:ScaleTo(1)
-	viewmodelComponent:HoldModel(self.Model)
-	viewmodelComponent:ToggleVisibility(true)
+
+	-- show rig and disconnect magazine
+	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel.PrimaryPart
+	local magazinePart = self.Model.Magazine
+	local magazineJoint = magazinePart.Magazine
+	magazineJoint.C0 = magazinePart.ViewmodelC0.Value -- revert motor6d scaling
+	magazineJoint.Part0 = viewmodel.PrimaryPart -- gun's receiver
+
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
 
 	if self.HasBoltHoldOpen then
 		local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
-		fireAnimationTrack:GetMarkerReachedSignal("boltOpen"):Connect(function()
+		self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("boltOpen") ,function()
 			if not self.BoltHeldOpen then return end
 			fireAnimationTrack:AdjustSpeed(0)
 			self:ToggleBoltHeldOpen(true)
@@ -168,8 +177,10 @@ function GunClient:_equip()
 		self:_ejectCasing()
 	end)
 
-	viewmodelComponent:PlayAnimation("Idle")
+	viewmodelComponent:PlayAnimation("Idle", 0)
+	viewmodelComponent:ToggleVisibility(true)
 
+	-- hide the viewmodel upon destruction of this trove
 	self._equipTrove:Add(function()
 		viewmodelComponent:ToggleVisibility(false)
 	end)
@@ -205,9 +216,14 @@ end
 function GunClient:_unequip()
 	self._equipTrove:Clean()
 
-	self.Model.PrimaryPart.RootJoint.Part0 = nil
+	-- hide rig and reconnect magazine
+	-- local magazinePart = self.Model.Magazine
+	-- local magazineJoint = magazinePart.Magazine
+	-- magazineJoint.Part0 = self.Model.PrimaryPart -- gun's receiver
+
+	-- self.Model.PrimaryPart.RootJoint.Part0 = nil
 	self.Model.Parent = self.Instance
-	self.Model:PivotTo(CFrame.new())
+	-- self.Model:PivotTo(CFrame.new())
 
 	self._primaryDown = false
 end
