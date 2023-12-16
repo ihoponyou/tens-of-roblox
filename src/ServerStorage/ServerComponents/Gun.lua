@@ -1,3 +1,6 @@
+
+local EMPTY_CFRAME = CFrame.new()
+
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -289,8 +292,11 @@ function Gun:OnEquipped(playerWhoEquipped: Player)
 
 	self:LoadAnimations()
 
-	-- self.Model.Parent = self.Character
-	self.Model.PrimaryPart.RootJoint.Part0 = self.Character["Right Arm"]
+	local magazinePart = self.Model:WaitForChild("Magazine")
+	local magazineJoint = magazinePart.Magazine
+	magazineJoint.Part0 = self.Character.PrimaryPart -- character's hrp
+
+	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.PrimaryPart
 	self.Animations.Idle:Play()
 
 	self.EquipEvent:FireClient(self.Equippable.Owner, true)
@@ -306,8 +312,13 @@ function Gun:OnUnequipped()
 		v:Stop()
 	end
 
+	-- release rig and reconnect the magazine
+	local magazinePart = self.Model.Magazine
+	local magazineJoint = magazinePart.Magazine
+	magazineJoint.Part0 = self.Model.PrimaryPart -- gun's receiver
+
 	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
-	self.Animations.Holster:Play()
+	-- self.Animations.Holster:Play()
 
 	self.EquipEvent:FireClient(self.Equippable.Owner, false)
 	self.Equippable.Owner.CameraMode = Enum.CameraMode.Classic
