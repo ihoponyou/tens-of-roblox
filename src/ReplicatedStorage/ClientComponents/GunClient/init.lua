@@ -98,13 +98,15 @@ end
 
 function GunClient:_flingMagazine(viewmodel)
 	local magazineClone = self.Model.Magazine:Clone()
+	local motor = magazineClone:FindFirstChildOfClass("Motor6D")
+	if motor then motor:Destroy() end
 	magazineClone.Parent = workspace
 	magazineClone.CanCollide = true
 	magazineClone.CollisionGroup = "GunDebris"
 
 	local viewmodelRoot = viewmodel.PrimaryPart
 	magazineClone.AssemblyLinearVelocity =
-		(viewmodelRoot.CFrame.LookVector + -viewmodelRoot.CFrame.RightVector) * 20
+		(-viewmodelRoot.CFrame.RightVector) * 21
 
 	game.Debris:AddItem(magazineClone, 20)
 end
@@ -148,6 +150,7 @@ function GunClient:_equip()
 
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
 
+	-- TODO: put this in a private loadanimations method
 	if self.HasBoltHoldOpen then
 		local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
 		self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("boltOpen") ,function()
@@ -158,17 +161,40 @@ function GunClient:_equip()
 		end)
 	end
 
+	-- TODO: this one too
 	if self.ThrowsMagazine then
 		local reload = viewmodelComponent:GetAnimation("Reload")
 		if reload ~= nil then
-			self._equipTrove:Connect(reload:GetMarkerReachedSignal("throw_mag"), function()
+			-- sync extras
+			self._equipTrove:Connect(reload:GetMarkerReachedSignal("mag_throw"), function()
 				self:_flingMagazine(viewmodel)
+			end)
+			-- sync sounds
+			self._equipTrove:Connect(reload:GetMarkerReachedSignal("mag_release"), function()
+				self.Model.PrimaryPart["ak-magazine-release"]:Play()
+			end)
+			self._equipTrove:Connect(reload:GetMarkerReachedSignal("mag_insert"), function()
+				self.Model.PrimaryPart["ak-magazine-insert"]:Play()
+			end)
+			self._equipTrove:Connect(reload:GetMarkerReachedSignal("bolt_slide"), function()
+				self.Model.PrimaryPart["ak-bolt-slide"]:Play()
 			end)
 		end
 		local reloadOpenBolt = viewmodelComponent:GetAnimation("ReloadOpenBolt")
 		if reloadOpenBolt ~= nil then
-			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("throw_mag"), function()
+			-- sync extras
+			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_throw"), function()
 				self:_flingMagazine(viewmodel)
+			end)
+			-- sync sounds
+			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_release"), function()
+				self.Model.PrimaryPart["ak-magazine-release"]:Play()
+			end)
+			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_insert"), function()
+				self.Model.PrimaryPart["ak-magazine-insert"]:Play()
+			end)
+			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("bolt_slide"), function()
+				self.Model.PrimaryPart["ak-bolt-slide"]:Play()
 			end)
 		end
 	end

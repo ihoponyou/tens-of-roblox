@@ -181,7 +181,7 @@ function Gun:Reload()
 	self.ReloadEvent:FireClient(self.Equippable.Owner)
 
 	-- should probably sync this with anim events
-	self:PlayReloadSound()
+	-- self:PlayReloadSound()
 
 	local reloadAnim: AnimationTrack
 	if self.Aiming and self.Animations.AimReload ~= nil then
@@ -269,7 +269,7 @@ function Gun:LoadAnimations()
 	for _, v in animations3P:GetChildren() do
 		local animTrack: AnimationTrack = humanoid.Animator:LoadAnimation(v)
 		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
-		print(animTrack.Priority)
+		-- print(animTrack.Priority)
 		self.Animations[v.Name] = animTrack
 	end
 end
