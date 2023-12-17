@@ -85,7 +85,7 @@ function ViewmodelClient:LoadAnimations(animationFolder: Folder)
 		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
 		-- index each animation with its name as key and animationtrack as value
 		self.Animations[v.Name] = animTrack
-		-- print(v.Name, "@", self.Animations[v.Name].Priority)
+		print(v.Name, "@", self.Animations[v.Name].Priority)
 	end
 end
 

@@ -133,21 +133,42 @@ function GunClient:_ejectCasing()
 	game.Debris:AddItem(casingClone, 3)
 end
 
-function GunClient:_loadViewmodel(equipTrove: Trove)
+function GunClient:ToggleBoltHeldOpen(open: boolean)
+	self.BoltHeldOpen = open
+
+	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+
+	if self.BoltHeldOpen then
+		-- print("holding bolt")
+		-- just play the openbolt idle on top of the normal one since the bolt isn't animated in normal one
+		viewmodel:PlayAnimation("IdleOpenBolt")
+	else
+		-- print("closing bolt")
+		viewmodel:StopAnimation("IdleOpenBolt")
+	end
+end
+
+function GunClient:_loadViewmodel()
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
+	-- print(viewmodelComponent.Animations)
 
+	local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
+	self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("eject"), function()
+		self:_ejectCasing()
+	end)
 	if self.Config.HasBoltHoldOpen then
-		local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
-		equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("boltOpen") ,function()
-			if not self.BoltHeldOpen then return end
+		self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("bolt_open") ,function()
+			if self.Ammo >= 1 then return end
 
 			-- freeze the bolt in place
 			fireAnimationTrack:AdjustSpeed(0)
 			-- switch the idle animation
 			self:ToggleBoltHeldOpen(true)
+			
+			fireAnimationTrack:Stop()
 		end)
 	end
 
@@ -175,6 +196,9 @@ function GunClient:_loadViewmodel(equipTrove: Trove)
 			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_throw"), function()
 				self:_flingMagazine(viewmodel)
 			end)
+			self._equipTrove:Connect(reloadOpenBolt.Stopped, function()
+				self:ToggleBoltHeldOpen(false)
+			end)
 			-- sync sounds
 			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_release"), function()
 				self.Model.PrimaryPart["ak-magazine-release"]:Play()
@@ -188,11 +212,7 @@ function GunClient:_loadViewmodel(equipTrove: Trove)
 		end
 	end
 
-	equipTrove:Connect(viewmodelComponent:GetAnimation("Fire"):GetMarkerReachedSignal("eject"), function()
-		self:_ejectCasing()
-	end)
-
-	viewmodelComponent:PlayAnimation("Idle", 0)
+	viewmodelComponent:PlayAnimation("Idle")
 	viewmodelComponent:ToggleVisibility(true)
 
 	-- hide the viewmodel upon destruction of this trove
@@ -271,44 +291,25 @@ function GunClient:OnEquipEvent(equipped: boolean)
 	end
 end
 
-function GunClient:ToggleBoltHeldOpen(open: boolean?)
-	self.BoltHeldOpen = if open ~= nil then open else not self.BoltHeldOpen
-
-	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
-
-	if self.BoltHeldOpen then
-		-- print("holding bolt")
-		viewmodel:PlayAnimation("IdleOpenBolt", 0)
-		viewmodel:StopAnimation("Idle", 0)
-	else
-		-- print("closing bolt")
-		viewmodel:PlayAnimation("Idle", 0)
-		viewmodel:StopAnimation("IdleOpenBolt", 0)
-	end
-end
-
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number, ammoLeft: number)
 	self.Ammo = ammoLeft
 	self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
-	if ammoLeft < 1 and self.HasBoltHoldOpen then
-		self:ToggleBoltHeldOpen(true)
-	end
 	viewmodel:PlayAnimation("Fire")
 end
 
 function GunClient:OnReloadEvent()
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 
-	local reloadAnimationTrack = if self.HasBoltHoldOpen and self.BoltHeldOpen
-	then viewmodel:GetAnimation("ReloadOpenBolt")
-	else viewmodel:GetAnimation("Reload")
+	local reloadAnimationTrack = if self.Config.HasBoltHoldOpen and self.BoltHeldOpen
+		then viewmodel:GetAnimation("ReloadOpenBolt")
+		else viewmodel:GetAnimation("Reload")
 
 	reloadAnimationTrack:Play()
 
-	if self.HasBoltHoldOpen then
+	if self.Config.HasBoltHoldOpen then
 		self:ToggleBoltHeldOpen(false)
 	end
 end
@@ -341,7 +342,7 @@ function GunClient:OnRenderStepped()
 		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
 	viewmodel:UpdateOffset("Recoil", viewmodelRecoil)
 	viewmodel:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.25, self.AimPercent.Value))
-	-- viewmodel:UpdateOffset("Aim", ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value) -- for calibrating/debugging
+	viewmodel:UpdateOffset("Aim", ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value) -- for calibrating/debugging
 	viewmodel:SetOffsetAlpha("Aim", self.AimPercent.Value)
 
 	viewmodel.SwayScale = reduceNumberWithMinimum(0.4, self.AimPercent.Value)
