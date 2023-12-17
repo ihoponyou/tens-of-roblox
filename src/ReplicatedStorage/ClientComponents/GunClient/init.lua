@@ -1,6 +1,10 @@
 
 local EMPTY_CFRAME = CFrame.new()
 
+local ADS_SPEED = 0.4
+local ADS_IN_DURATION = ADS_SPEED
+local ADS_OUT_DURATION = ADS_SPEED * 0.75
+
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -34,10 +38,8 @@ local Random = Random.new()
 function GunClient:Construct()
 	self._trove = Trove.new()
 
-	self.Config = WEAPONS[self.Instance.Name].Configuration
+	self.Config = WEAPONS[self.Instance.Name].Configuration:GetAttributes()
 
-	self.HasBoltHoldOpen = self.Config:GetAttribute("HasBoltHoldOpen")
-	self.ThrowsMagazine = self.Config:GetAttribute("ThrowsMagazine")
 	self.BoltHeldOpen = false
 	self._primaryDown = false
 
@@ -47,52 +49,47 @@ function GunClient:Construct()
 	self.ReloadEvent = self.Instance:WaitForChild("ReloadEvent")
 	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
 
-	self.CasingModel = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].Casing)
-
-	self.Model = nil
-
 	-- the clientside gun.model refers to the 1st person gun model
 	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
 	-- also, since this is all clientside, the serverside version of the model actually stays
 	-- in the character's hands; thus 3rd person animations work
-
-	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
+	self.Model = nil
+	self.CasingModel = ReplicatedStorage.Weapons[self.Instance.Name].Casing
 
 	self.AimPercent = NamedInstance.new("AimPercent", "NumberValue", self.Model)
 end
 
 function GunClient:Aim(bool: boolean)
-	self.Aiming = if bool == nil then not self.Aiming else bool
-	self.AimEvent:FireServer(self.Aiming)
 	-- print("aiming:", self.Aiming)
+	self.Aiming = bool
+	self.AimEvent:FireServer(self.Aiming)
 
-	local adsSpeed = 0.4
-
-	local tweeningInformation =
-		TweenInfo.new(if self.Aiming then adsSpeed else adsSpeed * 0.75, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	local tweenInfo = TweenInfo.new(if self.Aiming then ADS_IN_DURATION else ADS_OUT_DURATION, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 	local properties = { Value = if self.Aiming then 1 else 0 }
 
-	TweenService:Create(self.AimPercent, tweeningInformation, properties):Play()
-end
-
-function GunClient:Reload()
-	self.ReloadEvent:FireServer()
+	TweenService:Create(self.AimPercent, tweenInfo, properties):Play()
 end
 
 function GunClient:_handleAimInput(_, userInputState: Enum.UserInputState, _)
 	if userInputState == Enum.UserInputState.Cancel then return Enum.ContextActionResult.Pass end
+
 	self:Aim(userInputState == Enum.UserInputState.Begin)
+
 	return Enum.ContextActionResult.Sink
 end
 
 function GunClient:_handleFireInput(_, userInputState: Enum.UserInputState, _)
+
 	self._primaryDown = userInputState == Enum.UserInputState.Begin
+
 	return Enum.ContextActionResult.Sink
 end
 
 function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
 	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
-	self:Reload()
+
+	self.ReloadEvent:FireServer()
+
 	return Enum.ContextActionResult.Sink
 end
 
@@ -103,6 +100,8 @@ function GunClient:_flingMagazine(viewmodel)
 	magazineClone.Parent = workspace
 	magazineClone.CanCollide = true
 	magazineClone.CollisionGroup = "GunDebris"
+
+	-- TODO: add a sound when it hits the ground
 
 	local viewmodelRoot = viewmodel.PrimaryPart
 	magazineClone.AssemblyLinearVelocity =
@@ -117,6 +116,8 @@ function GunClient:_ejectCasing()
 	local ejectionPoint = self.Model.PrimaryPart.EjectionPoint
 	casingClone.CFrame = ejectionPoint.WorldCFrame * CFrame.Angles(0, math.pi/2, 0)
 
+	-- TODO: add a sound when it hits the ground
+
 	casingClone.AssemblyLinearVelocity =
 	(ejectionPoint.WorldCFrame.LookVector * 2 + ejectionPoint.WorldCFrame.RightVector * 0.2  + ejectionPoint.WorldCFrame.UpVector) * 10
 
@@ -125,44 +126,32 @@ function GunClient:_ejectCasing()
 	local yRotation = -4*math.pi * rotationMultiplier
 	casingClone.AssemblyAngularVelocity = Vector3.new(xRotation, yRotation, 0)
 
+	-- for debugging
 	-- task.wait(.1)
 	-- casingClone.Anchored = true
 
 	game.Debris:AddItem(casingClone, 3)
 end
 
-function GunClient:_equip()
-	self._equipTrove = self._localPlayerTrove:Extend()
-
-	self.Model = self.Instance:WaitForChild("WorldModel")
-
+function GunClient:_loadViewmodel(equipTrove: Trove)
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
-	self.Model.Parent = viewmodel
-	self.Model:ScaleTo(1)
-
-	-- show rig and disconnect magazine
-	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel.PrimaryPart
-	local magazinePart = self.Model.Magazine
-	local magazineJoint = magazinePart.Magazine
-	magazineJoint.C0 = magazinePart.ViewmodelC0.Value -- revert motor6d scaling
-	magazineJoint.Part0 = viewmodel.PrimaryPart -- gun's receiver
 
 	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
 
-	-- TODO: put this in a private loadanimations method
-	if self.HasBoltHoldOpen then
+	if self.Config.HasBoltHoldOpen then
 		local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
-		self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("boltOpen") ,function()
+		equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("boltOpen") ,function()
 			if not self.BoltHeldOpen then return end
+
+			-- freeze the bolt in place
 			fireAnimationTrack:AdjustSpeed(0)
+			-- switch the idle animation
 			self:ToggleBoltHeldOpen(true)
-			fireAnimationTrack:Stop()
 		end)
 	end
 
-	-- TODO: this one too
-	if self.ThrowsMagazine then
+	if self.Config.ThrowsMagazine then
 		local reload = viewmodelComponent:GetAnimation("Reload")
 		if reload ~= nil then
 			-- sync extras
@@ -199,7 +188,7 @@ function GunClient:_equip()
 		end
 	end
 
-	self._equipTrove:Connect(viewmodelComponent:GetAnimation("Fire"):GetMarkerReachedSignal("eject"), function()
+	equipTrove:Connect(viewmodelComponent:GetAnimation("Fire"):GetMarkerReachedSignal("eject"), function()
 		self:_ejectCasing()
 	end)
 
@@ -210,6 +199,25 @@ function GunClient:_equip()
 	self._equipTrove:Add(function()
 		viewmodelComponent:ToggleVisibility(false)
 	end)
+end
+
+function GunClient:_equip()
+	self._equipTrove = self._localPlayerTrove:Extend()
+
+	self.Model = self.Instance:WaitForChild("WorldModel")
+	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
+
+	self.Model:ScaleTo(1)
+	self.Model.Parent = viewmodel
+
+	-- rig receiver & magazine to viewmodel root
+	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel.PrimaryPart
+	local magazinePart = self.Model.Magazine
+	local magazineJoint = magazinePart.Magazine
+	magazineJoint.C0 = magazinePart.ViewmodelC0.Value -- revert motor6d scaling
+	magazineJoint.Part0 = viewmodel.PrimaryPart -- gun's receiver
+
+	self:_loadViewmodel(self._equipTrove)
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
 	self.RecoilSpring.Speed = 10
@@ -310,7 +318,6 @@ function GunClient:OnStepped()
 		self.MouseEvent:FireServer(workspace.CurrentCamera.CFrame.LookVector)
 	end
 end
-
 
 -- as percent increases, the value of this function will decrease to the minimum
 local function reduceNumberWithMinimum(minimum: number, percent: number)
