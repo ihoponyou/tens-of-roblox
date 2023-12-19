@@ -1,18 +1,15 @@
 
-local EMPTY_CFRAME = CFrame.new()
-
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local PartCache = require(ReplicatedStorage.Packages.PartCache) -- use for bullet casings maybe
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
-local Logger = require(ServerStorage.Source.ServerComponents.Extensions.Logger)
+local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
-local Equippable = require(ServerStorage.Source.ServerComponents.Equippable)
+local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 
 local Gun = Component.new({
 	Tag = "Gun",
@@ -22,11 +19,13 @@ local Gun = Component.new({
 })
 
 local dependencies = {
-	"Equippable"
+	"Equipment"
 }
 
 local UPDATE_CURRENT_AMMO_UI = ReplicatedStorage.UIEvents.UpdateCurrentAmmo
 local UPDATE_RESERVE_AMMO_UI = ReplicatedStorage.UIEvents.UpdateReserveAmmo
+
+local WEAPONS = ReplicatedStorage.Equipment.Weapons
 
 function Gun:Construct()
 	self._trove = Trove.new()
@@ -45,7 +44,7 @@ function Gun:Construct()
 	self.EquipEvent = self._trove:Add(NamedInstance.new("EquipEvent", "RemoteEvent", self.Instance))
 	self.ModelLoaded = self._trove:Add(NamedInstance.new("ModelLoaded", "RemoteEvent", self.Instance))
 
-	self.Config = ReplicatedStorage.Weapons[self.Instance.Name].Configuration
+	self.Config = WEAPONS[self.Instance.Name].Configuration
 	self.GUN_STATS = self.Config:GetAttributes()
 
 	self.Ammo = self.GUN_STATS.MagazineCapacity
@@ -58,7 +57,7 @@ function Gun:Construct()
 	self.CastParams = CastParams
 
 	-- serverside gun.model refers to the 3rd person gun model
-	self.Model = self._trove:Clone(ReplicatedStorage.Weapons[self.Instance.Name].WorldModel)
+	self.Model = self._trove:Clone(WEAPONS[self.Instance.Name].WorldModel)
 	if self.Instance.Name == "AK-47" then
 		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
 	end
@@ -70,8 +69,8 @@ function Gun:Construct()
 
 	self.ImpactParticle = self.Model.Receiver:FindFirstChild("ImpactParticle")
 
-	-- a reference to the gun's equippable component
-	self.Equippable = nil
+	-- a reference to the gun's Equipment component
+	self.Equipment = nil
 
 	-- ensure dependencies
 	for _,v in dependencies do
@@ -142,7 +141,7 @@ function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
 
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
-	self.RecoilEvent:FireClient(self.Equippable.Owner, verticalKick, horizontalKick, self.Ammo)
+	self.RecoilEvent:FireClient(self.Equipment.Owner, verticalKick, horizontalKick, self.Ammo)
 
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
@@ -178,7 +177,7 @@ function Gun:Reload()
 	end
 
 	self.Reloading = true
-	self.ReloadEvent:FireClient(self.Equippable.Owner)
+	self.ReloadEvent:FireClient(self.Equipment.Owner)
 
 	-- should probably sync this with anim events
 	-- self:PlayReloadSound()
@@ -203,7 +202,7 @@ function Gun:Reload()
 end
 
 function Gun:OnReloadEvent(player: Player)
-	if player ~= self.Equippable.Owner then error("non owner cannot reload") end
+	if player ~= self.Equipment.Owner then error("non owner cannot reload") end
 	if self.Firing then error("currently firing") end
 	if self.Reloading then
 		-- error("already reloading")
@@ -223,7 +222,7 @@ function Gun:OnReloadEvent(player: Player)
 end
 
 function Gun:OnMouseEvent(player: Player, direction: Vector3)
-	if player ~= self.Equippable.Owner then return end
+	if player ~= self.Equipment.Owner then return end
 	if not self.CanFire then return end
 	if self.Reloading then return end
 	local character: Model? = self.Instance.Parent
@@ -246,7 +245,7 @@ function Gun:OnMouseEvent(player: Player, direction: Vector3)
 end
 
 function Gun:OnAimEvent(player: Player, isAiming: boolean)
-	if player ~= self.Equippable.Owner then return end
+	if player ~= self.Equipment.Owner then return end
 	if not self.Animations.AimIdle then return end
 	-- print(isAiming)
 
@@ -265,7 +264,7 @@ function Gun:LoadAnimations()
 	if not character then warn("cannot load animations without character") end
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 
-	local animations3P = ReplicatedStorage.Weapons[self.Instance.Name].Animations["3P"]
+	local animations3P = WEAPONS[self.Instance.Name].Animations["3P"]
 	for _, v in animations3P:GetChildren() do
 		local animTrack: AnimationTrack = humanoid.Animator:LoadAnimation(v)
 		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
@@ -276,12 +275,12 @@ end
 
 function Gun:SetCurrentAmmo(ammo: number)
 	self.Ammo = ammo
-	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equippable.Owner, ammo)
+	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equipment.Owner, ammo)
 end
 
 function Gun:SetReserveAmmo(ammo: number)
 	self.ReserveAmmo = ammo
-	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equippable.Owner, ammo)
+	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equipment.Owner, ammo)
 end
 
 function Gun:OnEquipped(playerWhoEquipped: Player)
@@ -299,10 +298,10 @@ function Gun:OnEquipped(playerWhoEquipped: Player)
 	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.PrimaryPart
 	self.Animations.Idle:Play()
 
-	self.EquipEvent:FireClient(self.Equippable.Owner, true)
-	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equippable.Owner, self.Ammo)
-	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equippable.Owner, self.ReserveAmmo)
-	self.Equippable.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
+	self.EquipEvent:FireClient(self.Equipment.Owner, true)
+	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equipment.Owner, self.Ammo)
+	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equipment.Owner, self.ReserveAmmo)
+	self.Equipment.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
 function Gun:OnUnequipped()
@@ -320,12 +319,12 @@ function Gun:OnUnequipped()
 	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
 	-- self.Animations.Holster:Play()
 
-	self.EquipEvent:FireClient(self.Equippable.Owner, false)
-	self.Equippable.Owner.CameraMode = Enum.CameraMode.Classic
+	self.EquipEvent:FireClient(self.Equipment.Owner, false)
+	self.Equipment.Owner.CameraMode = Enum.CameraMode.Classic
 end
 
 function Gun:Start()
-	-- -- TODO: this may introduce a race condition in (un)equip event handlers where self.Equippable.Owner is not yet updated
+	-- -- TODO: this may introduce a race condition in (un)equip event handlers where self.Equipment.Owner is not yet updated
 	-- local function OnInstanceAncestryChanged(child: Instance, parent: Instance)
 	-- 	if child ~= self.Instance then return end
 
@@ -336,15 +335,15 @@ function Gun:Start()
 	-- 		owner = parent.Parent
 	-- 	end
 
-	-- 	self.Equippable.Owner = owner
+	-- 	self.Equipment.Owner = owner
 	-- 	if owner == nil then return end
 	-- 	self.Instance:SetAttribute("OwnerID", owner.UserId)
 	-- end
 	-- OnInstanceAncestryChanged(self.Instance, self.Instance.Parent)
 	-- self._trove:Connect(self.Instance.AncestryChanged, OnInstanceAncestryChanged)
 
-	Equippable:WaitForInstance(self.Instance):andThen(function(component)
-		self.Equippable = component
+	Equipment:WaitForInstance(self.Instance):andThen(function(component)
+		self.Equipment = component
 		self._trove:Connect(component.EquipEvent.Event, function(owner: Player, equipped: boolean)
 			if equipped then
 				self:OnEquipped(owner)
@@ -355,8 +354,8 @@ function Gun:Start()
 	end):await()
 
 	self.Model.Parent = self.Instance
-	if self.Equippable.Owner ~= nil then
-		self.Character = self.Equippable.Owner.Character
+	if self.Equipment.Owner ~= nil then
+		self.Character = self.Equipment.Owner.Character
 		-- self.Model.Parent = self.Character
 		self:LoadAnimations()
 
@@ -365,7 +364,7 @@ function Gun:Start()
 	else
 		self.Model.PrimaryPart.CanCollide = true
 	end
-	-- self.ModelLoaded:FireClient(self.Equippable.Owner, self.Model)
+	-- self.ModelLoaded:FireClient(self.Equipment.Owner, self.Model)
 
 	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
 	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)

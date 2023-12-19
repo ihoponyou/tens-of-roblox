@@ -65,7 +65,7 @@ end
 function ViewmodelClient:Start()
 	self.Instance.Parent = workspace.CurrentCamera
 
-    self._trove:Connect(RunService.RenderStepped, function(...) self:Update(...) end)
+	self._trove:Connect(RunService.RenderStepped, function(...) self:Update(...) end)
 end
 
 function ViewmodelClient:ToggleVisibility(show: boolean)
@@ -85,7 +85,7 @@ function ViewmodelClient:LoadAnimations(animationFolder: Folder)
 		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
 		-- index each animation with its name as key and animationtrack as value
 		self.Animations[v.Name] = animTrack
-		print(v.Name, "@", self.Animations[v.Name].Priority)
+		-- print(v.Name, "@", self.Animations[v.Name].Priority)
 	end
 end
 
@@ -106,6 +106,13 @@ end
 function ViewmodelClient:StopAnimation(animationName: string, fadeTime: number?)
 	local animationTrack = self:GetAnimation(animationName)
 	animationTrack:Stop(fadeTime or 0.100000001)
+end
+
+function ViewmodelClient:StopPlayingAnimations(fadeTime: number?)
+	for name, track: AnimationTrack in self.Animations do
+		if not track.IsPlaying then continue end
+		self:StopAnimation(name, fadeTime)
+	end
 end
 
 -- adds an offset to the viewmodel; alpha is like the "scale" of the offset

@@ -2,7 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
-local Logger = require(script.Parent.Extensions.Logger)
+local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
 local NonplayerCharacter = Component.new({
 	Tag = "NPC",

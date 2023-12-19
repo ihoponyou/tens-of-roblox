@@ -6,7 +6,6 @@ local ADS_IN_DURATION = ADS_SPEED
 local ADS_OUT_DURATION = ADS_SPEED * 0.75
 
 local ContextActionService = game:GetService("ContextActionService")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -15,23 +14,22 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Spring = require(ReplicatedStorage.Packages.Spring)
 local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
-local NumberLerp = require(ReplicatedStorage.Source.NumberLerp)
-local ClientComponents = ReplicatedStorage.Source.ClientComponents
-local Logger = require(ClientComponents.Extensions.Logger)
+local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
+local ViewmodelClient = require(script.Parent.ViewmodelClient)
 
-local ViewmodelClient, CameraController
+local CameraController
 
 local GunClient = Component.new({
 	Tag = "Gun",
 	Extensions = {
 		Logger,
+		LocalPlayerExclusive
 	},
 })
 
-local fieldOfView = 85
-
-local WEAPONS = ReplicatedStorage.Weapons
+local WEAPONS = ReplicatedStorage.Equipment.Weapons
 
 local Random = Random.new()
 
@@ -54,7 +52,7 @@ function GunClient:Construct()
 	-- also, since this is all clientside, the serverside version of the model actually stays
 	-- in the character's hands; thus 3rd person animations work
 	self.Model = nil
-	self.CasingModel = ReplicatedStorage.Weapons[self.Instance.Name].Casing
+	self.CasingModel = WEAPONS[self.Instance.Name].Casing
 
 	self.AimPercent = NamedInstance.new("AimPercent", "NumberValue", self.Model)
 end
@@ -141,10 +139,10 @@ function GunClient:ToggleBoltHeldOpen(open: boolean)
 	if self.BoltHeldOpen then
 		-- print("holding bolt")
 		-- just play the openbolt idle on top of the normal one since the bolt isn't animated in normal one
-		viewmodel:PlayAnimation("IdleOpenBolt")
+		viewmodel:PlayAnimation("IdleOpenBolt", 0)
 	else
 		-- print("closing bolt")
-		viewmodel:StopAnimation("IdleOpenBolt")
+		viewmodel:StopAnimation("IdleOpenBolt", 0)
 	end
 end
 
@@ -152,7 +150,7 @@ function GunClient:_loadViewmodel()
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 
-	viewmodelComponent:LoadAnimations(ReplicatedStorage.Weapons[self.Instance.Name].Animations["1P"])
+	viewmodelComponent:LoadAnimations(WEAPONS[self.Instance.Name].Animations["1P"])
 	-- print(viewmodelComponent.Animations)
 
 	local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
@@ -167,7 +165,8 @@ function GunClient:_loadViewmodel()
 			fireAnimationTrack:AdjustSpeed(0)
 			-- switch the idle animation
 			self:ToggleBoltHeldOpen(true)
-			
+
+			-- fireAnimationTrack:Stop()
 			fireAnimationTrack:Stop()
 		end)
 	end
@@ -190,13 +189,13 @@ function GunClient:_loadViewmodel()
 				self.Model.PrimaryPart["ak-bolt-slide"]:Play()
 			end)
 		end
-		local reloadOpenBolt = viewmodelComponent:GetAnimation("ReloadOpenBolt")
+		local reloadOpenBolt: AnimationTrack = viewmodelComponent:GetAnimation("ReloadOpenBolt")
 		if reloadOpenBolt ~= nil then
 			-- sync extras
 			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_throw"), function()
 				self:_flingMagazine(viewmodel)
 			end)
-			self._equipTrove:Connect(reloadOpenBolt.Stopped, function()
+			self._equipTrove:Connect(reloadOpenBolt.Ended, function()
 				self:ToggleBoltHeldOpen(false)
 			end)
 			-- sync sounds
@@ -212,7 +211,10 @@ function GunClient:_loadViewmodel()
 		end
 	end
 
-	viewmodelComponent:PlayAnimation("Idle")
+	viewmodelComponent:PlayAnimation("Idle", 0)
+	-- play equip animation
+	viewmodelComponent:PlayAnimation("Equip", 0)
+
 	viewmodelComponent:ToggleVisibility(true)
 
 	-- hide the viewmodel upon destruction of this trove
@@ -342,7 +344,7 @@ function GunClient:OnRenderStepped()
 		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
 	viewmodel:UpdateOffset("Recoil", viewmodelRecoil)
 	viewmodel:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.25, self.AimPercent.Value))
-	viewmodel:UpdateOffset("Aim", ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value) -- for calibrating/debugging
+	viewmodel:UpdateOffset("Aim", WEAPONS[self.Instance.Name].Offsets.Aiming.Value) -- for calibrating/debugging
 	viewmodel:SetOffsetAlpha("Aim", self.AimPercent.Value)
 
 	viewmodel.SwayScale = reduceNumberWithMinimum(0.4, self.AimPercent.Value)
@@ -356,7 +358,7 @@ function GunClient:_setupForLocalPlayer()
 
 	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
 	viewmodel:ApplyOffset("Recoil", CFrame.new(), 1)
-	viewmodel:ApplyOffset("Aim", ReplicatedStorage.Weapons[self.Instance.Name].Offsets.Aiming.Value, 0)
+	viewmodel:ApplyOffset("Aim", WEAPONS[self.Instance.Name].Offsets.Aiming.Value, 0)
 	CameraController:ApplyOffset("Recoil", CFrame.new(), 1)
 
 	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
@@ -372,21 +374,10 @@ function GunClient:_cleanUpForLocalPlayer()
 end
 
 function GunClient:Start()
-	ViewmodelClient = require(script.Parent.ViewmodelClient)
+
 	Knit.OnStart():andThen(function()
 		CameraController = Knit.GetController("CameraController")
 	end):catch(warn)
-
-	local function OwnerIDChanged()
-		if self.Instance:GetAttribute("OwnerID") == Players.LocalPlayer.UserId then
-			self:_setupForLocalPlayer()
-		else
-			self:_cleanUpForLocalPlayer()
-		end
-	end
-
-	OwnerIDChanged()
-	self._trove:Connect(self.Instance:GetAttributeChangedSignal("OwnerID"), OwnerIDChanged)
 end
 
 function GunClient:Stop()
