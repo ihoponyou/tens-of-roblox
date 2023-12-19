@@ -43,6 +43,8 @@ end
 
 function EquipmentClient:_onPickedUp()
     if DEBUG then print("picked up", self.Instance.Name) end
+
+    self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("ViewmodelScale"))
     -- TODO: add to inventory GUI
 end
 
@@ -89,9 +91,7 @@ function EquipmentClient:_onUnequipped()
 end
 
 function EquipmentClient:_onDropped()
-    -- unrig from viewmodel and drop it
-    self.Instance.Parent = workspace
-    self.WorldModel.Parent = self.Instance
+    self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("WorldScale"))
 
     -- throw it
     local cameraCFrame = workspace.CurrentCamera.CFrame

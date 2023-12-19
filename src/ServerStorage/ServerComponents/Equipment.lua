@@ -1,5 +1,6 @@
 
-local DEBUG = true
+local DEBUG = false
+local EMPTY_CFRAME = CFrame.new()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -31,6 +32,8 @@ function Equipment:Construct()
     if not isValidSlotType(self.Config.SlotType) then error("Invalid slot type") end 
 
     self.WorldModel = self.Instance:WaitForChild("WorldModel", 5) or self._trove:Clone(folder.WorldModel)
+    self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("WorldScale"))
+    print("scaled", self.Instance)
     self.WorldModel.Parent = self.Instance
     self.WorldModel.PrimaryPart.CanCollide = true
     self.WorldModel.PrimaryPart.CollisionGroup = "Equipment"
@@ -53,19 +56,31 @@ end
 function Equipment:PickUp(player: Player): boolean
     if self.Owner ~= nil then warn(player.Name .. " tried to pick up already picked up equipment") return false end
 
-    local character = player.Character
-    if not character then return false end
-
     local giveSuccess = InventoryService:GiveItem(player, self)
     if not giveSuccess then return false end
 
     if DEBUG then print(player.Name .. " picked up " .. self.Instance.Name) end
+
+    local character = player.Character
+    if not character then error("Cannot rig equipment to owner; no character") end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then error("Cannot rig equipment to character; character missing HumanoidRootPart") end
+
+    local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
+    if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end
+
+    -- rig equipment to character
+    self.WorldModel.Parent = character
+    modelRootJoint.Part0 = hrp
 
     self.Owner = player
     self.Instance:SetAttribute("OwnerID", player.UserId)
     self.Instance.Parent = player.Backpack
 
     self.WorldModel.PrimaryPart.CanCollide = false
+
+    self.WorldModel.PrimaryPart.RootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
 
     self.PickUpPrompt.Enabled = false
     return true
@@ -74,21 +89,9 @@ end
 function Equipment:Equip(player: Player): boolean?
     if player ~= self.Owner then error("Non-owner requested equip") end
 
-    local character = self.Owner.Character
-    if not character then error("Cannot rig equipment to owner; no character") end
-
-    local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
-    if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end
-
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then error("Cannot rig equipment to character; character missing HumanoidRootPart") end
-
-    -- set this at the end of animation
-    self.IsEquipped = true
-
-    -- rig equipment to character
-    self.WorldModel.Parent = character
-    modelRootJoint.Part0 = hrp
+    self.WorldModel.PrimaryPart.RootJoint.C0 = EMPTY_CFRAME
+    -- TODO: play an equip animation
+    self.IsEquipped = true -- set this at the end or specified keyframe of animation
 
     return true
 end
@@ -96,15 +99,8 @@ end
 function Equipment:Unequip(player: Player): boolean?
     if self.Owner ~= player then error("Non-owner requested unequip") end
 
-    local character = player.character
-    if not character then error("Cannot unrig equipment from character; no character") end
-
-    local modelRootJoint: Motor6D = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
-    if not modelRootJoint then error("Cannot unrig equipment from character; equipment missing RootJoint") end
-
-    -- TODO: character:StopPlayingAnimations()
-    modelRootJoint.Part0 = nil
-    self.WorldModel.Parent = self.Instance -- instance always stays in owner's backpack
+    self.WorldModel.PrimaryPart.RootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
+    self.IsEquipped = false
 
     return true
 end
@@ -126,6 +122,11 @@ function Equipment:Drop(player: Player): boolean?
     self.PickUpPrompt.Enabled = true
 
     local modelRoot = self.WorldModel.PrimaryPart
+    local modelRootJoint = modelRoot:FindFirstChild("RootJoint")
+    -- TODO: character:StopPlayingAnimations()
+    modelRootJoint.Part0 = nil
+    self.WorldModel.Parent = self.Instance -- instance always stays in owner's backpack
+
     modelRoot.CanCollide = true
     self.Instance.Parent = workspace
     self.WorldModel.Parent = self.Instance
@@ -154,6 +155,10 @@ function Equipment:OnEquipRequested(player: Player, equipping: boolean)
 end
 
 function Equipment:Start()
+    Knit.OnStart():andThen(function()
+        InventoryService = Knit.GetService("InventoryService")
+    end):catch(warn)
+
     self.PickUpRequest.OnServerInvoke = function(...)
         return self:OnPickUpRequested(...)
     end
@@ -161,10 +166,6 @@ function Equipment:Start()
     self.EquipRequest.OnServerInvoke = function(...)
         return self:OnEquipRequested(...)
     end
-
-    Knit.OnStart():andThen(function()
-        InventoryService = Knit.GetService("InventoryService")
-    end):catch(warn)
 end
 
 function Equipment:Stop()

@@ -211,6 +211,7 @@ function ViewmodelClient:_updatePull()
 end
 
 function ViewmodelClient:Update(deltaTime: number)
+	if not self.Visible then return end
 	local camera = workspace.CurrentCamera
 
 	self:_updateSway()
