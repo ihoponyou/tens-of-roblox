@@ -35,7 +35,7 @@ end
 function InventoryController:_onItemRemoved(item: Instance)
     if DEBUG then print('removed', item) end
 
-    local slotType = ReplicatedStorage.Equipment[item.Name].Configuration:GetAttribute("SlotType")
+    local slotType = ReplicatedStorage.Equipment:FindFirstChild(item.Name, true).Configuration:GetAttribute("SlotType")
     if not slotType then error("this equipment does not have a slot type") end
 
     local entry = self.Inventory[slotType]
@@ -49,6 +49,11 @@ end
 function InventoryController:UseActiveItem()
     if not self.ActiveItem then warn("No active item to use") return end
     EquipmentClient:FromInstance(self.ActiveItem):Use()
+end
+
+function InventoryController:AlternativelyUseActiveItem()
+    if not self.ActiveItem then warn("No active item to alternatively use :^)") return end
+    EquipmentClient:FromInstance(self.ActiveItem):AlternateUse()
 end
 
 function InventoryController:DropActiveItem()
@@ -69,12 +74,14 @@ function InventoryController:SwitchSlot(slot: string)
         if not unequipSuccess then error("could not unequip old slot") end
     end
 
-    -- print("switch to " .. slot)
+    if DEBUG then print("switch to " .. slot) end
     self.ActiveItem = self.Inventory[slot]
     self.ActiveSlot = slot
 
-    -- nothing to equip
-    if self.ActiveItem == nil then return end
+    if self.ActiveItem == nil then
+        if DEBUG then print("nothing to equip") end
+        return
+    end
 
     local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
     if not equipSuccess then

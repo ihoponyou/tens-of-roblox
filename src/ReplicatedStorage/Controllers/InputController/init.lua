@@ -56,10 +56,9 @@ function InputController.IsWasdDown(): boolean
 	return UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.D)
 end
 
-
 function InputController:LoadKeybind(action: string, keybind: Enum.KeyCode, log: boolean)
 	if not self["_"..action] then
-		if log then print(string.format("Action \"%s\" does not have a matching method", action)) end
+		warn(string.format("Action \"%s\" does not have a matching method", action))
 		return
 	end
 
@@ -117,8 +116,13 @@ function InputController:ResetKeybinds(log: boolean)
 	print("Keybinds reset to default.")
 end
 
+
+-- INVENTORY CONTROLS
 function InputController:_Use(userInputState: Enum.UserInputState)
 	InventoryController:UseActiveItem()
+end
+function InputController:_AlternateUse()
+	InventoryController:AlternativelyUseActiveItem()
 end
 
 function InputController:_Drop(_)

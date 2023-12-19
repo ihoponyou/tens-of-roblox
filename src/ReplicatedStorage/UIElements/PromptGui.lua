@@ -10,6 +10,7 @@ function PromptGui:render()
         AlwaysOnTop = true;
         Size = UDim2.fromOffset(200, 50);
         Enabled = false;
+        StudsOffset = Vector3.yAxis;
         [Roact.Ref] = self.props.ref;
     }, {
         PromptLabel = Roact.createElement("TextLabel", {
@@ -18,7 +19,7 @@ function PromptGui:render()
             TextColor3 = Color3.fromRGB(255, 255, 255);
             FontFace = Font.new("rbxassetid://12187365364");
             RichText = true;
-            Text = "<b>[E]</b> HOLD TO EQUIP " .. self.props.equipment_name:upper();
+            Text = "<b>[E]</b> PICK UP " .. self.props.equipment_name:upper();
             TextSize = 24;
             Size = UDim2.fromScale(1, 1);
         })

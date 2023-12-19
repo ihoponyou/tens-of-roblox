@@ -37,13 +37,17 @@ function EquipmentClient:Construct()
 
     self.EquipRequest = self.Instance:WaitForChild("EquipRequest")
     self.PickUpRequest = self.Instance:WaitForChild("PickUpRequest")
+
+    self.AnimationFolder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true).Animations
 end
 
 function EquipmentClient:_onPickedUp()
+    if DEBUG then print("picked up", self.Instance.Name) end
     -- TODO: add to inventory GUI
 end
 
 function EquipmentClient:_onEquipped()
+    if DEBUG then print("equipped", self.Instance.Name) end
     local viewmodel = ViewmodelController.Viewmodel
     if not viewmodel then error("Cannot rig equipment to viewmodel; no viewmodel") end
 
@@ -59,7 +63,7 @@ function EquipmentClient:_onEquipped()
     self.WorldModel.Parent = viewmodel.Instance
     modelRootJoint.Part0 = viewmodel.Instance.PrimaryPart
 
-    viewmodel:LoadAnimations(ReplicatedStorage.Equipment[self.Instance.Name].Animations)
+    viewmodel:LoadAnimations(self.AnimationFolder["1P"])
     viewmodel:PlayAnimation("Idle", 0)
     viewmodel:ToggleVisibility(true)
     viewmodel:PlayAnimation("Equip", 0)

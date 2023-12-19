@@ -17,14 +17,22 @@ local Equipment = Component.new({
 
 local InventoryService
 
+local function isValidSlotType(slot: string)
+    return type(slot) == "string" and (slot == "Primary" or slot == "Secondary" or slot == "Tertiary") 
+end
+
 function Equipment:Construct()
     self._trove = Trove.new()
 
     self.IsEquipped = false
     self.Owner = nil
-    self.Config = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true).Configuration:GetAttributes()
+    local folder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true)
+    self.Config = folder.Configuration:GetAttributes()
+    if not isValidSlotType(self.Config.SlotType) then error("Invalid slot type") end 
 
-    self.WorldModel = self.Instance:WaitForChild("WorldModel")
+    self.WorldModel = self.Instance:WaitForChild("WorldModel", 5) or self._trove:Clone(folder.WorldModel)
+    self.WorldModel.Parent = self.Instance
+    self.WorldModel.PrimaryPart.CanCollide = true
     self.WorldModel.PrimaryPart.CollisionGroup = "Equipment"
 
     self.PickUpRequest = self._trove:Add(Instance.new("RemoteFunction"))
