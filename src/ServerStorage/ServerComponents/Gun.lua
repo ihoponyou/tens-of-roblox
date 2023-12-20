@@ -273,7 +273,7 @@ function Gun:_onEquipped()
 	-- rig magazine
 	local magazinePart = self.Equipment.WorldModel:WaitForChild("Magazine")
 	local magazineJoint = magazinePart.Magazine
-	-- magazineJoint.Part0 = self.Character.PrimaryPart -- character's hrp
+	magazineJoint.Part0 = self.Character.PrimaryPart -- character's hrp
 	-- print('rigged')
 
 	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equipment.Owner, self.Ammo)
