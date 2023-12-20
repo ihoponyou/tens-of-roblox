@@ -146,16 +146,24 @@ function GunClient:ToggleBoltHeldOpen(open: boolean)
 end
 
 function GunClient:_loadViewmodel()
-	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
-	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
+	local viewmodel = ViewmodelController.Viewmodel
 
-	viewmodelComponent:LoadAnimations(GUNS[self.Instance.Name].Animations["1P"])
-	-- print(viewmodelComponent.Animations)
+	viewmodel:LoadAnimations(GUNS[self.Instance.Name].Animations["1P"])
 
-	local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
+	-- rig magazine
+	local magazinePart = self.Equipment.WorldModel.Magazine
+	local magazineJoint = magazinePart.Magazine
+	-- magazineJoint:GetPropertyChangedSignal("Part0"):Once(function()
+    --     magazineJoint.Part0 = viewmodel.Instance.PrimaryPart
+    -- end)
+	magazineJoint.Part0 = viewmodel.Instance.PrimaryPart -- viewmodel root
+	print("rigged")
+
+	local fireAnimationTrack: AnimationTrack = viewmodel:GetAnimation("Fire")
 	self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("eject"), function()
 		self:_ejectCasing()
 	end)
+
 	if self.Config.HasBoltHoldOpen then
 		self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("bolt_open") ,function()
 			if self.Ammo >= 1 then return end
@@ -171,7 +179,7 @@ function GunClient:_loadViewmodel()
 	end
 
 	if self.Config.ThrowsMagazine then
-		local reload = viewmodelComponent:GetAnimation("Reload")
+		local reload = viewmodel:GetAnimation("Reload")
 		if reload ~= nil then
 			-- sync extras
 			self._equipTrove:Connect(reload:GetMarkerReachedSignal("mag_throw"), function()
@@ -188,7 +196,7 @@ function GunClient:_loadViewmodel()
 				self.Equipment.WorldModel.PrimaryPart["ak-bolt-slide"]:Play()
 			end)
 		end
-		local reloadOpenBolt: AnimationTrack = viewmodelComponent:GetAnimation("ReloadOpenBolt")
+		local reloadOpenBolt: AnimationTrack = viewmodel:GetAnimation("ReloadOpenBolt")
 		if reloadOpenBolt ~= nil then
 			-- sync extras
 			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_throw"), function()
@@ -209,29 +217,11 @@ function GunClient:_loadViewmodel()
 			end)
 		end
 	end
-
-	viewmodelComponent:PlayAnimation("Idle", 0)
-	-- play equip animation
-	viewmodelComponent:PlayAnimation("Equip", 0)
-
-	viewmodelComponent:ToggleVisibility(true)
-
-	-- hide the viewmodel upon destruction of this trove
-	self._equipTrove:Add(function()
-		viewmodelComponent:ToggleVisibility(false)
-	end)
 end
 
 function GunClient:_onEquipped()
+	print("GunClient:_onEquipped")
 	self._equipTrove = self._localPlayerTrove:Extend()
-
-	local viewmodel = ViewmodelController.Viewmodel
-
-	-- rig receiver & magazine to viewmodel root
-	local magazinePart = self.Equipment.WorldModel.Magazine
-	local magazineJoint = magazinePart.Magazine
-	-- magazineJoint.C0 = magazinePart.ViewmodelC0.Value -- revert motor6d scaling
-	magazineJoint.Part0 = viewmodel.Instance.PrimaryPart -- gun's receiver
 
 	self:_loadViewmodel()
 
@@ -265,7 +255,14 @@ function GunClient:_onEquipped()
 end
 
 function GunClient:_onUnequipped()
+	print("GunClient:_onUnequipped")
 	self._equipTrove:Clean()
+
+	-- unrig magazine
+	-- local magazinePart = self.Equipment.WorldModel.Magazine
+	-- local magazineJoint = magazinePart.Magazine
+	-- magazineJoint.Part0 = self.Equipment.WorldModel.PrimaryPart -- gun's receiver
+	-- print("unrigged")
 
 	self._primaryDown = false
 end
@@ -279,7 +276,7 @@ function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number, a
 end
 
 function GunClient:OnReloadEvent()
-	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	local viewmodel = ViewmodelController.Viewmodel
 
 	local reloadAnimationTrack = if self.Config.HasBoltHoldOpen and self.BoltHeldOpen
 		then viewmodel:GetAnimation("ReloadOpenBolt")
@@ -303,8 +300,7 @@ function GunClient:OnRenderStepped()
 	local cameraRecoil = CFrame.Angles(
 		math.rad(recoilOffset.Y * 2),
 		math.rad(recoilOffset.X * 2),
-		0
-	)
+		0)
 	CameraController:UpdateOffset("Recoil", cameraRecoil)
 	CameraController:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.75, self.AimPercent.Value))
 
@@ -329,12 +325,6 @@ function GunClient:_setupForLocalPlayer()
 	viewmodel:ApplyOffset("Recoil", CFrame.new(), 1)
 	viewmodel:ApplyOffset("Aim", GUNS[self.Instance.Name].Offsets.Aiming.Value, 0)
 	CameraController:ApplyOffset("Recoil", CFrame.new(), 1)
-
-	self.Equipment.UseRequest.OnClientInvoke = function(...)
-		self:OnRecoilEvent(...)
-		return workspace.CurrentCamera.CFrame.LookVector
-	end
-	self._localPlayerTrove:Add(function() self.Equipment.UseRequest.OnClientInvoke = nil end)
 
 	-- TODO: maybe let input controller switch keybinds based on context (action service :O)
 	-- self._localPlayerTrove:Connect(RunService.RenderStepped, function() self:OnRenderStepped() end)

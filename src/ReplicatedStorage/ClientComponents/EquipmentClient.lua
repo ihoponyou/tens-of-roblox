@@ -36,10 +36,10 @@ function EquipmentClient:Construct()
     })
     self._promptTree = Roact.mount(promptGui, self.WorldModel)
 
-    self.EquipRequest = self.Instance:WaitForChild("EquipRequest")
-    self.PickUpRequest = self.Instance:WaitForChild("PickUpRequest")
-    self.UseRequest = self.Instance:WaitForChild("UseRequest")
-    self.AlternateUseRequest = self.Instance:WaitForChild("AlternateUseRequest")
+    self.EquipRequest = self.Instance:WaitForChild("Equip")
+    self.PickUpRequest = self.Instance:WaitForChild("PickUp")
+    self.UseRequest = self.Instance:WaitForChild("Use")
+    self.AlternateUseRequest = self.Instance:WaitForChild("AltUse")
 
     self.AnimationFolder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true).Animations
 
@@ -58,8 +58,14 @@ function EquipmentClient:_onPickedUp()
     self.PickedUp:Fire(true)
 end
 
+function EquipmentClient:Equip()
+    print("EquipmentClient:Equip")
+    self.EquipRequest:FireServer(true)
+end
 function EquipmentClient:_onEquipped()
+    print("EquipmentClient:_onEquipped")
     if DEBUG then print("equipped", self.Instance.Name) end
+
     local viewmodel = ViewmodelController.Viewmodel
     if not viewmodel then error("Cannot rig equipment to viewmodel; no viewmodel") end
 
@@ -83,6 +89,9 @@ function EquipmentClient:_onEquipped()
     self.Equipped:Fire(true)
 end
 
+function EquipmentClient:Use()
+    self.UseRequest:FireServer(true)
+end
 function EquipmentClient:_onUse()
     print('use of', self.Instance.Name, "successful")
 
@@ -95,6 +104,9 @@ function EquipmentClient:_onAlternateUse()
     self.AltUsed:Fire()
 end
 
+function EquipmentClient:Unequip()
+    self.EquipRequest:FireServer(false)
+end
 function EquipmentClient:_onUnequipped()
     local viewmodel = ViewmodelController.Viewmodel
     if not viewmodel then error("Cannot unrig equipment from viewmodel; no viewmodel") end
@@ -116,6 +128,9 @@ function EquipmentClient:_onUnequipped()
     self.Equipped:Fire(false)
 end
 
+function EquipmentClient:Drop()
+    self.PickUpRequest:FireServer(false)
+end
 function EquipmentClient:_onDropped()
     self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("WorldScale"))
 
@@ -129,52 +144,16 @@ function EquipmentClient:_onDropped()
     self.PickedUp:Fire(false)
 end
 
-function EquipmentClient:Use(...: any): boolean
-    local useSuccess = self.UseRequest:InvokeServer(...)
-    if useSuccess then self:_onUse() end
-    return useSuccess
-end
-
-function EquipmentClient:AlternateUse(): boolean
-    local alternateUseSuccess = self.AlternateUseRequest:InvokeServer()
-    if alternateUseSuccess then self:_onAlternateUse() end
-    return alternateUseSuccess
-end
-
-function EquipmentClient:PickUp(): boolean
-    local pickUpSuccess = self.PickUpRequest:InvokeServer(true)
-    if pickUpSuccess then self:_onPickedUp() end
-    return pickUpSuccess
-end
-
-function EquipmentClient:Equip(): boolean
-    local equipSuccess = self.EquipRequest:InvokeServer(true)
-    if equipSuccess then self:_onEquipped() end
-    return equipSuccess
-end
-
-function EquipmentClient:Unequip(): boolean
-    local unequipSuccess = self.EquipRequest:InvokeServer(false)
-    if unequipSuccess then self:_onUnequipped() end
-    return unequipSuccess
-end
-
-function EquipmentClient:Drop(): boolean
-    local dropSuccess = self.PickUpRequest:InvokeServer(false)
-    if dropSuccess then self:_onDropped() end
-    return dropSuccess
-end
-
 function EquipmentClient:_setupForLocalPlayer()
     if DEBUG then print('LOCAL PLAYER OWNS THIS') end
 
-    -- on picked up
+    self._localPlayerTrove = self._trove:Extend()
 end
 
 function EquipmentClient:_cleanUpForLocalPlayer()
     if DEBUG then print('LOCAL PLAYER NO LONGER OWNS THIS') end
 
-    self:_onUnequipped() -- idk if this is necessary but it works fine
+    if self._localPlayerTrove then self._localPlayerTrove:Clean() end
     -- on dropped
 end
 
@@ -183,8 +162,23 @@ function EquipmentClient:Start()
         ViewmodelController = Knit.GetController("ViewmodelController")
     end)
 
+    self._trove:Connect(self.EquipRequest.OnClientEvent, function(equipped: boolean)
+        if equipped then
+            self:_onEquipped()
+        else
+            self:_onUnequipped()
+        end
+    end)
+    self._trove:Connect(self.PickUpRequest.OnClientEvent, function(pickedUp: boolean)
+        if pickedUp then
+            self:_onPickedUp()
+        else
+            self:_onDropped()
+        end
+    end)
+
     self._trove:Connect(self.ProximityPrompt.Triggered, function()
-        self:PickUp()
+        self.PickUpRequest:FireServer(true)
     end)
     self._trove:Connect(self.ProximityPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
     self._trove:Connect(self.ProximityPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)

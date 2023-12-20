@@ -25,12 +25,9 @@ function InventoryController:_onItemAdded(item: Instance)
     if DEBUG then print(self.Inventory) end
 
     if self.ActiveSlot ~= slotType then return end
+
     self.ActiveItem = item
-    local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
-    if not equipSuccess then
-        self.ActiveItem = nil
-        error("could not auto-equip picked up item")
-    end
+    EquipmentClient:FromInstance(self.ActiveItem):Equip()
 end
 
 function InventoryController:_onItemRemoved(item: Instance)
@@ -71,23 +68,18 @@ function InventoryController:SwitchSlot(slot: string)
     if self.ActiveSlot == slot then return end
 
     if self.ActiveItem ~= nil then
-        local unequipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Unequip()
-        if not unequipSuccess then error("could not unequip old slot") end
+        EquipmentClient:FromInstance(self.ActiveItem):Unequip()
     end
 
     if DEBUG then print("switch to " .. slot) end
+
     self.ActiveItem = self.Inventory[slot]
     self.ActiveSlot = slot
-
     if self.ActiveItem == nil then
         if DEBUG then print("nothing to equip") end
         return
-    end
-
-    local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
-    if not equipSuccess then
-        self.ActiveItem = nil
-        error("could not equip new slot")
+    else
+        EquipmentClient:FromInstance(self.ActiveItem):Equip()
     end
 end
 

@@ -109,7 +109,6 @@ function CameraController:OnRenderStepped()
 end
 
 function CameraController:KnitStart()
-	print("started")
 	if Knit.Player.Character then
 		self:OnCharacterAdded(Knit.Player.Character)
 	end

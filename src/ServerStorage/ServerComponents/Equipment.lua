@@ -40,27 +40,28 @@ function Equipment:Construct()
     self.WorldModel.PrimaryPart.CanCollide = true
     self.WorldModel.PrimaryPart.CollisionGroup = "Equipment"
 
-    self.PickUpRequest = self._trove:Add(Instance.new("RemoteFunction"))
-    self.PickUpRequest.Name = "PickUpRequest"
+    self.PickUpRequest = self._trove:Add(Instance.new("RemoteEvent"))
+    self.PickUpRequest.Name = "PickUp"
     self.PickUpRequest.Parent = self.Instance
 
-    self.EquipRequest = self._trove:Add(Instance.new("RemoteFunction"))
-    self.EquipRequest.Name = "EquipRequest"
+    self.EquipRequest = self._trove:Add(Instance.new("RemoteEvent"))
+    self.EquipRequest.Name = "Equip"
     self.EquipRequest.Parent = self.Instance
 
     self.IsUseKeyDown = false
 
-    -- meant to be overriden, not sure how to properly do this
-    self.useFunctioniality = function(...: any)
+    local defaultUse: (any) -> nil = function(...: any)
         warn("use functionality not overriden")
     end
+    -- meant to be overriden, not sure how to properly do this
+    self.useFunctioniality = defaultUse
 
-    self.UseRequest = self._trove:Add(Instance.new("RemoteFunction"))
-    self.UseRequest.Name = "UseRequest"
+    self.UseRequest = self._trove:Add(Instance.new("RemoteEvent"))
+    self.UseRequest.Name = "Use"
     self.UseRequest.Parent = self.Instance
 
-    self.AlternateUseRequest = self._trove:Add(Instance.new("RemoteFunction"))
-    self.AlternateUseRequest.Name = "AlternateUseRequest"
+    self.AlternateUseRequest = self._trove:Add(Instance.new("RemoteEvent"))
+    self.AlternateUseRequest.Name = "AltUse"
     self.AlternateUseRequest.Parent = self.Instance
 
     self.PickUpPrompt = self._trove:Add(Instance.new("ProximityPrompt"))
@@ -74,12 +75,11 @@ function Equipment:Construct()
     self.AltUsed = Signal.new()
 end
 
--- returns true if successful, otherwise false
-function Equipment:PickUp(player: Player): boolean
-    if self.Owner ~= nil then warn(player.Name .. " tried to pick up already picked up equipment") return false end
+function Equipment:PickUp(player: Player)
+    if self.Owner ~= nil then warn(player.Name .. " tried to pick up already picked up equipment") end
 
     local giveSuccess = InventoryService:GiveItem(player, self)
-    if not giveSuccess then return false end
+    if not giveSuccess then return end
 
     if DEBUG then print(player.Name .. " picked up " .. self.Instance.Name) end
 
@@ -87,7 +87,7 @@ function Equipment:PickUp(player: Player): boolean
     if not character then error("Cannot rig equipment to owner; no character") end
 
     local torso = character:FindFirstChild("Torso")
-    if not torso then error("Cannot rig equipment to character; character missing HumanoidRootPart") end
+    if not torso then error("Cannot rig equipment to character; character missing Torso") end
 
     local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
     if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end
@@ -95,30 +95,29 @@ function Equipment:PickUp(player: Player): boolean
     -- rig equipment to character
     self.WorldModel.Parent = character
     modelRootJoint.Part0 = torso
+    modelRootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
+    self.WorldModel.PrimaryPart.CanCollide = false
 
     self.Owner = player
     self.Instance:SetAttribute("OwnerID", player.UserId)
     self.Instance.Parent = player.Backpack
 
-    self.WorldModel.PrimaryPart.CanCollide = false
-
-    self.WorldModel.PrimaryPart.RootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
-
     self.PickUpPrompt.Enabled = false
 
-    self.PickedUp:Fire(true)
-    return true
+    -- "player just picked me up"
+    self.PickedUp:Fire(player, true)
 end
 
-function Equipment:Equip(player: Player): boolean?
+function Equipment:Equip(player: Player)
+    print("E:Equip")
     if player ~= self.Owner then error("Non-owner requested equip") end
 
     self.WorldModel.PrimaryPart.RootJoint.C0 = EMPTY_CFRAME
-    -- TODO: play an equip animation
+    -- TODO: play a 3P equip animation
     self.IsEquipped = true -- set this at the end or specified keyframe of animation
 
-    self.Equipped:Fire(true)
-    return true
+    -- "player just picked me up"
+    self.Equipped:Fire(player, true)
 end
 
 function Equipment:Use(player: Player, ...: any): boolean?
@@ -128,7 +127,6 @@ function Equipment:Use(player: Player, ...: any): boolean?
     self.useFunctioniality(...)
 
     self.Used:Fire()
-    return true
 end
 
 function Equipment:AlternateUse(player: Player): boolean?
@@ -137,7 +135,6 @@ function Equipment:AlternateUse(player: Player): boolean?
     -- TODO: sanity checks
 
     self.AltUsed:Fire()
-    return true
 end
 
 function Equipment:Unequip(player: Player): boolean?
@@ -146,8 +143,7 @@ function Equipment:Unequip(player: Player): boolean?
     self.WorldModel.PrimaryPart.RootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
     self.IsEquipped = false
 
-    self.Equipped:Fire(false)
-    return true
+    self.Equipped:Fire(player, false)
 end
 
 -- returns true if successful, otherwise false
@@ -155,7 +151,7 @@ function Equipment:Drop(player: Player): boolean?
     if self.Owner ~= player then error("Non-owner requested drop") end
 
     local takeSuccess = InventoryService:TakeItem(self.Owner, self)
-    if not takeSuccess then warn("InventoryService could not take " .. self.Instance.Name) return false end
+    if not takeSuccess then error("InventoryService could not take " .. self.Instance.Name) end
 
     if DEBUG then print(self.Owner.Name .. " dropped " .. self.Instance.Name) end
 
@@ -166,12 +162,15 @@ function Equipment:Drop(player: Player): boolean?
     self.Instance:SetAttribute("OwnerID", nil)
     self.PickUpPrompt.Enabled = true
 
+    -- unrig from character
     local modelRoot = self.WorldModel.PrimaryPart
     local modelRootJoint = modelRoot:FindFirstChild("RootJoint")
     -- TODO: character:StopPlayingAnimations()
     modelRootJoint.Part0 = nil
+    modelRootJoint.C0 = EMPTY_CFRAME
     self.WorldModel.Parent = self.Instance -- instance always stays in owner's backpack
 
+    -- allow model to fall
     modelRoot.CanCollide = true
     self.Instance.Parent = workspace
     self.WorldModel.Parent = self.Instance
@@ -182,8 +181,7 @@ function Equipment:Drop(player: Player): boolean?
         modelRoot:SetNetworkOwnershipAuto()
     end)
 
-    self.PickedUp:Fire(false)
-    return true
+    self.PickedUp:Fire(player, false)
 end
 
 function Equipment:OnPickUpRequested(player: Player, pickingUp: boolean)
@@ -205,21 +203,28 @@ function Equipment:Start()
         InventoryService = Knit.GetService("InventoryService")
     end):catch(warn)
 
-    self.PickUpRequest.OnServerInvoke = function(...)
+    self._trove:Connect(self.PickedUp, function(player: Player, pickedUp: boolean)
+        self.PickUpRequest:FireClient(player, pickedUp)
+    end)
+    self._trove:Connect(self.PickUpRequest.OnServerEvent, function(...)
         return self:OnPickUpRequested(...)
-    end
+    end)
 
-    self.UseRequest.OnServerInvoke = function(...)
+    self._trove:Connect(self.UseRequest.OnServerEvent, function(...)
         return self:Use(...)
-    end
+    end)
 
-    self.AlternateUseRequest.OnServerInvoke = function(...)
+    self._trove:Connect(self.AlternateUseRequest.OnServerEvent, function(...)
         return self:AlternateUse(...)
-    end
+    end)
 
-    self.EquipRequest.OnServerInvoke = function(...)
+    self._trove:Connect(self.Equipped, function(player: Player, equipped: boolean)
+        print("E.Equipped")
+        self.EquipRequest:FireClient(player, equipped)
+    end)
+    self._trove:Connect(self.EquipRequest.OnServerEvent, function(...)
         return self:OnEquipRequested(...)
-    end
+    end)
 end
 
 function Equipment:Stop()

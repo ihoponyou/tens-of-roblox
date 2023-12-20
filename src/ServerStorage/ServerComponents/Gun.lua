@@ -263,7 +263,7 @@ function Gun:SetReserveAmmo(ammo: number)
 end
 
 function Gun:_onEquipped()
-	print("gun equipped")
+	print("Gun:_onEquipped")
 	self.Equipment.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
 	self.Character = self.Equipment.WorldModel.Parent
 	self.CastParams.FilterDescendantsInstances = { self.Character }
@@ -273,14 +273,15 @@ function Gun:_onEquipped()
 	-- rig magazine
 	local magazinePart = self.Equipment.WorldModel:WaitForChild("Magazine")
 	local magazineJoint = magazinePart.Magazine
-	magazineJoint.Part0 = self.Character.PrimaryPart -- character's hrp
+	-- magazineJoint.Part0 = self.Character.PrimaryPart -- character's hrp
+	-- print('rigged')
 
 	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equipment.Owner, self.Ammo)
 	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equipment.Owner, self.ReserveAmmo)
 end
 
 function Gun:_onUnequipped()
-	print("gun unequipped")
+	print("Gun:_onUnequipped")
 
 	for _, v in self.Animations do
 		v:Stop()
@@ -303,7 +304,7 @@ function Gun:Start()
 	self.FireSound = modelRoot.FireSound
 	self.ImpactParticle = modelRoot:FindFirstChild("ImpactParticle") -- some guns may not have impact particles :)
 
-	self._trove:Connect(self.Equipment.Equipped, function(equipping: boolean)
+	self._trove:Connect(self.Equipment.Equipped, function(player, equipping: boolean)
 		if equipping then
 			self:_onEquipped()
 		else
