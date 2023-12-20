@@ -53,6 +53,12 @@ function Gun:Construct()
 	recoilEvent.Parent = self.Instance
 	self.RecoilEvent = recoilEvent
 
+	local rigEvent = Instance.new("RemoteEvent")
+	rigEvent.Name = "RigUpdate"
+	rigEvent.Parent = self.Instance
+	-- signals to owner when it is safe to rig the magazine & if it should be attached to the receiver
+	self.RigUpdate = rigEvent
+
 	self._lastFired = 0
 end
 
@@ -263,7 +269,6 @@ function Gun:SetReserveAmmo(ammo: number)
 end
 
 function Gun:_onEquipped()
-	print("Gun:_onEquipped")
 	self.Equipment.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
 	self.Character = self.Equipment.WorldModel.Parent
 	self.CastParams.FilterDescendantsInstances = { self.Character }
@@ -274,15 +279,13 @@ function Gun:_onEquipped()
 	local magazinePart = self.Equipment.WorldModel:WaitForChild("Magazine")
 	local magazineJoint = magazinePart.Magazine
 	magazineJoint.Part0 = self.Character.PrimaryPart -- character's hrp
-	-- print('rigged')
+	self.RigUpdate:FireClient(self.Equipment.Owner, false)
 
 	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equipment.Owner, self.Ammo)
 	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equipment.Owner, self.ReserveAmmo)
 end
 
 function Gun:_onUnequipped()
-	print("Gun:_onUnequipped")
-
 	for _, v in self.Animations do
 		v:Stop()
 	end
@@ -292,6 +295,7 @@ function Gun:_onUnequipped()
 	local magazinePart = self.Equipment.WorldModel.Magazine
 	local magazineJoint = magazinePart.Magazine
 	magazineJoint.Part0 = self.Equipment.WorldModel.PrimaryPart -- gun's receiver
+	self.RigUpdate:FireClient(self.Equipment.Owner, true)
 end
 
 function Gun:Start()

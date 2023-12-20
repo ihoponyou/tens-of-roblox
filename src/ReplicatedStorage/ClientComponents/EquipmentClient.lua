@@ -27,8 +27,8 @@ function EquipmentClient:Construct()
 
     self.WorldModel = self.Instance:WaitForChild("WorldModel")
 
-    self.ProximityPrompt = self.WorldModel:WaitForChild("PickUpPrompt")
-    self.ProximityPrompt.RequiresLineOfSight = false
+    self.PickUpPrompt = self.WorldModel:WaitForChild("PickUpPrompt")
+    self.PickUpPrompt.RequiresLineOfSight = false
     self.PromptGui = Roact.createRef()
     local promptGui = Roact.createElement(PromptGui, {
         equipment_name = self.Instance.Name;
@@ -41,12 +41,54 @@ function EquipmentClient:Construct()
     self.UseRequest = self.Instance:WaitForChild("Use")
     self.AlternateUseRequest = self.Instance:WaitForChild("AltUse")
 
-    self.AnimationFolder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true).Animations
+    -- the folder that is somewhere within ReplicatedStorage.Equipment
+    self.Folder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true)
+    self.AnimationFolder = self.Folder:FindFirstChild("Animations")
+    if not self.AnimationFolder then warn(self.Instance.Name, " does not have any animations") end
 
+    -- signals to be used by other components
     self.PickedUp = Signal.new()
     self.Equipped = Signal.new()
     self.Used = Signal.new()
     self.AltUsed = Signal.new()
+end
+
+function EquipmentClient:_setupForLocalPlayer()
+    if DEBUG then print('LOCAL PLAYER OWNS THIS') end
+    self:_onPickedUp()
+end
+
+function EquipmentClient:_cleanUpForLocalPlayer()
+    if DEBUG then print('LOCAL PLAYER NO LONGER OWNS THIS') end
+    self:_onDropped()
+end
+
+function EquipmentClient:Start()
+    Knit.OnStart():andThen(function()
+        ViewmodelController = Knit.GetController("ViewmodelController")
+    end)
+
+    self._trove:Connect(self.EquipRequest.OnClientEvent, function(equipped: boolean)
+        if equipped then
+            self:_onEquipped()
+        else
+            self:_onUnequipped()
+        end
+    end)
+    -- self._trove:Connect(self.PickUpRequest.OnClientEvent, function(pickedUp: boolean)
+    --     if pickedUp then
+    --         self:_onPickedUp()
+    --     else
+    --         self:_onDropped()
+    --     end
+    -- end)
+
+    self._trove:Connect(self.PickUpPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
+    self._trove:Connect(self.PickUpPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)
+end
+
+function EquipmentClient:Stop()
+    self._trove:Clean()
 end
 
 function EquipmentClient:_onPickedUp()
@@ -59,11 +101,9 @@ function EquipmentClient:_onPickedUp()
 end
 
 function EquipmentClient:Equip()
-    print("EquipmentClient:Equip")
     self.EquipRequest:FireServer(true)
 end
 function EquipmentClient:_onEquipped()
-    print("EquipmentClient:_onEquipped")
     if DEBUG then print("equipped", self.Instance.Name) end
 
     local viewmodel = ViewmodelController.Viewmodel
@@ -81,10 +121,12 @@ function EquipmentClient:_onEquipped()
     self.WorldModel.Parent = viewmodel.Instance
     modelRootJoint.Part0 = viewmodel.Instance.PrimaryPart
 
-    viewmodel:LoadAnimations(self.AnimationFolder["1P"])
-    viewmodel:PlayAnimation("Idle", 0)
-    viewmodel:ToggleVisibility(true)
-    viewmodel:PlayAnimation("Equip", 0)
+    if self.AnimationFolder ~= nil then
+        viewmodel:LoadAnimations(self.AnimationFolder["1P"])
+        viewmodel:PlayAnimation("Idle", 0)
+        viewmodel:ToggleVisibility(true)
+        viewmodel:PlayAnimation("Equip", 0)
+    end
 
     self.Equipped:Fire(true)
 end
@@ -144,48 +186,5 @@ function EquipmentClient:_onDropped()
     self.PickedUp:Fire(false)
 end
 
-function EquipmentClient:_setupForLocalPlayer()
-    if DEBUG then print('LOCAL PLAYER OWNS THIS') end
-
-    self._localPlayerTrove = self._trove:Extend()
-end
-
-function EquipmentClient:_cleanUpForLocalPlayer()
-    if DEBUG then print('LOCAL PLAYER NO LONGER OWNS THIS') end
-
-    if self._localPlayerTrove then self._localPlayerTrove:Clean() end
-    -- on dropped
-end
-
-function EquipmentClient:Start()
-    Knit.OnStart():andThen(function()
-        ViewmodelController = Knit.GetController("ViewmodelController")
-    end)
-
-    self._trove:Connect(self.EquipRequest.OnClientEvent, function(equipped: boolean)
-        if equipped then
-            self:_onEquipped()
-        else
-            self:_onUnequipped()
-        end
-    end)
-    self._trove:Connect(self.PickUpRequest.OnClientEvent, function(pickedUp: boolean)
-        if pickedUp then
-            self:_onPickedUp()
-        else
-            self:_onDropped()
-        end
-    end)
-
-    self._trove:Connect(self.ProximityPrompt.Triggered, function()
-        self.PickUpRequest:FireServer(true)
-    end)
-    self._trove:Connect(self.ProximityPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
-    self._trove:Connect(self.ProximityPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)
-end
-
-function EquipmentClient:Stop()
-    self._trove:Clean()
-end
 
 return EquipmentClient

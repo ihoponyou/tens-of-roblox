@@ -35,8 +35,19 @@ function Equipment:Construct()
     local model = self.Instance:FindFirstChild("WorldModel")
     if model then model:Destroy() end
     self.WorldModel = self._trove:Clone(folder.WorldModel)
-    self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("WorldScale"))
+    
+    local worldScale = self.WorldModel:GetAttribute("WorldScale")
+    if not worldScale then
+        warn(self.Instance.Name .. " model does not have a set world scale")
+        worldScale = 1
+    end
+    self.WorldModel:ScaleTo(worldScale)
+
     self.WorldModel.Parent = self.Instance
+    if not self.WorldModel.PrimaryPart then
+        warn(self.Instance.Name .. " model has nil PrimaryPart")
+        self.WorldModel.PrimaryPart = self.WorldModel:FindFirstChild("Handle") or self.WorldModel:GetChildren()[1]
+    end
     self.WorldModel.PrimaryPart.CanCollide = true
     self.WorldModel.PrimaryPart.CollisionGroup = "Equipment"
 
@@ -92,7 +103,8 @@ function Equipment:PickUp(player: Player)
     local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
     if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end
 
-    -- rig equipment to character
+    -- rig equipment to character (holstered)
+    self.WorldModel.PrimaryPart.Anchored = false
     self.WorldModel.Parent = character
     modelRootJoint.Part0 = torso
     modelRootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
@@ -106,25 +118,27 @@ function Equipment:PickUp(player: Player)
 
     -- "player just picked me up"
     self.PickedUp:Fire(player, true)
+    self.PickUpRequest:FireClient(player, true)
 end
 
 function Equipment:Equip(player: Player)
-    print("E:Equip")
     if player ~= self.Owner then error("Non-owner requested equip") end
 
+    -- revert from holstered C0
     self.WorldModel.PrimaryPart.RootJoint.C0 = EMPTY_CFRAME
     -- TODO: play a 3P equip animation
     self.IsEquipped = true -- set this at the end or specified keyframe of animation
 
     -- "player just picked me up"
     self.Equipped:Fire(player, true)
+    self.EquipRequest:FireClient(player, true)
 end
 
 function Equipment:Use(player: Player, ...: any): boolean?
     if self.Owner ~= player then error("Non-owner requested use") end
 
     -- TODO: sanity checks
-    self.useFunctioniality(...)
+    -- self.useFunctioniality(...)
 
     self.Used:Fire()
 end
@@ -144,6 +158,7 @@ function Equipment:Unequip(player: Player): boolean?
     self.IsEquipped = false
 
     self.Equipped:Fire(player, false)
+    self.EquipRequest:FireClient(player, false)
 end
 
 -- returns true if successful, otherwise false
@@ -175,27 +190,15 @@ function Equipment:Drop(player: Player): boolean?
     self.Instance.Parent = workspace
     self.WorldModel.Parent = self.Instance
 
-    modelRoot:SetNetworkOwner(oldOwner)
-    task.delay(5, function()
-        if modelRoot:GetNetworkOwner() ~= nil then return end
-        modelRoot:SetNetworkOwnershipAuto()
-    end)
+    -- modelRoot:SetNetworkOwner(oldOwner)
+    -- -- task.delay(5, function()
+    --     modelRoot.Anchored = true
+    --     if modelRoot:GetNetworkOwner() ~= nil then return end
+    --     modelRoot:SetNetworkOwnershipAuto()
+    -- -- end)
 
     self.PickedUp:Fire(player, false)
-end
-
-function Equipment:OnPickUpRequested(player: Player, pickingUp: boolean)
-    return if pickingUp then
-            self:PickUp(player)
-        else
-            self:Drop(player)
-end
-
-function Equipment:OnEquipRequested(player: Player, equipping: boolean)
-    return if equipping then
-            self:Equip(player)
-        else
-            self:Unequip(player)
+    self.PickUpRequest:FireClient(player, false)
 end
 
 function Equipment:Start()
@@ -203,27 +206,31 @@ function Equipment:Start()
         InventoryService = Knit.GetService("InventoryService")
     end):catch(warn)
 
-    self._trove:Connect(self.PickedUp, function(player: Player, pickedUp: boolean)
-        self.PickUpRequest:FireClient(player, pickedUp)
+    self._trove:Connect(self.PickUpPrompt.Triggered, function(player: Player)
+        self:PickUp(player)
     end)
-    self._trove:Connect(self.PickUpRequest.OnServerEvent, function(...)
-        return self:OnPickUpRequested(...)
+    self._trove:Connect(self.PickUpRequest.OnServerEvent, function(player, pickingUp: boolean)
+        if pickingUp then
+            self:PickUp(player)
+        else
+            self:Drop(player)
+        end
     end)
 
     self._trove:Connect(self.UseRequest.OnServerEvent, function(...)
-        return self:Use(...)
+        self:Use(...)
     end)
 
     self._trove:Connect(self.AlternateUseRequest.OnServerEvent, function(...)
-        return self:AlternateUse(...)
+        self:AlternateUse(...)
     end)
 
-    self._trove:Connect(self.Equipped, function(player: Player, equipped: boolean)
-        print("E.Equipped")
-        self.EquipRequest:FireClient(player, equipped)
-    end)
-    self._trove:Connect(self.EquipRequest.OnServerEvent, function(...)
-        return self:OnEquipRequested(...)
+    self._trove:Connect(self.EquipRequest.OnServerEvent, function(player, equipping)
+        if equipping then
+            self:Equip(player)
+        else
+            self:Unequip(player)
+        end
     end)
 end
 

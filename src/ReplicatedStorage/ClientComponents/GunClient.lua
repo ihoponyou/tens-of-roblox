@@ -51,6 +51,7 @@ function GunClient:Construct()
 	self.AimPercent = NamedInstance.new("AimPercent", "NumberValue")
 
 	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
+	self.RigUpdate = self.Instance:WaitForChild("RigUpdate")
 end
 
 function GunClient:Aim(bool: boolean)
@@ -150,15 +151,6 @@ function GunClient:_loadViewmodel()
 
 	viewmodel:LoadAnimations(GUNS[self.Instance.Name].Animations["1P"])
 
-	-- rig magazine
-	local magazinePart = self.Equipment.WorldModel.Magazine
-	local magazineJoint = magazinePart.Magazine
-	-- magazineJoint:GetPropertyChangedSignal("Part0"):Once(function()
-    --     magazineJoint.Part0 = viewmodel.Instance.PrimaryPart
-    -- end)
-	magazineJoint.Part0 = viewmodel.Instance.PrimaryPart -- viewmodel root
-	print("rigged")
-
 	local fireAnimationTrack: AnimationTrack = viewmodel:GetAnimation("Fire")
 	self._equipTrove:Connect(fireAnimationTrack:GetMarkerReachedSignal("eject"), function()
 		self:_ejectCasing()
@@ -220,7 +212,6 @@ function GunClient:_loadViewmodel()
 end
 
 function GunClient:_onEquipped()
-	print("GunClient:_onEquipped")
 	self._equipTrove = self._localPlayerTrove:Extend()
 
 	self:_loadViewmodel()
@@ -255,14 +246,10 @@ function GunClient:_onEquipped()
 end
 
 function GunClient:_onUnequipped()
-	print("GunClient:_onUnequipped")
 	self._equipTrove:Clean()
 
-	-- unrig magazine
-	-- local magazinePart = self.Equipment.WorldModel.Magazine
-	-- local magazineJoint = magazinePart.Magazine
-	-- magazineJoint.Part0 = self.Equipment.WorldModel.PrimaryPart -- gun's receiver
-	-- print("unrigged")
+	local viewmodel = ViewmodelController.Viewmodel
+	viewmodel:StopPlayingAnimations(0)
 
 	self._primaryDown = false
 end
@@ -351,6 +338,15 @@ function GunClient:Start()
 		else
 			self:_onUnequipped()
 		end
+	end)
+
+	-- no need to put in local setup because its only fired to owner
+	self._trove:Connect(self.RigUpdate.OnClientEvent, function(attachedToReceiver: boolean)
+		local magazinePart = self.Equipment.WorldModel.Magazine
+		local magazineJoint = magazinePart.Magazine
+		magazineJoint.Part0 = if attachedToReceiver
+			then self.Equipment.WorldModel.PrimaryPart -- gun's receiver
+			else ViewmodelController.Viewmodel.Instance.PrimaryPart -- viewmodel root
 	end)
 end
 
