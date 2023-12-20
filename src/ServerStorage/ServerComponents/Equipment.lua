@@ -4,10 +4,11 @@ local EMPTY_CFRAME = CFrame.new()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
-local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
+local Knit = require(ReplicatedStorage.Packages.Knit)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
+local Trove = require(ReplicatedStorage.Packages.Trove)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local Equipment = Component.new({
 	Tag = "Equipment",
@@ -31,9 +32,10 @@ function Equipment:Construct()
     self.Config = folder.Configuration:GetAttributes()
     if not isValidSlotType(self.Config.SlotType) then error("Invalid slot type") end 
 
-    self.WorldModel = self.Instance:WaitForChild("WorldModel", 5) or self._trove:Clone(folder.WorldModel)
+    local model = self.Instance:FindFirstChild("WorldModel")
+    if model then model:Destroy() end
+    self.WorldModel = self._trove:Clone(folder.WorldModel)
     self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("WorldScale"))
-    print("scaled", self.Instance)
     self.WorldModel.Parent = self.Instance
     self.WorldModel.PrimaryPart.CanCollide = true
     self.WorldModel.PrimaryPart.CollisionGroup = "Equipment"
@@ -46,10 +48,30 @@ function Equipment:Construct()
     self.EquipRequest.Name = "EquipRequest"
     self.EquipRequest.Parent = self.Instance
 
+    self.IsUseKeyDown = false
+
+    -- meant to be overriden, not sure how to properly do this
+    self.useFunctioniality = function(...: any)
+        warn("use functionality not overriden")
+    end
+
+    self.UseRequest = self._trove:Add(Instance.new("RemoteFunction"))
+    self.UseRequest.Name = "UseRequest"
+    self.UseRequest.Parent = self.Instance
+
+    self.AlternateUseRequest = self._trove:Add(Instance.new("RemoteFunction"))
+    self.AlternateUseRequest.Name = "AlternateUseRequest"
+    self.AlternateUseRequest.Parent = self.Instance
+
     self.PickUpPrompt = self._trove:Add(Instance.new("ProximityPrompt"))
     self.PickUpPrompt.Name = "PickUpPrompt"
     self.PickUpPrompt.Parent = self.WorldModel
     self.PickUpPrompt.Style = Enum.ProximityPromptStyle.Custom
+
+    self.PickedUp = Signal.new()
+    self.Equipped = Signal.new()
+    self.Used = Signal.new()
+    self.AltUsed = Signal.new()
 end
 
 -- returns true if successful, otherwise false
@@ -64,15 +86,15 @@ function Equipment:PickUp(player: Player): boolean
     local character = player.Character
     if not character then error("Cannot rig equipment to owner; no character") end
 
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then error("Cannot rig equipment to character; character missing HumanoidRootPart") end
+    local torso = character:FindFirstChild("Torso")
+    if not torso then error("Cannot rig equipment to character; character missing HumanoidRootPart") end
 
     local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
     if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end
 
     -- rig equipment to character
     self.WorldModel.Parent = character
-    modelRootJoint.Part0 = hrp
+    modelRootJoint.Part0 = torso
 
     self.Owner = player
     self.Instance:SetAttribute("OwnerID", player.UserId)
@@ -83,6 +105,8 @@ function Equipment:PickUp(player: Player): boolean
     self.WorldModel.PrimaryPart.RootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
 
     self.PickUpPrompt.Enabled = false
+
+    self.PickedUp:Fire(true)
     return true
 end
 
@@ -93,6 +117,26 @@ function Equipment:Equip(player: Player): boolean?
     -- TODO: play an equip animation
     self.IsEquipped = true -- set this at the end or specified keyframe of animation
 
+    self.Equipped:Fire(true)
+    return true
+end
+
+function Equipment:Use(player: Player, ...: any): boolean?
+    if self.Owner ~= player then error("Non-owner requested use") end
+
+    -- TODO: sanity checks
+    self.useFunctioniality(...)
+
+    self.Used:Fire()
+    return true
+end
+
+function Equipment:AlternateUse(player: Player): boolean?
+    if self.Owner ~= player then error("Non-owner requested alt. use") end
+
+    -- TODO: sanity checks
+
+    self.AltUsed:Fire()
     return true
 end
 
@@ -102,6 +146,7 @@ function Equipment:Unequip(player: Player): boolean?
     self.WorldModel.PrimaryPart.RootJoint.C0 = self.WorldModel.PrimaryPart.HolsterC0.Value
     self.IsEquipped = false
 
+    self.Equipped:Fire(false)
     return true
 end
 
@@ -137,21 +182,22 @@ function Equipment:Drop(player: Player): boolean?
         modelRoot:SetNetworkOwnershipAuto()
     end)
 
+    self.PickedUp:Fire(false)
     return true
 end
 
 function Equipment:OnPickUpRequested(player: Player, pickingUp: boolean)
     return if pickingUp then
-        self:PickUp(player)
-    else
-        self:Drop(player)
+            self:PickUp(player)
+        else
+            self:Drop(player)
 end
 
 function Equipment:OnEquipRequested(player: Player, equipping: boolean)
     return if equipping then
-        self:Equip(player)
-    else
-        self:Unequip(player)
+            self:Equip(player)
+        else
+            self:Unequip(player)
 end
 
 function Equipment:Start()
@@ -161,6 +207,14 @@ function Equipment:Start()
 
     self.PickUpRequest.OnServerInvoke = function(...)
         return self:OnPickUpRequested(...)
+    end
+
+    self.UseRequest.OnServerInvoke = function(...)
+        return self:Use(...)
+    end
+
+    self.AlternateUseRequest.OnServerInvoke = function(...)
+        return self:AlternateUse(...)
     end
 
     self.EquipRequest.OnServerInvoke = function(...)

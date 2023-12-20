@@ -1,4 +1,6 @@
 
+local DEBUG = false
+
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,7 +10,6 @@ local PartCache = require(ReplicatedStorage.Packages.PartCache) -- use for bulle
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
-local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 
 local Gun = Component.new({
@@ -18,16 +19,15 @@ local Gun = Component.new({
 	},
 })
 
-local dependencies = {
-	"Equipment"
-}
-
 local UPDATE_CURRENT_AMMO_UI = ReplicatedStorage.UIEvents.UpdateCurrentAmmo
 local UPDATE_RESERVE_AMMO_UI = ReplicatedStorage.UIEvents.UpdateReserveAmmo
 
-local WEAPONS = ReplicatedStorage.Equipment.Weapons
+local GUNS = ReplicatedStorage.Equipment.Guns
 
 function Gun:Construct()
+	-- ensure gun has an equipment component
+	CollectionService:AddTag(self.Instance, "Equipment")
+
 	self._trove = Trove.new()
 
 	self.Aiming = false
@@ -37,18 +37,10 @@ function Gun:Construct()
 
 	self.Animations = {}
 
-	self.MouseEvent = self._trove:Add(NamedInstance.new("MouseEvent", "RemoteEvent", self.Instance))
-	self.RecoilEvent = self._trove:Add(NamedInstance.new("RecoilEvent", "RemoteEvent", self.Instance))
-	self.AimEvent = self._trove:Add(NamedInstance.new("AimEvent", "RemoteEvent", self.Instance))
-	self.ReloadEvent = self._trove:Add(NamedInstance.new("ReloadEvent", "RemoteEvent", self.Instance))
-	self.EquipEvent = self._trove:Add(NamedInstance.new("EquipEvent", "RemoteEvent", self.Instance))
-	self.ModelLoaded = self._trove:Add(NamedInstance.new("ModelLoaded", "RemoteEvent", self.Instance))
+	self.Config = GUNS[self.Instance.Name].Configuration:GetAttributes()
 
-	self.Config = WEAPONS[self.Instance.Name].Configuration
-	self.GUN_STATS = self.Config:GetAttributes()
-
-	self.Ammo = self.GUN_STATS.MagazineCapacity
-	self.ReserveAmmo = self.GUN_STATS.MagazineCapacity * self.GUN_STATS.ReserveMagazines
+	self.Ammo = self.Config.MagazineCapacity
+	self.ReserveAmmo = self.Config.MagazineCapacity * self.Config.ReserveMagazines
 
 	local CastParams = RaycastParams.new()
 	CastParams.IgnoreWater = true
@@ -56,26 +48,12 @@ function Gun:Construct()
 	CastParams.FilterDescendantsInstances = {}
 	self.CastParams = CastParams
 
-	-- serverside gun.model refers to the 3rd person gun model
-	self.Model = self._trove:Clone(WEAPONS[self.Instance.Name].WorldModel)
-	if self.Instance.Name == "AK-47" then
-		self.Model:ScaleTo(0.762) -- viewmodel uses normal scale while physical model needs to be smaller
-	end
-	self.Model.Parent = self.Instance
+	local recoilEvent = Instance.new("RemoteEvent")
+	recoilEvent.Name = "RecoilEvent"
+	recoilEvent.Parent = self.Instance
+	self.RecoilEvent = recoilEvent
 
-	self.FirePoint = self.Model:FindFirstChild("FirePoint", true)
-	self.FireSound = self.Model:FindFirstChild("FireSound", true)
-	self.ReloadSound = self.Model.PrimaryPart:FindFirstChild("ReloadSound", true)
-
-	self.ImpactParticle = self.Model.Receiver:FindFirstChild("ImpactParticle")
-
-	-- a reference to the gun's Equipment component
-	self.Equipment = nil
-
-	-- ensure dependencies
-	for _,v in dependencies do
-		CollectionService:AddTag(self.Instance, v)
-	end
+	self._lastFired = 0
 end
 
 function Gun:PlayFireSound()
@@ -89,8 +67,7 @@ function Gun:PlayFireSound()
 end
 
 function Gun:DoMuzzleFlash()
-	local firePoint = self.Model.Receiver.FirePoint
-	for _, v in firePoint:GetChildren() do
+	for _, v in self.FirePoint:GetChildren() do
 		if not v:IsA("ParticleEmitter") and not v:IsA("PointLight") then continue end
 		task.spawn(function()
 			v.Enabled = true
@@ -117,31 +94,34 @@ function Gun:MakeImpactParticleFX(position, normal) -- (adapted from FastCast Ex
 	particle.Enabled = false
 end
 
-function Gun:Fire(direction: Vector3) -- (adapted from FastCast Example Gun)
-	local character: Model = self.Instance.Parent
+function Gun:_registerHit(hitscan: RaycastResult, direction: Vector3)
+	if not hitscan.Instance.Parent then return end
 
+	-- print(hitscan.Instance.Parent)
+	local headshot = (hitscan.Instance.Name == "Head")
+	local humanoid: Humanoid? = hitscan.Instance.Parent:FindFirstChildOfClass("Humanoid")
+	if humanoid == nil then return end
+	-- print("hit", hitscan.Instance.Parent)
+
+	humanoid:TakeDamage(self.Config.Damage * if headshot then 2 else 1)
+	if humanoid.Health - self.Config.Damage <= 0 then
+		hitscan.Instance:ApplyImpulse(direction.Unit * self.Config.Damage * 23)
+	end
+end
+
+function Gun:Fire(direction: Vector3)
 	self.Firing = true
 
-	local headPosition = character.HumanoidRootPart.Position + Vector3.yAxis * 1.5
-	local hitscan = workspace:Raycast(headPosition, direction.Unit * self.GUN_STATS.BulletMaxDistance, self.CastParams)
-	if hitscan then
-		if hitscan.Instance.Parent then
-			-- print(hitscan.Instance.Parent)
-			local headshot = (hitscan.Instance.Name == "Head")
-			local humanoid: Humanoid? = hitscan.Instance.Parent:FindFirstChildOfClass("Humanoid")
-			if humanoid ~= nil then
-				-- print("hit", hitscan.Instance.Parent)
-				humanoid:TakeDamage(self.GUN_STATS.Damage * if headshot then 2 else 1)
-				if humanoid.Health - self.GUN_STATS.Damage <= 0 then
-					hitscan.Instance:ApplyImpulse(direction.Unit * self.GUN_STATS.Damage * 23)
-				end
-			end
-		end
+	local headPosition = self.Character.HumanoidRootPart.Position + Vector3.yAxis * 1.5
+	local hitscan = workspace:Raycast(headPosition, direction.Unit * self.Config.BulletMaxDistance, self.CastParams)
+	if hitscan ~= nil then
+		self:_registerHit(hitscan, direction)
 	end
 
+	-- TODO: make recoil patterns
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
-	self.RecoilEvent:FireClient(self.Equipment.Owner, verticalKick, horizontalKick, self.Ammo)
+	-- self.Equipment.UseRequest:InvokeClient(self.Equipment.Owner, verticalKick, horizontalKick, self.Ammo)
 
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
@@ -165,12 +145,8 @@ function Gun:_refillMagazine(roundsNeeded: number)
 	end
 end
 
-function Gun:PlayReloadSound()
-	self.ReloadSound:Play()
-end
-
 function Gun:Reload()
-	local roundsNeeded = (self.GUN_STATS.MagazineCapacity - self.Ammo)
+	local roundsNeeded = (self.Config.MagazineCapacity - self.Ammo)
 	if roundsNeeded < 1 then
 		-- error("reloading is pointless")
 		return
@@ -179,22 +155,19 @@ function Gun:Reload()
 	self.Reloading = true
 	self.ReloadEvent:FireClient(self.Equipment.Owner)
 
-	-- should probably sync this with anim events
-	-- self:PlayReloadSound()
-
-	local reloadAnim: AnimationTrack
+	local reloadTrack: AnimationTrack
 	if self.Aiming and self.Animations.AimReload ~= nil then
-		reloadAnim = self.Animations.AimReload
+		reloadTrack = self.Animations.AimReload
 	elseif self.Animations.Reload ~= nil then
-		reloadAnim = self.Animations.Reload
+		reloadTrack = self.Animations.Reload
 	end
 
-	if reloadAnim ~= nil then
-		reloadAnim.Stopped:Once(function()
+	if reloadTrack ~= nil then
+		reloadTrack.Stopped:Once(function()
 			self:_refillMagazine(roundsNeeded)
 			self.Reloading = false
 		end)
-		reloadAnim:Play()
+		reloadTrack:Play()
 	else
 		self:_refillMagazine(roundsNeeded)
 		self.Reloading = false
@@ -221,26 +194,32 @@ function Gun:OnReloadEvent(player: Player)
 	self:Reload()
 end
 
-function Gun:OnMouseEvent(player: Player, direction: Vector3)
-	if player ~= self.Equipment.Owner then return end
+function Gun:_use(direction: Vector3)
 	if not self.CanFire then return end
 	if self.Reloading then return end
-	local character: Model? = self.Instance.Parent
+	local character: Model? = self.Equipment.WorldModel.Parent
 	if not character then error("Gun cannot fire with no parent") end
 	if character:IsA("Backpack") then return end
 	if character:GetAttribute("Ragdolled") then return end
 
-	self.CanFire = false
-	if self.Ammo > 0 then
-		-- avoid negative ammo with shotguns
-		self:SetCurrentAmmo(self.Ammo - 1)
-
-		for _ = 1, self.GUN_STATS.BulletsPerShot do
-			self:Fire(direction)
-		end
-
-		task.wait(60 / self.GUN_STATS.RPM)
+	if self.Ammo <= 0 then
+		if DEBUG then warn("No ammo") end
+		return
 	end
+
+	self.CanFire = false
+	print(string.format("time between shots: %d ms", (time() - self._lastFired)*1000))
+	self._lastFired = time()
+
+	-- avoid negative ammo with shotguns
+	self:SetCurrentAmmo(self.Ammo - 1)
+
+	for _ = 1, self.Config.BulletsPerShot do
+		self:Fire(direction)
+	end
+
+	task.wait(60 / self.Config.RoundsPerMinute)
+
 	self.CanFire = true
 end
 
@@ -264,7 +243,7 @@ function Gun:LoadAnimations()
 	if not character then warn("cannot load animations without character") end
 	local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 
-	local animations3P = WEAPONS[self.Instance.Name].Animations["3P"]
+	local animations3P = GUNS[self.Instance.Name].Animations["3P"]
 	for _, v in animations3P:GetChildren() do
 		local animTrack: AnimationTrack = humanoid.Animator:LoadAnimation(v)
 		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
@@ -283,92 +262,54 @@ function Gun:SetReserveAmmo(ammo: number)
 	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equipment.Owner, ammo)
 end
 
-function Gun:OnEquipped(playerWhoEquipped: Player)
-	self.Model.PrimaryPart.CanCollide = false
-	self.Instance.Parent = playerWhoEquipped.Character
-	self.Character = self.Instance.Parent
+function Gun:_onEquipped()
+	print("gun equipped")
+	self.Equipment.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
+	self.Character = self.Equipment.WorldModel.Parent
 	self.CastParams.FilterDescendantsInstances = { self.Character }
 
 	self:LoadAnimations()
 
-	local magazinePart = self.Model:WaitForChild("Magazine")
+	-- rig magazine
+	local magazinePart = self.Equipment.WorldModel:WaitForChild("Magazine")
 	local magazineJoint = magazinePart.Magazine
 	magazineJoint.Part0 = self.Character.PrimaryPart -- character's hrp
 
-	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.PrimaryPart
-	self.Animations.Idle:Play()
-
-	self.EquipEvent:FireClient(self.Equipment.Owner, true)
 	UPDATE_CURRENT_AMMO_UI:FireClient(self.Equipment.Owner, self.Ammo)
 	UPDATE_RESERVE_AMMO_UI:FireClient(self.Equipment.Owner, self.ReserveAmmo)
-	self.Equipment.Owner.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
-function Gun:OnUnequipped()
-	self.Model.PrimaryPart.CanCollide = true
-	print(self.Instance.Parent, "unequipped", self.Instance.Name)
+function Gun:_onUnequipped()
+	print("gun unequipped")
+
 	for _, v in self.Animations do
 		v:Stop()
 	end
-
-	-- release rig and reconnect the magazine
-	local magazinePart = self.Model.Magazine
-	local magazineJoint = magazinePart.Magazine
-	magazineJoint.Part0 = self.Model.PrimaryPart -- gun's receiver
-
-	self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
-	-- self.Animations.Holster:Play()
-
-	self.EquipEvent:FireClient(self.Equipment.Owner, false)
 	self.Equipment.Owner.CameraMode = Enum.CameraMode.Classic
+
+	-- unrig magazine
+	local magazinePart = self.Equipment.WorldModel.Magazine
+	local magazineJoint = magazinePart.Magazine
+	magazineJoint.Part0 = self.Equipment.WorldModel.PrimaryPart -- gun's receiver
 end
 
 function Gun:Start()
-	-- -- TODO: this may introduce a race condition in (un)equip event handlers where self.Equipment.Owner is not yet updated
-	-- local function OnInstanceAncestryChanged(child: Instance, parent: Instance)
-	-- 	if child ~= self.Instance then return end
+	self.Equipment = self:GetComponent(Equipment)
 
-	-- 	local owner = nil
-	-- 	if parent.ClassName == "Model" then
-	-- 		owner = Players:GetPlayerFromCharacter(parent)
-	-- 	elseif parent.ClassName == "Backpack" then
-	-- 		owner = parent.Parent
-	-- 	end
+	self.Equipment.useFunctioniality = function(...) self:_use(...) end
 
-	-- 	self.Equipment.Owner = owner
-	-- 	if owner == nil then return end
-	-- 	self.Instance:SetAttribute("OwnerID", owner.UserId)
-	-- end
-	-- OnInstanceAncestryChanged(self.Instance, self.Instance.Parent)
-	-- self._trove:Connect(self.Instance.AncestryChanged, OnInstanceAncestryChanged)
+	local modelRoot = self.Equipment.WorldModel.PrimaryPart
+	self.FirePoint = modelRoot.FirePoint
+	self.FireSound = modelRoot.FireSound
+	self.ImpactParticle = modelRoot:FindFirstChild("ImpactParticle") -- some guns may not have impact particles :)
 
-	Equipment:WaitForInstance(self.Instance):andThen(function(component)
-		self.Equipment = component
-		self._trove:Connect(component.EquipEvent.Event, function(owner: Player, equipped: boolean)
-			if equipped then
-				self:OnEquipped(owner)
-			else
-				self:OnUnequipped()
-			end
-		end)
-	end):await()
-
-	self.Model.Parent = self.Instance
-	if self.Equipment.Owner ~= nil then
-		self.Character = self.Equipment.Owner.Character
-		-- self.Model.Parent = self.Character
-		self:LoadAnimations()
-
-		self.Model.PrimaryPart.RootJoint.Part0 = self.Character.Torso
-		self.Animations.Holster:Play()
-	else
-		self.Model.PrimaryPart.CanCollide = true
-	end
-	-- self.ModelLoaded:FireClient(self.Equipment.Owner, self.Model)
-
-	self._trove:Connect(self.MouseEvent.OnServerEvent, function(...) self:OnMouseEvent(...) end)
-	self._trove:Connect(self.AimEvent.OnServerEvent, function(...) self:OnAimEvent(...) end)
-	self._trove:Connect(self.ReloadEvent.OnServerEvent, function(...) self:OnReloadEvent(...) end)
+	self._trove:Connect(self.Equipment.Equipped, function(equipping: boolean)
+		if equipping then
+			self:_onEquipped()
+		else
+			self:_onUnequipped()
+		end
+	end)
 end
 
 function Gun:Stop()

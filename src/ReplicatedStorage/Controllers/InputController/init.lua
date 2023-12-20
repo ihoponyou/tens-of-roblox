@@ -65,21 +65,20 @@ function InputController:LoadKeybind(action: string, keybind: Enum.KeyCode, log:
 	ContextActionService:BindAction(action,
 		function(_, userInputState: Enum.UserInputState, _)
 			if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
-			self["_"..action](self)
-			return Enum.ContextActionResult.Sink
+			return self["_"..action](self, userInputState)
 		end,
 		false, keybind)
 
 	if log then print(string.format("%s loaded @ %s", action, keybind.Name)) end
 end
 
+function InputController:GetKeybind(action: string): DEFAULT_KEYBINDS.Keybind
+	local keybind: DEFAULT_KEYBINDS.Keybind = self.Keybinds[action]
+	if not keybind then error("No keybind for action \""..action.."\"") end
+	return table.clone(keybind)
+end
+
 function InputController:LoadAllKeybinds(log: boolean)
-	-- for keybindName, value: Keybinding in KEYBINDS do
-	-- 	ContextActionService:BindAction(keybindName, function(_, userInputState, _)
-	-- 		if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
-	-- 		return value.Action()
-	-- 	end, false, value.Key)
-	-- end
 	for action, keybind: DEFAULT_KEYBINDS.Keybind in self.Keybinds do
 		self:LoadKeybind(action, keybind.Key, log)
 	end
@@ -118,7 +117,7 @@ end
 
 
 -- INVENTORY CONTROLS
-function InputController:_Use(userInputState: Enum.UserInputState)
+function InputController:_Use()
 	InventoryController:UseActiveItem()
 end
 function InputController:_AlternateUse()
@@ -129,13 +128,13 @@ function InputController:_Drop(_)
 	InventoryController:DropActiveItem()
 end
 
-function InputController:_Primary(userInputState: Enum.UserInputState)
+function InputController:_Primary()
 	InventoryController:SwitchSlot("Primary")
 end
-function InputController:_Secondary(userInputState: Enum.UserInputState)
+function InputController:_Secondary()
 	InventoryController:SwitchSlot("Secondary")
 end
-function InputController:_Tertiary(userInputState: Enum.UserInputState)
+function InputController:_Tertiary()
 	InventoryController:SwitchSlot("Tertiary")
 end
 

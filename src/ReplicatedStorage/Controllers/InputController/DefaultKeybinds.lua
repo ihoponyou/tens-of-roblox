@@ -34,6 +34,10 @@ local DefaultKeybinds: {Enum.KeyCode} = {
         DisplayName = "Alternate Use/Aim (Hold)";
         Key = Enum.UserInputType.MouseButton2;
     };
+    Reload = {
+        DisplayName = "Reload";
+        Key = Enum.KeyCode.R;
+    };
     Drop = {
         DisplayName = "Drop Item";
         Key = Enum.KeyCode.G;

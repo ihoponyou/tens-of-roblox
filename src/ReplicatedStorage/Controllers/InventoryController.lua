@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
+local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
 
 local InventoryService
 local InventoryController = Knit.CreateController({

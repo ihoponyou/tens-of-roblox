@@ -9,6 +9,7 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Roact = require(ReplicatedStorage.Packages.Roact)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local PromptGui = require(ReplicatedStorage.Source.UIElements.PromptGui)
 
@@ -37,8 +38,15 @@ function EquipmentClient:Construct()
 
     self.EquipRequest = self.Instance:WaitForChild("EquipRequest")
     self.PickUpRequest = self.Instance:WaitForChild("PickUpRequest")
+    self.UseRequest = self.Instance:WaitForChild("UseRequest")
+    self.AlternateUseRequest = self.Instance:WaitForChild("AlternateUseRequest")
 
     self.AnimationFolder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true).Animations
+
+    self.PickedUp = Signal.new()
+    self.Equipped = Signal.new()
+    self.Used = Signal.new()
+    self.AltUsed = Signal.new()
 end
 
 function EquipmentClient:_onPickedUp()
@@ -46,6 +54,8 @@ function EquipmentClient:_onPickedUp()
 
     self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("ViewmodelScale"))
     -- TODO: add to inventory GUI
+
+    self.PickedUp:Fire(true)
 end
 
 function EquipmentClient:_onEquipped()
@@ -69,6 +79,20 @@ function EquipmentClient:_onEquipped()
     viewmodel:PlayAnimation("Idle", 0)
     viewmodel:ToggleVisibility(true)
     viewmodel:PlayAnimation("Equip", 0)
+
+    self.Equipped:Fire(true)
+end
+
+function EquipmentClient:_onUse()
+    print('use of', self.Instance.Name, "successful")
+
+    self.Used:Fire()
+end
+
+function EquipmentClient:_onAlternateUse()
+    print('alternate use of', self.Instance.Name, "successful")
+
+    self.AltUsed:Fire()
 end
 
 function EquipmentClient:_onUnequipped()
@@ -88,6 +112,8 @@ function EquipmentClient:_onUnequipped()
     end
 
     viewmodel:ToggleVisibility(false)
+
+    self.Equipped:Fire(false)
 end
 
 function EquipmentClient:_onDropped()
@@ -99,14 +125,20 @@ function EquipmentClient:_onDropped()
     self.WorldModel.PrimaryPart.AssemblyLinearVelocity = (workspace.CurrentCamera.CFrame.LookVector * 30)
 
     -- unequip if needed and remove from inventory GUI
+
+    self.PickedUp:Fire(false)
 end
 
-function EquipmentClient:Use()
-    print('use', self.Instance)
+function EquipmentClient:Use(...: any): boolean
+    local useSuccess = self.UseRequest:InvokeServer(...)
+    if useSuccess then self:_onUse() end
+    return useSuccess
 end
 
-function EquipmentClient:AlternateUse()
-    print('alt use', self.Instance)
+function EquipmentClient:AlternateUse(): boolean
+    local alternateUseSuccess = self.AlternateUseRequest:InvokeServer()
+    if alternateUseSuccess then self:_onAlternateUse() end
+    return alternateUseSuccess
 end
 
 function EquipmentClient:PickUp(): boolean
@@ -142,7 +174,7 @@ end
 function EquipmentClient:_cleanUpForLocalPlayer()
     if DEBUG then print('LOCAL PLAYER NO LONGER OWNS THIS') end
 
-    self:_onUnequipped()
+    self:_onUnequipped() -- idk if this is necessary but it works fine
     -- on dropped
 end
 

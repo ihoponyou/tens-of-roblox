@@ -17,9 +17,10 @@ local NamedInstance = require(ReplicatedStorage.Source.NamedInstance)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
-local ViewmodelClient = require(script.Parent.ViewmodelClient)
+local ViewmodelClient = require(ReplicatedStorage.Source.ClientComponents.ViewmodelClient)
+local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 
-local CameraController
+local CameraController, ViewmodelController, InputController
 
 local GunClient = Component.new({
 	Tag = "Gun",
@@ -29,32 +30,27 @@ local GunClient = Component.new({
 	},
 })
 
-local WEAPONS = ReplicatedStorage.Equipment.Weapons
+local GUNS = ReplicatedStorage.Equipment.Guns
 
 local Random = Random.new()
 
 function GunClient:Construct()
 	self._trove = Trove.new()
 
-	self.Config = WEAPONS[self.Instance.Name].Configuration:GetAttributes()
+	self.Config = GUNS[self.Instance.Name].Configuration:GetAttributes()
 
 	self.BoltHeldOpen = false
 	self._primaryDown = false
-
-	self.MouseEvent = self.Instance:WaitForChild("MouseEvent")
-	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
-	self.AimEvent = self.Instance:WaitForChild("AimEvent")
-	self.ReloadEvent = self.Instance:WaitForChild("ReloadEvent")
-	self.EquipEvent = self.Instance:WaitForChild("EquipEvent")
 
 	-- the clientside gun.model refers to the 1st person gun model
 	-- BUT it reuses it in viewmodel so that visual/sound effects replicate
 	-- also, since this is all clientside, the serverside version of the model actually stays
 	-- in the character's hands; thus 3rd person animations work
-	self.Model = nil
-	self.CasingModel = WEAPONS[self.Instance.Name].Casing
+	self.CasingModel = GUNS[self.Instance.Name].Casing
 
-	self.AimPercent = NamedInstance.new("AimPercent", "NumberValue", self.Model)
+	self.AimPercent = NamedInstance.new("AimPercent", "NumberValue")
+
+	self.RecoilEvent = self.Instance:WaitForChild("RecoilEvent")
 end
 
 function GunClient:Aim(bool: boolean)
@@ -111,13 +107,16 @@ end
 function GunClient:_ejectCasing()
 	local casingClone = self.CasingModel:Clone()
 	casingClone.Parent = workspace
-	local ejectionPoint = self.Model.PrimaryPart.EjectionPoint
-	casingClone.CFrame = ejectionPoint.WorldCFrame * CFrame.Angles(0, math.pi/2, 0)
+	casingClone.CFrame = self.EjectionPoint.WorldCFrame * CFrame.Angles(0, math.pi/2, 0)
 
 	-- TODO: add a sound when it hits the ground
 
-	casingClone.AssemblyLinearVelocity =
-	(ejectionPoint.WorldCFrame.LookVector * 2 + ejectionPoint.WorldCFrame.RightVector * 0.2  + ejectionPoint.WorldCFrame.UpVector) * 10
+	local ejectionCFrame = self.EjectionPoint.WorldCFrame
+	casingClone.AssemblyLinearVelocity = (
+		ejectionCFrame.LookVector * 2 +
+		ejectionCFrame.RightVector * 0.2  +
+		ejectionCFrame.UpVector
+	) * 10
 
 	local rotationMultiplier = 1 + Random:NextNumber()
 	local xRotation = 2*math.pi * rotationMultiplier
@@ -150,7 +149,7 @@ function GunClient:_loadViewmodel()
 	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
 	local viewmodelComponent = ViewmodelClient:FromInstance(viewmodel)
 
-	viewmodelComponent:LoadAnimations(WEAPONS[self.Instance.Name].Animations["1P"])
+	viewmodelComponent:LoadAnimations(GUNS[self.Instance.Name].Animations["1P"])
 	-- print(viewmodelComponent.Animations)
 
 	local fireAnimationTrack: AnimationTrack = viewmodelComponent:GetAnimation("Fire")
@@ -180,13 +179,13 @@ function GunClient:_loadViewmodel()
 			end)
 			-- sync sounds
 			self._equipTrove:Connect(reload:GetMarkerReachedSignal("mag_release"), function()
-				self.Model.PrimaryPart["ak-magazine-release"]:Play()
+				self.Equipment.WorldModel.PrimaryPart["ak-magazine-release"]:Play()
 			end)
 			self._equipTrove:Connect(reload:GetMarkerReachedSignal("mag_insert"), function()
-				self.Model.PrimaryPart["ak-magazine-insert"]:Play()
+				self.Equipment.WorldModel.PrimaryPart["ak-magazine-insert"]:Play()
 			end)
 			self._equipTrove:Connect(reload:GetMarkerReachedSignal("bolt_slide"), function()
-				self.Model.PrimaryPart["ak-bolt-slide"]:Play()
+				self.Equipment.WorldModel.PrimaryPart["ak-bolt-slide"]:Play()
 			end)
 		end
 		local reloadOpenBolt: AnimationTrack = viewmodelComponent:GetAnimation("ReloadOpenBolt")
@@ -200,13 +199,13 @@ function GunClient:_loadViewmodel()
 			end)
 			-- sync sounds
 			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_release"), function()
-				self.Model.PrimaryPart["ak-magazine-release"]:Play()
+				self.Equipment.WorldModel.PrimaryPart["ak-magazine-release"]:Play()
 			end)
 			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("mag_insert"), function()
-				self.Model.PrimaryPart["ak-magazine-insert"]:Play()
+				self.Equipment.WorldModel.PrimaryPart["ak-magazine-insert"]:Play()
 			end)
 			self._equipTrove:Connect(reloadOpenBolt:GetMarkerReachedSignal("bolt_slide"), function()
-				self.Model.PrimaryPart["ak-bolt-slide"]:Play()
+				self.Equipment.WorldModel.PrimaryPart["ak-bolt-slide"]:Play()
 			end)
 		end
 	end
@@ -223,82 +222,59 @@ function GunClient:_loadViewmodel()
 	end)
 end
 
-function GunClient:_equip()
+function GunClient:_onEquipped()
 	self._equipTrove = self._localPlayerTrove:Extend()
 
-	self.Model = self.Instance:WaitForChild("WorldModel")
-	local viewmodel = workspace.CurrentCamera:WaitForChild("Viewmodel")
-
-	self.Model:ScaleTo(1)
-	self.Model.Parent = viewmodel
+	local viewmodel = ViewmodelController.Viewmodel
 
 	-- rig receiver & magazine to viewmodel root
-	self.Model.PrimaryPart.RootJoint.Part0 = viewmodel.PrimaryPart
-	local magazinePart = self.Model.Magazine
+	local magazinePart = self.Equipment.WorldModel.Magazine
 	local magazineJoint = magazinePart.Magazine
-	magazineJoint.C0 = magazinePart.ViewmodelC0.Value -- revert motor6d scaling
-	magazineJoint.Part0 = viewmodel.PrimaryPart -- gun's receiver
+	-- magazineJoint.C0 = magazinePart.ViewmodelC0.Value -- revert motor6d scaling
+	magazineJoint.Part0 = viewmodel.Instance.PrimaryPart -- gun's receiver
 
-	self:_loadViewmodel(self._equipTrove)
+	self:_loadViewmodel()
 
 	self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
 	self.RecoilSpring.Speed = 10
 	self.RecoilSpring.Damper = 1
 	self._lastOffset = Vector3.new()
 
-	ContextActionService:BindAction("aim" .. self.Instance.Name, function(...)
-		self:_handleAimInput(...)
-	end, true, Enum.UserInputType.MouseButton2, Enum.KeyCode.Q)
-
-	ContextActionService:BindAction("fire" .. self.Instance.Name, function(...)
+	ContextActionService:BindActionAtPriority("FireGun", function(...)
 		self:_handleFireInput(...)
-	end, true, Enum.UserInputType.MouseButton1)
+	end, true, Enum.ContextActionPriority.High.Value,  InputController:GetKeybind("Use").Key)
 
-	ContextActionService:BindAction("reload"..self.Instance.Name, function(...)
+	ContextActionService:BindActionAtPriority("AimGun", function(...)
+		self:_handleAimInput(...)
+	end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("AlternateUse").Key, Enum.KeyCode.Q)
+
+	ContextActionService:BindAction("ReloadGun", function(...)
 		self:_handleReloadInput(...)
-	end, true, Enum.KeyCode.R)
+	end, true, InputController:GetKeybind("Reload").Key)
 
 	self._equipTrove:Add(function()
-		ContextActionService:UnbindAction("aim" .. self.Instance.Name)
-		ContextActionService:UnbindAction("fire" .. self.Instance.Name)
-		ContextActionService:UnbindAction("reload" .. self.Instance.Name)
+		ContextActionService:UnbindAction("FireGun")
+		ContextActionService:UnbindAction("AimGun")
+		ContextActionService:UnbindAction("Reload")
 	end)
 
 	self._equipTrove:BindToRenderStep("GunClientOnRenderStepped", Enum.RenderPriority.Camera.Value, function(...)
+		if self._primaryDown then self.Equipment:Use(workspace.CurrentCamera.CFrame.LookVector) end
 		self:OnRenderStepped(...)
 	end)
 end
 
-function GunClient:_unequip()
+function GunClient:_onUnequipped()
 	self._equipTrove:Clean()
 
-	-- hide rig and reconnect magazine
-	-- local magazinePart = self.Model.Magazine
-	-- local magazineJoint = magazinePart.Magazine
-	-- magazineJoint.Part0 = self.Model.PrimaryPart -- gun's receiver
-
-	-- self.Model.PrimaryPart.RootJoint.Part0 = nil
-	self.Model.Parent = self.Instance
-	-- self.Model:PivotTo(CFrame.new())
-
 	self._primaryDown = false
-end
-
--- use remote event to prevent race condition while giving gun to viewmodel
-function GunClient:OnEquipEvent(equipped: boolean)
-	if equipped then
-		self:_equip()
-	else
-		self:_unequip()
-	end
 end
 
 function GunClient:OnRecoilEvent(verticalKick: number, horizontalKick: number, ammoLeft: number)
 	self.Ammo = ammoLeft
 	self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
-	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
-
+	local viewmodel = ViewmodelController.Viewmodel
 	viewmodel:PlayAnimation("Fire")
 end
 
@@ -313,12 +289,6 @@ function GunClient:OnReloadEvent()
 
 	if self.Config.HasBoltHoldOpen then
 		self:ToggleBoltHeldOpen(false)
-	end
-end
-
-function GunClient:OnStepped()
-	if self._primaryDown then
-		self.MouseEvent:FireServer(workspace.CurrentCamera.CFrame.LookVector)
 	end
 end
 
@@ -338,13 +308,13 @@ function GunClient:OnRenderStepped()
 	CameraController:UpdateOffset("Recoil", cameraRecoil)
 	CameraController:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.75, self.AimPercent.Value))
 
-	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	local viewmodel = ViewmodelController.Viewmodel
 	local viewmodelRecoil =
 		CFrame.new(0, -recoilOffset.Y/10, recoilOffset.Y/5) *
 		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
 	viewmodel:UpdateOffset("Recoil", viewmodelRecoil)
 	viewmodel:SetOffsetAlpha("Recoil", reduceNumberWithMinimum(0.25, self.AimPercent.Value))
-	viewmodel:UpdateOffset("Aim", WEAPONS[self.Instance.Name].Offsets.Aiming.Value) -- for calibrating/debugging
+	viewmodel:UpdateOffset("Aim", GUNS[self.Instance.Name].Offsets.Aiming.Value) -- for calibrating/debugging
 	viewmodel:SetOffsetAlpha("Aim", self.AimPercent.Value)
 
 	viewmodel.SwayScale = reduceNumberWithMinimum(0.4, self.AimPercent.Value)
@@ -353,20 +323,21 @@ function GunClient:OnRenderStepped()
 end
 
 function GunClient:_setupForLocalPlayer()
-	self._localPlayerTrove = Trove.new()
-	self._trove:Add(self._localPlayerTrove)
+	self._localPlayerTrove = self._trove:Extend()
 
-	local viewmodel = ViewmodelClient:FromInstance(workspace.CurrentCamera.Viewmodel)
+	local viewmodel = ViewmodelController.Viewmodel
 	viewmodel:ApplyOffset("Recoil", CFrame.new(), 1)
-	viewmodel:ApplyOffset("Aim", WEAPONS[self.Instance.Name].Offsets.Aiming.Value, 0)
+	viewmodel:ApplyOffset("Aim", GUNS[self.Instance.Name].Offsets.Aiming.Value, 0)
 	CameraController:ApplyOffset("Recoil", CFrame.new(), 1)
 
-	self._localPlayerTrove:Connect(self.RecoilEvent.OnClientEvent, function(...) self:OnRecoilEvent(...) end)
-	self._localPlayerTrove:Connect(self.EquipEvent.OnClientEvent, function(...) self:OnEquipEvent(...) end)
-	self._localPlayerTrove:Connect(self.ReloadEvent.OnClientEvent, function(...) self:OnReloadEvent(...) end)
+	self.Equipment.UseRequest.OnClientInvoke = function(...)
+		self:OnRecoilEvent(...)
+		return workspace.CurrentCamera.CFrame.LookVector
+	end
+	self._localPlayerTrove:Add(function() self.Equipment.UseRequest.OnClientInvoke = nil end)
 
-	self._localPlayerTrove:Connect(RunService.Stepped, function() self:OnStepped() end)
-	self._localPlayerTrove:Connect(RunService.RenderStepped, function() self:OnRenderStepped() end)
+	-- TODO: maybe let input controller switch keybinds based on context (action service :O)
+	-- self._localPlayerTrove:Connect(RunService.RenderStepped, function() self:OnRenderStepped() end)
 end
 
 function GunClient:_cleanUpForLocalPlayer()
@@ -374,10 +345,23 @@ function GunClient:_cleanUpForLocalPlayer()
 end
 
 function GunClient:Start()
-
 	Knit.OnStart():andThen(function()
 		CameraController = Knit.GetController("CameraController")
+		ViewmodelController = Knit.GetController("ViewmodelController")
+		InputController = Knit.GetController("InputController")
 	end):catch(warn)
+
+	self.Equipment = self:GetComponent(EquipmentClient)
+
+	self.EjectionPoint = self.Equipment.WorldModel:WaitForChild("Receiver"):WaitForChild("EjectionPoint")
+
+	self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
+		if equipped then
+			self:_onEquipped()
+		else
+			self:_onUnequipped()
+		end
+	end)
 end
 
 function GunClient:Stop()
