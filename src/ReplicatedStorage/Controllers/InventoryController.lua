@@ -79,7 +79,7 @@ function InventoryController:SwitchSlot(slot: string)
     if self.ActiveItem == nil then return end
 
     local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
-    print(equipSuccess)
+    -- print(equipSuccess)
     if not equipSuccess then
         self.ActiveItem = nil
         error("could not equip new slot")

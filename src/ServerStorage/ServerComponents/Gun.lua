@@ -73,11 +73,13 @@ function Gun:Start()
 		self:Fire(player, ...)
 	end
 
+self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
+	self.CanFire = equipped
+end)
+
 	local config = self.Equipment.Config
 	self.Ammo = config.MagazineCapacity
 	self.ReserveAmmo = config.MagazineCapacity * config.ReserveMagazines
-
-	self.CanFire = true
 end
 
 function Gun:Stop()
@@ -123,6 +125,7 @@ function Gun:MakeImpactParticleFX(position, normal) -- (adapted from FastCast Ex
 end
 
 function Gun:Fire(player, direction: Vector3)
+	if not self.CanFire then return end
 	-- print(player, direction)
 
 	-- TODO: make recoil patterns

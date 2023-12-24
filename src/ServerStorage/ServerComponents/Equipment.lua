@@ -145,28 +145,16 @@ function Equipment:Equip(player: Player): boolean?
     self.AnimationManager = AnimationManager.new(Find.path(self.Character, "Humanoid/Animator"))
     self.AnimationManager:LoadAnimations(Find.path(self._folder, "Animations/3P"):GetChildren())
     self.AnimationManager:PlayAnimation("Idle", 0)
+    self.AnimationManager:PlayAnimation("Equip", 0)
 
-    local equipAnimation = self.AnimationManager:GetAnimation("Equip")
-    equipAnimation:Play(0)
-    equipAnimation.Stopped:Connect(function()
-
-    end)
-    equipAnimation.Stopped:Wait()
-
-    if equipAnimation.TimePosition ~= equipAnimation.Length then
-        print('interrupted')
-        return false
-    else
-        print'completed'
-        self.IsEquipped = true
-        self.Equipped:Fire(true)
-        return true
-    end
+    self.IsEquipped = true
+    self.Equipped:Fire(true)
+    return true -- request was successful
 end
 
 function Equipment:Unequip(player: Player): boolean?
     if self.Owner ~= player then error("Non-owner requested unequip") end
-    if not self.IsEquipped then error("not equipped") end
+    -- if not self.IsEquipped then error("not equipped") end
 
     local torso = self.Character:FindFirstChild("Torso")
     if not torso then error("Cannot rig equipment to character; character missing torso") end

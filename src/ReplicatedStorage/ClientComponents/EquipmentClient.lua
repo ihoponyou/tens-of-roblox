@@ -95,15 +95,12 @@ function EquipmentClient:_onEquipped()
     self.Character = Players.LocalPlayer.Character
 
     if self._cfg.ThirdPersonOnly then
+        self:_rigToCharacter()
         CameraController.AllowFirstPerson = false
-        print("this thing is 3p only!!!")
-    end
-
-    if CameraController.InFirstPerson then
+        -- print("this thing is 3p only!!!")
+    elseif CameraController.InFirstPerson then
         self:_rigToViewmodel()
         ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Equip", 0)
-    else
-        self:_rigToCharacter()
     end
 
     self.Equipped:Fire(true)
@@ -111,18 +108,14 @@ function EquipmentClient:_onEquipped()
 end
 
 function EquipmentClient:_onUnequipped()
-    self.IsEquipped = false
-
-    if not self._cfg.ThirdPersonOnly then
+    if self._cfg.ThirdPersonOnly then
+        CameraController.AllowFirstPerson = true
+        -- print("that thing was 3p only!!!")
+    elseif CameraController.InFirstPerson then
         local viewmodel = ViewmodelController.Viewmodel
         if not viewmodel then error("Cannot unrig equipment from viewmodel; no viewmodel") end
 
         viewmodel:ReleaseModel(self.WorldModel, self.Instance) -- instance always stays in owner's backpack
-
-        -- viewmodel animations are internally stopped in ReleaseModel
-    else
-        CameraController.AllowFirstPerson = true
-        print("that thing was 3p only!!!")
     end
 
     self.Equipped:Fire(false)
@@ -160,7 +153,8 @@ end
 
 function EquipmentClient:Equip(): boolean
     local equipSuccess = self.EquipRequest:InvokeServer(true)
-    if equipSuccess then self:_onEquipped() end
+    self:_onEquipped() -- pre emptively equip
+    if not equipSuccess then self:_onUnequipped() end
     return equipSuccess
 end
 
