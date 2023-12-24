@@ -1,13 +1,14 @@
 
-local DEBUG = false
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
-local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
-local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
 
+local Configs = require(ReplicatedStorage.Equipment.Configs)
+local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local InventoryService
+
+local DEBUG = false
+
 local InventoryController = Knit.CreateController({
     Name = "InventoryController";
     Inventory = {};
@@ -18,22 +19,25 @@ local InventoryController = Knit.CreateController({
 function InventoryController:_onItemAdded(item: Instance)
     if DEBUG then print('added', item) end
 
-    local slotType = ReplicatedStorage.Equipment:FindFirstChild(item.Name, true).Configuration:GetAttribute("SlotType")
+    local slotType = Configs[item.Name].SlotType
     if not slotType then error("this equipment does not have a slot type") end
 
     self.Inventory[slotType] = item
     if DEBUG then print(self.Inventory) end
 
     if self.ActiveSlot ~= slotType then return end
-
     self.ActiveItem = item
-    EquipmentClient:FromInstance(self.ActiveItem):Equip()
+    local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
+    if not equipSuccess then
+        self.ActiveItem = nil
+        error("could not auto-equip picked up item")
+    end
 end
 
 function InventoryController:_onItemRemoved(item: Instance)
     if DEBUG then print('removed', item) end
 
-    local slotType = ReplicatedStorage.Equipment:FindFirstChild(item.Name, true).Configuration:GetAttribute("SlotType")
+    local slotType = Configs[item.Name].SlotType
     if not slotType then error("this equipment does not have a slot type") end
 
     local entry = self.Inventory[slotType]
@@ -49,11 +53,6 @@ function InventoryController:UseActiveItem()
     EquipmentClient:FromInstance(self.ActiveItem):Use()
 end
 
-function InventoryController:AlternativelyUseActiveItem()
-    if not self.ActiveItem then warn("No active item to alternatively use :^)") return end
-    EquipmentClient:FromInstance(self.ActiveItem):AlternateUse()
-end
-
 function InventoryController:DropActiveItem()
     if not self.ActiveItem then warn("No active item to drop") return end
     EquipmentClient:FromInstance(self.ActiveItem):Drop()
@@ -64,22 +63,25 @@ local function isValidSlot(slot: string)
 end
 function InventoryController:SwitchSlot(slot: string)
     if not isValidSlot(slot) then error("invalid slot") end
+    -- print("switch from", self.ActiveItem, "to", self.Inventory[slot])
 
     if self.ActiveSlot == slot then return end
 
     if self.ActiveItem ~= nil then
-        EquipmentClient:FromInstance(self.ActiveItem):Unequip()
+        local unequipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Unequip()
+        if not unequipSuccess then error("could not unequip old slot") end
     end
 
-    if DEBUG then print("switch to " .. slot) end
-
-    self.ActiveItem = self.Inventory[slot]
     self.ActiveSlot = slot
-    if self.ActiveItem == nil then
-        if DEBUG then print("nothing to equip") end
-        return
-    else
-        EquipmentClient:FromInstance(self.ActiveItem):Equip()
+    self.ActiveItem = self.Inventory[slot]
+
+    -- nothing to equip
+    if self.ActiveItem == nil then return end
+
+    local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
+    if not equipSuccess then
+        self.ActiveItem = nil
+        error("could not equip new slot")
     end
 end
 

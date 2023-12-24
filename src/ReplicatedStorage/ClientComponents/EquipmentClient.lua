@@ -6,10 +6,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local Signal = require(ReplicatedStorage.Packages.Signal)
+
+local Find = require(ReplicatedStorage.Source.Modules.Find)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Roact = require(ReplicatedStorage.Packages.Roact)
-local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local PromptGui = require(ReplicatedStorage.Source.UIElements.PromptGui)
 
@@ -23,12 +25,20 @@ local EquipmentClient = Component.new({
 })
 
 function EquipmentClient:Construct()
+    self._folder = Find.path(ReplicatedStorage, "Equipment/"..self.Instance.Name)
+
+    Find.path(self._folder, "Animations/1P/Equip")
+    Find.path(self._folder, "Animations/1P/Idle")
+
     self._trove = Trove.new()
+
+    self.IsEquipped = false
+    self.Equipped = Signal.new()
 
     self.WorldModel = self.Instance:WaitForChild("WorldModel")
 
-    self.PickUpPrompt = self.WorldModel:WaitForChild("PickUpPrompt")
-    self.PickUpPrompt.RequiresLineOfSight = false
+    self.ProximityPrompt = self.WorldModel:WaitForChild("PickUpPrompt")
+    self.ProximityPrompt.RequiresLineOfSight = false
     self.PromptGui = Roact.createRef()
     local promptGui = Roact.createElement(PromptGui, {
         equipment_name = self.Instance.Name;
@@ -36,31 +46,100 @@ function EquipmentClient:Construct()
     })
     self._promptTree = Roact.mount(promptGui, self.WorldModel)
 
-    self.EquipRequest = self.Instance:WaitForChild("Equip")
-    self.PickUpRequest = self.Instance:WaitForChild("PickUp")
-    self.UseRequest = self.Instance:WaitForChild("Use")
-    self.AlternateUseRequest = self.Instance:WaitForChild("AltUse")
+    self.EquipRequest = self.Instance:WaitForChild("EquipRequest")
+    self.PickUpRequest = self.Instance:WaitForChild("PickUpRequest")
+    self.UseEvent = self.Instance:WaitForChild("UseEvent")
+end
 
-    -- the folder that is somewhere within ReplicatedStorage.Equipment
-    self.Folder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name, true)
-    self.AnimationFolder = self.Folder:FindFirstChild("Animations")
-    if not self.AnimationFolder then warn(self.Instance.Name, " does not have any animations") end
+function EquipmentClient:_onPickedUp()
+    -- TODO: add to inventory GUI
+end
 
-    -- signals to be used by other components
-    self.PickedUp = Signal.new()
-    self.Equipped = Signal.new()
-    self.Used = Signal.new()
-    self.AltUsed = Signal.new()
+function EquipmentClient:_onEquipped()
+    self.IsEquipped = true
+    local viewmodel = ViewmodelController.Viewmodel
+    if not viewmodel then error("Cannot rig equipment to viewmodel; no viewmodel") end
+
+    local viewmodelAnimations = Find.path(self._folder, "Animations/1P")
+
+    -- rig to viewmodel
+    viewmodel:HoldModel(self.WorldModel)
+
+    local animationManager = viewmodel.AnimationManager
+    animationManager:LoadAnimations(viewmodelAnimations:GetChildren())
+    animationManager:PlayAnimation("Equip", 0)
+    animationManager:PlayAnimation("Idle", 0)
+
+    self.Equipped:Fire(true)
+    self.IsEquipped = true
+end
+
+function EquipmentClient:_onUnequipped()
+    self.IsEquipped = false
+    local viewmodel = ViewmodelController.Viewmodel
+    if not viewmodel then error("Cannot unrig equipment from viewmodel; no viewmodel") end
+
+    viewmodel:ReleaseModel(self.WorldModel, self.Instance) -- instance always stays in owner's backpack
+
+    -- viewmodel animations are internally stopped in ReleaseModel
+
+    self.Equipped:Fire(false)
+    self.IsEquipped = false
+end
+
+function EquipmentClient:_onDropped()
+    if self.IsEquipped then self:_onUnequipped() end
+
+    -- unrig from viewmodel and drop it
+    self.Instance.Parent = workspace
+    self.WorldModel.Parent = self.Instance
+
+    -- throw it
+    local cameraCFrame = workspace.CurrentCamera.CFrame
+    self.WorldModel:PivotTo(cameraCFrame + cameraCFrame.LookVector)
+    self.WorldModel.PrimaryPart.AssemblyLinearVelocity = (workspace.CurrentCamera.CFrame.LookVector * 30)
+
+    -- remove from inventory GUI
+end
+
+function EquipmentClient:Use(...: any)
+    self.UseEvent:FireServer(...)
+end
+
+function EquipmentClient:PickUp(): boolean
+    local pickUpSuccess = self.PickUpRequest:InvokeServer(true)
+    if pickUpSuccess then self:_onPickedUp() end
+    return pickUpSuccess
+end
+
+function EquipmentClient:Equip(): boolean
+    local equipSuccess = self.EquipRequest:InvokeServer(true)
+    if equipSuccess then self:_onEquipped() end
+    return equipSuccess
+end
+
+function EquipmentClient:Unequip(): boolean
+    local unequipSuccess = self.EquipRequest:InvokeServer(false)
+    if unequipSuccess then self:_onUnequipped() end
+    return unequipSuccess
+end
+
+function EquipmentClient:Drop(): boolean
+    local dropSuccess = self.PickUpRequest:InvokeServer(false)
+    if dropSuccess then self:_onDropped() end
+    return dropSuccess
 end
 
 function EquipmentClient:_setupForLocalPlayer()
     if DEBUG then print('LOCAL PLAYER OWNS THIS') end
-    self:_onPickedUp()
+
+    -- on picked up
 end
 
 function EquipmentClient:_cleanUpForLocalPlayer()
     if DEBUG then print('LOCAL PLAYER NO LONGER OWNS THIS') end
-    self:_onDropped()
+
+    -- on dropped
 end
 
 function EquipmentClient:Start()
@@ -68,123 +147,15 @@ function EquipmentClient:Start()
         ViewmodelController = Knit.GetController("ViewmodelController")
     end)
 
-    self._trove:Connect(self.EquipRequest.OnClientEvent, function(equipped: boolean)
-        if equipped then
-            self:_onEquipped()
-        else
-            self:_onUnequipped()
-        end
+    self._trove:Connect(self.ProximityPrompt.Triggered, function()
+        self:PickUp()
     end)
-    -- self._trove:Connect(self.PickUpRequest.OnClientEvent, function(pickedUp: boolean)
-    --     if pickedUp then
-    --         self:_onPickedUp()
-    --     else
-    --         self:_onDropped()
-    --     end
-    -- end)
-
-    self._trove:Connect(self.PickUpPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
-    self._trove:Connect(self.PickUpPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)
+    self._trove:Connect(self.ProximityPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
+    self._trove:Connect(self.ProximityPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)
 end
 
 function EquipmentClient:Stop()
     self._trove:Clean()
 end
-
-function EquipmentClient:_onPickedUp()
-    if DEBUG then print("picked up", self.Instance.Name) end
-
-    self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("ViewmodelScale"))
-    -- TODO: add to inventory GUI
-
-    self.PickedUp:Fire(true)
-end
-
-function EquipmentClient:Equip()
-    self.EquipRequest:FireServer(true)
-end
-function EquipmentClient:_onEquipped()
-    if DEBUG then print("equipped", self.Instance.Name) end
-
-    local viewmodel = ViewmodelController.Viewmodel
-    if not viewmodel then error("Cannot rig equipment to viewmodel; no viewmodel") end
-
-    local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
-    if not modelRootJoint then error("Cannot rig equipment to viewmodel; equipment missing RootJoint") end
-
-    for _, part: BasePart in self.WorldModel:GetDescendants() do
-        if not part:IsA("BasePart") then continue end
-        part.CastShadow = false
-    end
-
-    -- rig to viewmodel
-    self.WorldModel.Parent = viewmodel.Instance
-    modelRootJoint.Part0 = viewmodel.Instance.PrimaryPart
-
-    if self.AnimationFolder ~= nil then
-        viewmodel:LoadAnimations(self.AnimationFolder["1P"])
-        viewmodel:PlayAnimation("Idle", 0)
-        viewmodel:ToggleVisibility(true)
-        viewmodel:PlayAnimation("Equip", 0)
-    end
-
-    self.Equipped:Fire(true)
-end
-
-function EquipmentClient:Use()
-    self.UseRequest:FireServer(true)
-end
-function EquipmentClient:_onUse()
-    print('use of', self.Instance.Name, "successful")
-
-    self.Used:Fire()
-end
-
-function EquipmentClient:_onAlternateUse()
-    print('alternate use of', self.Instance.Name, "successful")
-
-    self.AltUsed:Fire()
-end
-
-function EquipmentClient:Unequip()
-    self.EquipRequest:FireServer(false)
-end
-function EquipmentClient:_onUnequipped()
-    local viewmodel = ViewmodelController.Viewmodel
-    if not viewmodel then error("Cannot unrig equipment from viewmodel; no viewmodel") end
-
-    local modelRootJoint: Motor6D = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
-    if not modelRootJoint then error("Cannot unrig equipment from viewmodel; equipment missing RootJoint") end
-
-    viewmodel:StopPlayingAnimations()
-    modelRootJoint.Part0 = nil
-    self.WorldModel.Parent = self.Instance -- instance always stays in owner's backpack
-
-    for _, part: BasePart in self.WorldModel:GetDescendants() do
-        if not part:IsA("BasePart") then continue end
-        part.CastShadow = true
-    end
-
-    viewmodel:ToggleVisibility(false)
-
-    self.Equipped:Fire(false)
-end
-
-function EquipmentClient:Drop()
-    self.PickUpRequest:FireServer(false)
-end
-function EquipmentClient:_onDropped()
-    self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("WorldScale"))
-
-    -- throw it
-    local cameraCFrame = workspace.CurrentCamera.CFrame
-    self.WorldModel:PivotTo(cameraCFrame + cameraCFrame.LookVector)
-    self.WorldModel.PrimaryPart.AssemblyLinearVelocity = (workspace.CurrentCamera.CFrame.LookVector * 30)
-
-    -- unequip if needed and remove from inventory GUI
-
-    self.PickedUp:Fire(false)
-end
-
 
 return EquipmentClient

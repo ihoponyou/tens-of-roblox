@@ -1,10 +1,14 @@
 
+-- basically copy pasted from sleitnicks knit api cameracontroller
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+
+local OffsetManager = require(ReplicatedStorage.Source.Modules.OffsetManager)
 
 local CameraController = Knit.CreateController {
 	Name = "CameraController";
@@ -16,13 +20,61 @@ local CameraController = Knit.CreateController {
 	RenderName = "CustomCamRender";
 	Priority = Enum.RenderPriority.Camera.Value;
 
-    AppliedOffsets = {};
+	OffsetManager = OffsetManager.new();
 	_lastOffset = CFrame.new();
 
 	LockedChanged = Signal.new();
+
+	InFirstPerson = false;
+	FirstPersonChanged = Signal.new();
 }
 
+function CameraController:KnitInit()
+	self._trove = Trove.new()
+end
 
+function CameraController:KnitStart()
+	self._trove:Connect(RunService.RenderStepped, function(_)
+		self:OnRenderStepped()
+	end)
+
+	workspace.CurrentCamera.FieldOfView = self.FieldOfView
+
+	self:ToggleFirstPerson(self.InFirstPerson)
+end
+
+function CameraController:Destroy()
+	self._trove:Destroy()
+end
+
+function CameraController:OnCharacterAdded(character: Model)
+	self.Character = character
+end
+
+function CameraController:ToggleFirstPerson(inFirstPerson: boolean)
+	local inFirstPerson = if inFirstPerson == nil then not self.InFirstPerson else inFirstPerson
+	local localPlayer = Knit.Player
+
+	if inFirstPerson then
+		localPlayer.CameraMinZoomDistance = 0.5
+		localPlayer.CameraMaxZoomDistance = 0.5
+	else
+		localPlayer.CameraMaxZoomDistance = 8
+		localPlayer.CameraMinZoomDistance = 2
+	end
+
+	self.InFirstPerson = inFirstPerson
+	self.FirstPersonChanged:Fire(inFirstPerson)
+end
+
+function CameraController:OnRenderStepped(_)
+	local camera = workspace.CurrentCamera
+	local combinedOffset = self.OffsetManager:GetCombinedOffset()
+
+	camera.CFrame = camera.CFrame * combinedOffset * self._lastOffset:Inverse()
+
+	self._lastOffset = combinedOffset
+end
 
 function CameraController:LockTo(part)
 	if self.Locked then return end
@@ -48,83 +100,6 @@ function CameraController:Unlock()
 	RunService:UnbindFromRenderStep(self.RenderName)
 
 	self.LockedChanged:Fire(false)
-end
-
-function CameraController:IncrementRotation(degrees: Vector3)
-	self.AdditionalRotation += degrees
-end
-
-function CameraController:ApplyOffset(name: string, offset: CFrame, alpha: number)
-	if type(name) ~= "string" then error("Invalid offset name") end
-	if typeof(offset) ~= "CFrame" then error("Invalid offset value") end
-
-	self.AppliedOffsets[name] = {
-		Value = offset,
-		Alpha = 0
-	}
-
-	self:SetOffsetAlpha(name, alpha)
-end
-
-function CameraController:UpdateOffset(name: string, offset: CFrame)
-	if type(name) ~= "string" then error("Invalid offset name") end
-	if typeof(offset) ~= "CFrame" then error("Invalid offset value") end
-	local appliedOffset = self.AppliedOffsets[name]
-	if not appliedOffset then error("No offset to update") end
-	appliedOffset.Value = offset
-end
-
--- removes an offset from the AppliedOffsets table if the offset exists; otherwise does nothing
-function CameraController:RemoveOffset(name: string)
-	if type(name) ~= "string" then error("Invalid offset name") end
-	self.AppliedOffsets[name] = nil
-end
-
--- sets the alpha of an applied offset
-function CameraController:SetOffsetAlpha(name: string, alpha: number)
-	local offset: Offset = self.AppliedOffsets[name]
-	if not offset then error("no offset found with name: "..name) end
-	if type(alpha) ~= "number" then error("Invalid offset alpha") end
-	if alpha < 0 or alpha > 1 then error("Offset alpha outside of range [0, 1]: "..alpha) end
-	offset.Alpha = alpha
-end
-
-function CameraController:OnCharacterAdded(character: Model)
-	self.Character = character
-	-- local humanoid: Humanoid = character:WaitForChild("Humanoid")
-	-- workspace.CurrentCamera.CameraSubject = humanoid
-end
-
-function CameraController:KnitInit()
-	self._trove = Trove.new()
-end
-
-function CameraController:OnRenderStepped()
-	local finalOffset = CFrame.new()
-	for _, v: Offset in self.AppliedOffsets do
-		finalOffset = finalOffset:Lerp((finalOffset * v.Value), v.Alpha)
-	end
-	workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame * finalOffset * self._lastOffset:Inverse()
-	self._lastOffset = finalOffset
-end
-
-function CameraController:KnitStart()
-	if Knit.Player.Character then
-		self:OnCharacterAdded(Knit.Player.Character)
-	end
-	self._trove:Connect(Knit.Player.CharacterAdded, function(...)
-		self:OnCharacterAdded(...)
-	end)
-
-	self._trove:Connect(RunService.RenderStepped, function(_)
-		self:OnRenderStepped()
-	end)
-
-	workspace.CurrentCamera.FieldOfView = self.FieldOfView
-end
-
-function CameraController:Destroy()
-	self._trove:Destroy()
 end
 
 return CameraController

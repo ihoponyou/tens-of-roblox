@@ -2,26 +2,29 @@
 -- adapted code from BlackShibe's FPS Framework input/viewmodel controller to component system
 -- https://devforum.roblox.com/t/writing-an-fps-framework-2020/503318
 
--- NOV 1 2023 | idk how much of it is from this anymore after big refactor but it was very helpful in getting started regardless
+-- NOV 01 2023 | idk how much of it is from this anymore after big refactor but it was very helpful in getting started regardless
+-- DEC 21 2023 | doubt any of it remains but still -   -   -   -   -   -   -   -   -   ^
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Spring = require(ReplicatedStorage.Packages.Spring)
+
+local AnimationManager = require(ReplicatedStorage.Source.Modules.AnimationManager)
+local Find = require(ReplicatedStorage.Source.Modules.Find)
+local OffsetManager = require(ReplicatedStorage.Source.Modules.OffsetManager)
 
 local ViewmodelClient = Component.new({
 	Tag = "Viewmodel",
 	Extensions = {},
 })
 
-
 local EMPTY_CFRAME = CFrame.new()
 local NO_YAXIS = Vector3.new(1, 0, 1)
 
-type Offset = {
+export type Offset = {
 	Value: Vector3,
 	Alpha: number -- between 0 and 1
 }
@@ -29,10 +32,15 @@ type Offset = {
 function ViewmodelClient:Construct()
 	self._trove = Trove.new()
 
-	self.Visible = true
+	local animator = Find.path(self.Instance, "RigHumanoid/Animator")
+	self.AnimationManager = AnimationManager.new(animator)
+	self._trove:Add(self.AnimationManager)
 
-	self.Animations = {}
-	self.Humanoid = self.Instance:WaitForChild("RigHumanoid")
+	self.OffsetManager = OffsetManager.new()
+	self._trove:Add(self.OffsetManager)
+
+	self.Visible = false
+	self.HeldModel = nil
 
 	self.SwayScale = 1 -- determines how much sway to display
 	self.SwaySensitivity = 1.4 -- scales sway with camera movement; lower will be less responsive and vice versa
@@ -45,123 +53,116 @@ function ViewmodelClient:Construct()
 	self._viewbobPosition = EMPTY_CFRAME
 	self._viewbobRotation = EMPTY_CFRAME
 
-	self._pullPosition = EMPTY_CFRAME
 	self.PullScale = 1
+	self._pullPosition = EMPTY_CFRAME
+
+	self.OffsetManager:AddOffsets({
+		Base = {Value = self.Instance.BaseOffset.Value, Alpha = 1};
+		Sway = {Value = EMPTY_CFRAME, Alpha = self.SwayScale};
+		Viewbob = {Value = EMPTY_CFRAME, Alpha = self.ViewbobScale};
+		Pull = {Value = EMPTY_CFRAME, Alpha = self.PullScale};
+	})
 
 	self._lastFrameRotation = EMPTY_CFRAME -- the camera's rotation from the previous frame
-
-	-- dictionary that tracks all applied offsets
-	self.AppliedOffsets = {
-		Base = {Value = self.Instance.BaseOffset.Value, Alpha = 1},
-		Sway = {Value = EMPTY_CFRAME, Alpha = self.SwayScale},
-		Viewbob = {Value = EMPTY_CFRAME, Alpha = self.ViewbobScale},
-		Pull = {Value = EMPTY_CFRAME, Alpha = self.PullScale},
-	}
-
-	-- the m6d that rigs a world model to the viewmodel
-	self.ModelJoint = nil
 end
 
 function ViewmodelClient:Start()
+	self:ToggleVisibility(self.Visible)
 	self.Instance.Parent = workspace.CurrentCamera
+end
 
-	self._trove:Connect(RunService.RenderStepped, function(...) self:Update(...) end)
+function ViewmodelClient:_changeHeldModelTransparency(transparency: number)
+	if self.HeldModel == nil then return end
+	for _, v: BasePart in self.HeldModel:GetDescendants() do
+		if not v:IsA("BasePart") then continue end
+		v.Transparency = transparency
+	end
 end
 
 function ViewmodelClient:ToggleVisibility(show: boolean)
 	self.Visible = if show==nil then not self.Visible else show
-	self.Instance["Right Arm"].Transparency = if self.Visible then 0 else 1
-	self.Instance["Left Arm"].Transparency = if self.Visible then 0 else 1
+	local transparency = if self.Visible then 0 else 1
+	self.Instance["Right Arm"].Transparency = transparency
+	self.Instance["Left Arm"].Transparency = transparency
+
+	self:_changeHeldModelTransparency(transparency)
 end
 
-function ViewmodelClient:LoadAnimations(animationFolder: Folder)
-	-- empty current animation dict
-	self.Animations = {}
+function ViewmodelClient:HoldModel(modelToHold: Model)
+	if type(modelToHold) ~= "userdata" then error("Given \"model\" is a primitive type or nil") end
+	if not modelToHold:IsA("Model") then error("Given \"model\" is not of class Model") end
 
-	for _,v: Animation in animationFolder:GetDescendants() do
-		if not v:IsA("Animation") then continue end
+	local modelRoot = modelToHold.PrimaryPart
+	if not modelRoot then error(modelToHold.Name.." has nil PrimaryPart") end
 
-		local animTrack: AnimationTrack = self.Humanoid.Animator:LoadAnimation(v)
-		if animTrack.Name:match("[iI]dle") then animTrack.Priority = Enum.AnimationPriority.Idle end
-		-- index each animation with its name as key and animationtrack as value
-		self.Animations[v.Name] = animTrack
-		-- print(v.Name, "@", self.Animations[v.Name].Priority)
+	local rootJoint: Motor6D = modelRoot:FindFirstChild("RootJoint")
+	if not rootJoint then error(modelToHold.Name.." is missing a RootJoint") end
+
+	local scale = modelToHold:GetAttribute("ViewmodelScale")
+	if not scale then
+		warn(modelToHold, "does not have a set viewmodel scale")
+	else
+		modelToHold:ScaleTo(scale)
 	end
+
+	modelToHold.Parent = self.Instance
+	rootJoint.Part0 = self.Instance["Right Arm"]
+	rootJoint.C0 = rootJoint:GetAttribute("ViewmodelEquippedC0")
+	self.HeldModel = modelToHold
+
+	for _, part: BasePart in self.HeldModel:GetDescendants() do
+        if not part:IsA("BasePart") then continue end
+        part.CastShadow = false
+    end
+
+	if self.Visible then return end
+	self:_changeHeldModelTransparency(1)
 end
 
-function ViewmodelClient:GetAnimation(animationName: string): AnimationTrack
-	if type(animationName) ~= "string" then error("Invalid animation name") end
-	local animationTrack = self.Animations[animationName]
-	if animationTrack == nil then error("No loaded animation with name \""..animationName.."\"") end
+function ViewmodelClient:ReleaseModel(modelToRelease: Model, newParent: Instance?)
+	if type(modelToRelease) ~= "userdata" then error("Given \"model\" is a primitive type or nil") end
+	if not modelToRelease:IsA("Model") then error("Given \"model\" is not of class Model") end
+	if self.HeldModel ~= modelToRelease then warn("Viewmodel is not holding", modelToRelease) return end
 
-	return self.Animations[animationName]
-end
+	local modelRoot = self.HeldModel.PrimaryPart
+	local rootJoint = modelRoot.RootJoint
 
-function ViewmodelClient:PlayAnimation(animationName: string, fadeTime: number?, weight: number?, speed: number?)
-	local animationTrack: AnimationTrack = self:GetAnimation(animationName)
-	if string.match(animationName, "[iI]dle") then animationTrack.Priority = Enum.AnimationPriority.Idle end
-	animationTrack:Play(fadeTime or 0.100000001, weight or 1, speed or 1)
-end
+	for _, part: BasePart in self.HeldModel:GetDescendants() do
+        if not part:IsA("BasePart") then continue end
+        part.CastShadow = true
+    end
 
-function ViewmodelClient:StopAnimation(animationName: string, fadeTime: number?)
-	local animationTrack = self:GetAnimation(animationName)
-	animationTrack:Stop(fadeTime or 0.100000001)
-end
-
-function ViewmodelClient:StopPlayingAnimations(fadeTime: number?)
-	for name, track: AnimationTrack in self.Animations do
-		if not track.IsPlaying then continue end
-		self:StopAnimation(name, fadeTime)
+	local scale = modelToRelease:GetAttribute("WorldScale")
+	if not scale then
+		warn(modelToRelease, "does not have a set viewmodel scale")
+	else
+		modelToRelease:ScaleTo(scale)
 	end
+
+	self.HeldModel.Parent = newParent
+	rootJoint.Part0 = nil
+	self.HeldModel = nil
+
+	self.AnimationManager:StopPlayingAnimations(0)
+
+	if self.Visible then return end
+	self:_changeHeldModelTransparency(0)
 end
 
--- adds an offset to the viewmodel; alpha is like the "scale" of the offset
-function ViewmodelClient:ApplyOffset(name: string, offset: CFrame, alpha: number)
-	if type(name) ~= "string" then error("Invalid offset name") end
-	if typeof(offset) ~= "CFrame" then error("Invalid offset value") end
-
-	self.AppliedOffsets[name] = {
-		Value = offset,
-		Alpha = 0
-	}
-
-	self:SetOffsetAlpha(name, alpha)
-end
-
-function ViewmodelClient:UpdateOffset(name: string, offset: CFrame)
-	if type(name) ~= "string" then error("Invalid offset name") end
-	if typeof(offset) ~= "CFrame" then error("Invalid offset value") end
-	local appliedOffset = self.AppliedOffsets[name]
-	if not appliedOffset then error("No offset to update") end
-	appliedOffset.Value = offset
-end
-
--- removes an offset from the AppliedOffsets table if the offset exists; otherwise does nothing
-function ViewmodelClient:RemoveOffset(name: string)
-	if type(name) ~= "string" then error("Invalid offset name") end
-	self.AppliedOffsets[name] = nil
-end
-
--- sets the alpha of an applied offset
-function ViewmodelClient:SetOffsetAlpha(name: string, alpha: number)
-	local offset: Offset = self.AppliedOffsets[name]
-	if not offset then error("no offset found with name: "..name) end
-	if type(alpha) ~= "number" then error("Invalid offset alpha") end
-	if alpha < 0 or alpha > 1 then error("Offset alpha outside of range [0, 1]: "..alpha) end
-	offset.Alpha = alpha
-end
-
--- when you look around the gun kind of lags
+-- when you look around the gun lags as if it had weight
 function ViewmodelClient:_updateSway()
 	local camera = workspace.CurrentCamera
 
 	local angleDelta: CFrame = Vector3.new(camera.CFrame.Rotation:ToObjectSpace(self._lastFrameRotation):ToOrientation()) * 150
 	self.SwaySpring:Impulse(Vector3.new(angleDelta.Y, angleDelta.X, 0) * self.SwaySensitivity)
 	local swaySpringPos = self.SwaySpring.Position
-	self:ApplyOffset("Sway", CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0), self.SwayScale)
+
+	local swayOffset = CFrame.Angles(math.rad(swaySpringPos.Y), math.rad(swaySpringPos.X), 0)
+	self.OffsetManager:SetOffsetValue("Sway", swayOffset)
+	self.OffsetManager:SetOffsetAlpha("Sway", self.SwayScale)
 end
 
--- when you walk around the gun bobs
+-- when you walk around the gun bobs up and down side to side
 function ViewmodelClient:_updateViewbob(deltaTime: number)
 	local character = Players.LocalPlayer.Character
 	if not character then return end
@@ -189,7 +190,8 @@ function ViewmodelClient:_updateViewbob(deltaTime: number)
 		-- self._viewbobRotation = self._viewbobRotation:Lerp(EMPTY_CFRAME, .4)
 	end
 
-	self:ApplyOffset("Viewbob", self._viewbobPosition * self._viewbobRotation, self.ViewbobScale)
+	self.OffsetManager:SetOffsetValue("Viewbob", self._viewbobPosition * self._viewbobRotation)
+	self.OffsetManager:SetOffsetAlpha("Viewbob", self.ViewbobScale)
 end
 
 -- when you walk around you pull the gun towards you
@@ -201,28 +203,27 @@ function ViewmodelClient:_updatePull()
 	local hrp = character.PrimaryPart
 	if not hrp then return end
 
-	-- always a unit vector
-	local wishDirection = hrp.CFrame:VectorToObjectSpace(humanoid.MoveDirection)
+	local wishDirection = hrp.CFrame:VectorToObjectSpace(humanoid.MoveDirection) -- always a unit vector
+	local actualSpeed = hrp.AssemblyLinearVelocity.Magnitude
+	local positionMultiplier = wishDirection.Magnitude * math.min(actualSpeed, 1)
 
-	local goal = CFrame.new(0, -0.1 * wishDirection.Magnitude, 0.2 * wishDirection.Magnitude)
+	local goal = CFrame.new(0, -0.1 * positionMultiplier, 0.2 * positionMultiplier)
 	self._pullPosition = self._pullPosition:Lerp(goal, 0.1)
 
-	self:ApplyOffset("Pull", self._pullPosition, self.PullScale)
+	self.OffsetManager:SetOffsetValue("Pull", self._pullPosition)
+	self.OffsetManager:SetOffsetAlpha("Pull", self.PullScale)
 end
 
-function ViewmodelClient:Update(deltaTime: number)
-	if not self.Visible then return end
-	local camera = workspace.CurrentCamera
+function ViewmodelClient:RenderSteppedUpdate(deltaTime: number)
+	self.OffsetManager:SetOffsetValue("Base", self.Instance.BaseOffset.Value)
 
 	self:_updateSway()
 	self:_updateViewbob(deltaTime)
 	self:_updatePull()
 
-	local finalOffset = EMPTY_CFRAME
-	for _, v: Offset in self.AppliedOffsets do
-		finalOffset = finalOffset:Lerp((finalOffset * v.Value), v.Alpha)
-	end
-	self.Instance.RootPart.CFrame = workspace.CurrentCamera.CFrame * finalOffset
+	local camera = workspace.CurrentCamera
+	local combinedOffset = self.OffsetManager:GetCombinedOffset()
+	self.Instance.RootPart.CFrame = workspace.CurrentCamera.CFrame * combinedOffset
 
 	self._lastFrameRotation = camera.CFrame.Rotation
 end

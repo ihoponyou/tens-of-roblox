@@ -9,12 +9,11 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 
 local DEFAULT_KEYBINDS = require(script.DefaultKeybinds)
 
-local InventoryController
+local InventoryController, CameraController
 -- maps inputs to functionality
 local InputController = Knit.CreateController {
 	Name = "InputController";
 	Keybinds = {};
-	_lastW = 0;
 }
 
 -- returns 1, 0, or -1 based on input on a given axis |
@@ -56,29 +55,33 @@ function InputController.IsWasdDown(): boolean
 	return UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.D)
 end
 
+
 function InputController:LoadKeybind(action: string, keybind: Enum.KeyCode, log: boolean)
 	if not self["_"..action] then
-		warn(string.format("Action \"%s\" does not have a matching method", action))
+		if log then print(string.format("Action \"%s\" does not have a matching method", action)) end
 		return
 	end
 
 	ContextActionService:BindAction(action,
 		function(_, userInputState: Enum.UserInputState, _)
 			if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
-			return self["_"..action](self, userInputState)
+
+			self["_"..action](self)
+
+			return Enum.ContextActionResult.Sink
 		end,
 		false, keybind)
 
 	if log then print(string.format("%s loaded @ %s", action, keybind.Name)) end
 end
 
-function InputController:GetKeybind(action: string): DEFAULT_KEYBINDS.Keybind
-	local keybind: DEFAULT_KEYBINDS.Keybind = self.Keybinds[action]
-	if not keybind then error("No keybind for action \""..action.."\"") end
-	return table.clone(keybind)
-end
-
 function InputController:LoadAllKeybinds(log: boolean)
+	-- for keybindName, value: Keybinding in KEYBINDS do
+	-- 	ContextActionService:BindAction(keybindName, function(_, userInputState, _)
+	-- 		if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+	-- 		return value.Action()
+	-- 	end, false, value.Key)
+	-- end
 	for action, keybind: DEFAULT_KEYBINDS.Keybind in self.Keybinds do
 		self:LoadKeybind(action, keybind.Key, log)
 	end
@@ -115,13 +118,12 @@ function InputController:ResetKeybinds(log: boolean)
 	print("Keybinds reset to default.")
 end
 
+function InputController:GetKeybind(action: string): Enum.KeyCode
+	return self.Keybinds[action].Key
+end
 
--- INVENTORY CONTROLS
 function InputController:_Use()
 	InventoryController:UseActiveItem()
-end
-function InputController:_AlternateUse()
-	InventoryController:AlternativelyUseActiveItem()
 end
 
 function InputController:_Drop(_)
@@ -138,8 +140,13 @@ function InputController:_Tertiary()
 	InventoryController:SwitchSlot("Tertiary")
 end
 
+function InputController:_ChangeCameraMode()
+	CameraController:ToggleFirstPerson()
+end
+
 function InputController:KnitStart()
 	InventoryController = Knit.GetController("InventoryController")
+	CameraController = Knit.GetController("CameraController")
 
 	self.Keybinds = table.clone(DEFAULT_KEYBINDS)
 
@@ -152,8 +159,7 @@ function InputController:KnitStart()
 
 			return Enum.ContextActionResult.Sink
 		end,
-		false, Enum.KeyCode.BackSlash
-	)
+		false, Enum.KeyCode.BackSlash)
 end
 
 return InputController

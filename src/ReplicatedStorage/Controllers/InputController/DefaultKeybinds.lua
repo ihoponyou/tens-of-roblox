@@ -30,13 +30,9 @@ local DefaultKeybinds: {Enum.KeyCode} = {
         DisplayName = "Use Equipment/Primary Fire";
         Key = Enum.UserInputType.MouseButton1;
     };
-    AlternateUse = {
+    AltUse = {
         DisplayName = "Alternate Use/Aim (Hold)";
         Key = Enum.UserInputType.MouseButton2;
-    };
-    Reload = {
-        DisplayName = "Reload";
-        Key = Enum.KeyCode.R;
     };
     Drop = {
         DisplayName = "Drop Item";
@@ -54,6 +50,10 @@ local DefaultKeybinds: {Enum.KeyCode} = {
         DisplayName = "Tertiary Slot";
         Key = Enum.KeyCode.Three;
     };
+    ChangeCameraMode = {
+        DisplayName = "Change Camera Mode";
+        Key = Enum.KeyCode.V;
+    }
 }
 
 return DefaultKeybinds

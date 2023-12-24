@@ -10,7 +10,7 @@ function PromptGui:render()
         AlwaysOnTop = true;
         Size = UDim2.fromOffset(200, 50);
         Enabled = false;
-        StudsOffset = Vector3.yAxis;
+        StudsOffset = Vector3.yAxis * 0.5;
         [Roact.Ref] = self.props.ref;
     }, {
         PromptLabel = Roact.createElement("TextLabel", {
