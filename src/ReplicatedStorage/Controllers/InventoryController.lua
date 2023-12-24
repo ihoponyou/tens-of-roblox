@@ -3,7 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
-local Configs = require(ReplicatedStorage.Equipment.Configs)
+local Configs = require(ReplicatedStorage.Source.EquipmentConfigs)
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local InventoryService
 
@@ -79,6 +79,7 @@ function InventoryController:SwitchSlot(slot: string)
     if self.ActiveItem == nil then return end
 
     local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
+    print(equipSuccess)
     if not equipSuccess then
         self.ActiveItem = nil
         error("could not equip new slot")

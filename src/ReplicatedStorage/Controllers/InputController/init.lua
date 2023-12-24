@@ -141,7 +141,7 @@ function InputController:_Tertiary()
 end
 
 function InputController:_ChangeCameraMode()
-	CameraController:ToggleFirstPerson()
+	CameraController:TogglePOV()
 end
 
 function InputController:KnitStart()

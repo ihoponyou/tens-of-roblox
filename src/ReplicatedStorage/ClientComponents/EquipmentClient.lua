@@ -1,21 +1,24 @@
 
 local DEBUG = false
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local Roact = require(ReplicatedStorage.Packages.Roact)
 local Signal = require(ReplicatedStorage.Packages.Signal)
+local Trove = require(ReplicatedStorage.Packages.Trove)
 
+local CameraController, ViewmodelController
+
+local EquipmentConfigs = require(ReplicatedStorage.Source.EquipmentConfigs)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
-local Roact = require(ReplicatedStorage.Packages.Roact)
-
+local ModelUtil = require(ReplicatedStorage.Source.Modules.ModelUtil)
 local PromptGui = require(ReplicatedStorage.Source.UIElements.PromptGui)
 
-local ViewmodelController
 local EquipmentClient = Component.new({
 	Tag = "Equipment",
 	Extensions = {
@@ -25,10 +28,13 @@ local EquipmentClient = Component.new({
 })
 
 function EquipmentClient:Construct()
+    self._cfg = EquipmentConfigs[self.Instance.Name]
     self._folder = Find.path(ReplicatedStorage, "Equipment/"..self.Instance.Name)
 
-    Find.path(self._folder, "Animations/1P/Equip")
-    Find.path(self._folder, "Animations/1P/Idle")
+    if not self._cfg.ThirdPersonOnly then
+        Find.path(self._folder, "Animations/1P/Equip")
+        Find.path(self._folder, "Animations/1P/Idle")
+    end
 
     self._trove = Trove.new()
 
@@ -49,14 +55,15 @@ function EquipmentClient:Construct()
     self.EquipRequest = self.Instance:WaitForChild("EquipRequest")
     self.PickUpRequest = self.Instance:WaitForChild("PickUpRequest")
     self.UseEvent = self.Instance:WaitForChild("UseEvent")
+
+    self._riggedToViewmodel = false
 end
 
 function EquipmentClient:_onPickedUp()
     -- TODO: add to inventory GUI
 end
 
-function EquipmentClient:_onEquipped()
-    self.IsEquipped = true
+function EquipmentClient:_rigToViewmodel()
     local viewmodel = ViewmodelController.Viewmodel
     if not viewmodel then error("Cannot rig equipment to viewmodel; no viewmodel") end
 
@@ -67,8 +74,37 @@ function EquipmentClient:_onEquipped()
 
     local animationManager = viewmodel.AnimationManager
     animationManager:LoadAnimations(viewmodelAnimations:GetChildren())
-    animationManager:PlayAnimation("Equip", 0)
     animationManager:PlayAnimation("Idle", 0)
+    self._riggedToViewmodel = true
+end
+
+function EquipmentClient:_rigToCharacter()
+    if not self._riggedToViewmodel then return end
+
+    self.WorldModel:ScaleTo(self.WorldModel:GetAttribute("WorldScale"))
+
+	local rootJoint = self.WorldModel.PrimaryPart.RootJoint
+
+    ViewmodelController.Viewmodel:ReleaseModel(self.WorldModel, self.Character)
+    rootJoint.Part0 = self.Character["Right Arm"]
+    rootJoint.C0 = rootJoint:GetAttribute("WorldEquippedC0")
+end
+
+function EquipmentClient:_onEquipped()
+    self.IsEquipped = true
+    self.Character = Players.LocalPlayer.Character
+
+    if self._cfg.ThirdPersonOnly then
+        CameraController.AllowFirstPerson = false
+        print("this thing is 3p only!!!")
+    end
+
+    if CameraController.InFirstPerson then
+        self:_rigToViewmodel()
+        ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Equip", 0)
+    else
+        self:_rigToCharacter()
+    end
 
     self.Equipped:Fire(true)
     self.IsEquipped = true
@@ -76,12 +112,18 @@ end
 
 function EquipmentClient:_onUnequipped()
     self.IsEquipped = false
-    local viewmodel = ViewmodelController.Viewmodel
-    if not viewmodel then error("Cannot unrig equipment from viewmodel; no viewmodel") end
 
-    viewmodel:ReleaseModel(self.WorldModel, self.Instance) -- instance always stays in owner's backpack
+    if not self._cfg.ThirdPersonOnly then
+        local viewmodel = ViewmodelController.Viewmodel
+        if not viewmodel then error("Cannot unrig equipment from viewmodel; no viewmodel") end
 
-    -- viewmodel animations are internally stopped in ReleaseModel
+        viewmodel:ReleaseModel(self.WorldModel, self.Instance) -- instance always stays in owner's backpack
+
+        -- viewmodel animations are internally stopped in ReleaseModel
+    else
+        CameraController.AllowFirstPerson = true
+        print("that thing was 3p only!!!")
+    end
 
     self.Equipped:Fire(false)
     self.IsEquipped = false
@@ -94,9 +136,13 @@ function EquipmentClient:_onDropped()
     self.Instance.Parent = workspace
     self.WorldModel.Parent = self.Instance
 
-    -- throw it
-    local cameraCFrame = workspace.CurrentCamera.CFrame
-    self.WorldModel:PivotTo(cameraCFrame + cameraCFrame.LookVector)
+    local destinationCFrame
+    if self._cfg.ThirdPersonOnly then
+        destinationCFrame = Players.LocalPlayer.Character.PrimaryPart.CFrame -- TODO: fix this
+    else
+        destinationCFrame = workspace.CurrentCamera.CFrame
+    end
+    self.WorldModel:PivotTo(destinationCFrame + destinationCFrame.LookVector)
     self.WorldModel.PrimaryPart.AssemblyLinearVelocity = (workspace.CurrentCamera.CFrame.LookVector * 30)
 
     -- remove from inventory GUI
@@ -132,19 +178,25 @@ end
 
 function EquipmentClient:_setupForLocalPlayer()
     if DEBUG then print('LOCAL PLAYER OWNS THIS') end
-
-    -- on picked up
 end
 
 function EquipmentClient:_cleanUpForLocalPlayer()
     if DEBUG then print('LOCAL PLAYER NO LONGER OWNS THIS') end
-
-    -- on dropped
 end
 
 function EquipmentClient:Start()
     Knit.OnStart():andThen(function()
+        CameraController = Knit.GetController("CameraController")
         ViewmodelController = Knit.GetController("ViewmodelController")
+    end)
+
+    self._trove:Connect(CameraController.FirstPersonChanged, function(inFirstPerson: boolean)
+        if not self.IsEquipped then return end
+        if inFirstPerson then
+            self:_rigToViewmodel()
+        else
+            self:_rigToCharacter()
+        end
     end)
 
     self._trove:Connect(self.ProximityPrompt.Triggered, function()

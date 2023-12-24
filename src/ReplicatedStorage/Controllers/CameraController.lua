@@ -26,6 +26,7 @@ local CameraController = Knit.CreateController {
 	LockedChanged = Signal.new();
 
 	InFirstPerson = false;
+	AllowFirstPerson = true;
 	FirstPersonChanged = Signal.new();
 }
 
@@ -40,7 +41,7 @@ function CameraController:KnitStart()
 
 	workspace.CurrentCamera.FieldOfView = self.FieldOfView
 
-	self:ToggleFirstPerson(self.InFirstPerson)
+	self:TogglePOV(self.InFirstPerson)
 end
 
 function CameraController:Destroy()
@@ -51,8 +52,9 @@ function CameraController:OnCharacterAdded(character: Model)
 	self.Character = character
 end
 
-function CameraController:ToggleFirstPerson(inFirstPerson: boolean)
-	local inFirstPerson = if inFirstPerson == nil then not self.InFirstPerson else inFirstPerson
+function CameraController:TogglePOV(enterFirstPerson: boolean)
+	local inFirstPerson = if enterFirstPerson == nil then not self.InFirstPerson else enterFirstPerson
+	if inFirstPerson and not self.AllowFirstPerson then return end
 	local localPlayer = Knit.Player
 
 	if inFirstPerson then
@@ -60,7 +62,7 @@ function CameraController:ToggleFirstPerson(inFirstPerson: boolean)
 		localPlayer.CameraMaxZoomDistance = 0.5
 	else
 		localPlayer.CameraMaxZoomDistance = 8
-		localPlayer.CameraMinZoomDistance = 2
+		localPlayer.CameraMinZoomDistance = 4
 	end
 
 	self.InFirstPerson = inFirstPerson
@@ -68,6 +70,10 @@ function CameraController:ToggleFirstPerson(inFirstPerson: boolean)
 end
 
 function CameraController:OnRenderStepped(_)
+	if not self.AllowFirstPerson and self.InFirstPerson then
+		self:TogglePOV(false)
+	end
+
 	local camera = workspace.CurrentCamera
 	local combinedOffset = self.OffsetManager:GetCombinedOffset()
 

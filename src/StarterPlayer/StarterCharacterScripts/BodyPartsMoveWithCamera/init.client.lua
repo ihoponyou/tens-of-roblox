@@ -2,7 +2,6 @@ local RunService = game:GetService("RunService")
 
 local updateEvent = script:WaitForChild("UpdateC0")
 
-local Camera = game.Workspace.CurrentCamera
 local Player = game.Players.LocalPlayer
 
 local char = Player.Character
@@ -15,7 +14,7 @@ local m = Player:GetMouse()
 
 local IsEquipped = false
 
-local function OnRenderStepped(deltaTime: number)
+local function OnRenderStepped(_: number)
 	if IsEquipped then
 		local cameraToMouse = m.Origin.Position - m.Hit.Position
 

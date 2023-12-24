@@ -28,7 +28,6 @@ local ADS_SPEED = 0.4
 local ADS_IN_DURATION = ADS_SPEED
 local ADS_OUT_DURATION = ADS_SPEED * 0.75
 
-local DEBUG = true
 local RAND = Random.new(tick())
 
 local GunClient = Component.new({
@@ -199,8 +198,10 @@ function GunClient:_ejectCasing()
 end
 
 function GunClient:_doRecoil(horizontalKick: number, verticalKick: number, ammoLeft: number)
-    ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")
-	self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
+	if CameraController.InFirstPerson then
+		ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")		
+	end
+    self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
     self:_ejectCasing()
     self.Ammo = ammoLeft
