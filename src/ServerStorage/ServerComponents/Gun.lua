@@ -14,12 +14,14 @@ local Trove = require(Packages.Trove)
 -- definitions derived from packages
 
 -- block for modules imported from same project
-local Find = require(ReplicatedStorage.Source.Modules. Find)
+local Find = require(ReplicatedStorage.Source.Modules.Find)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
+local GunConfig = require(ServerStorage.Source.GunConfig)
 
 -- module level constants
 local DEBUG = true
+local UI_EVENTS = ReplicatedStorage.UIEvents
 
 local Gun = Component.new({
 	Tag = "Gun",
@@ -38,6 +40,7 @@ function Gun:Construct()
 		CollectionService:AddTag(self.Instance, v)
 	end
 
+	self._cfg = GunConfig[self.Instance.Name]
 	self._trove = Trove.new()
 
 	self.Aiming = false
@@ -49,12 +52,12 @@ function Gun:Construct()
 	CastParams.IgnoreWater = true
 	CastParams.FilterType = Enum.RaycastFilterType.Exclude
 	CastParams.FilterDescendantsInstances = {}
-	self.CastParams = CastParams
+	self._castParams = CastParams
 
-	local recoilEvent = Instance.new("RemoteEvent")
-	recoilEvent.Name = "RecoilEvent"
-	recoilEvent.Parent = self.Instance
-	self.RecoilEvent = recoilEvent
+	local reloadEvent = Instance.new("RemoteEvent")
+	reloadEvent.Name = "Reload"
+	reloadEvent.Parent = self.Instance
+	self.ReloadEvent = reloadEvent
 end
 
 function Gun:Start()
@@ -73,13 +76,34 @@ function Gun:Start()
 		self:Fire(player, ...)
 	end
 
-self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
-	self.CanFire = equipped
-end)
+	self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
+		if equipped then
+			UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
+			UI_EVENTS.UpdateReserveAmmo:FireClient(self.Equipment.Owner, self.ReserveAmmo)
+			task.wait(.75)
+			self.CanFire = true
+		else
+			self.CanFire = false
+		end
+	end)
 
-	local config = self.Equipment.Config
-	self.Ammo = config.MagazineCapacity
-	self.ReserveAmmo = config.MagazineCapacity * config.ReserveMagazines
+	self._trove:Connect(self.ReloadEvent.OnServerEvent, function(player: Player)
+		local verbose = true
+		if self.Equipment.Owner ~= player then
+			if verbose then error("Non-owner tried reload") else return end
+		elseif not self.Equipment.IsEquipped then
+			if verbose then error("not equipped") else return end
+		elseif self.Firing then
+			if verbose then error("currently firing") else return end
+		elseif self.Reloading then
+			if verbose then error("already reloading") else return end
+		end
+
+		self:Reload()
+	end)
+
+	self.Ammo = self._cfg.MagazineCapacity
+	self.ReserveAmmo = self._cfg.MagazineCapacity * self._cfg.ReserveMagazines
 end
 
 function Gun:Stop()
@@ -89,11 +113,10 @@ end
 function Gun:PlayFireSound()
 	local soundClone: Sound = self._trove:Clone(self.FireSound)
 	soundClone.Parent = self.FireSound.Parent
-	soundClone.TimePosition = 0.02
-	soundClone.Ended:Connect(function(_) -- very inefficient but it keeps the sound's position with the firer so it doesnt sound weird
-		soundClone:Destroy()
-	end)
+	soundClone.TimePosition = 0.02 -- TODO: just fix the sounds
+
 	soundClone:Play()
+	Debris:AddItem(soundClone, soundClone.TimeLength)
 end
 
 function Gun:DoMuzzleFlash()
@@ -124,9 +147,15 @@ function Gun:MakeImpactParticleFX(position, normal) -- (adapted from FastCast Ex
 	particle.Enabled = false
 end
 
-function Gun:Fire(player, direction: Vector3)
+function Gun:Fire(_, direction: Vector3)
 	if not self.CanFire then return end
+	if self.Reloading or self.Firing then return end
+	if self.Ammo < 1 then return end
 	-- print(player, direction)
+
+	self.Firing = true
+
+	self.Ammo -= 1
 
 	-- TODO: make recoil patterns
 	local verticalKick = 25
@@ -134,10 +163,64 @@ function Gun:Fire(player, direction: Vector3)
 
 	self.Equipment.AnimationManager:PlayAnimation("Fire")
 	self.Equipment.UseEvent:FireClient(self.Equipment.Owner, horizontalKick, verticalKick)
+	UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
 
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
 	-- self:MakeImpactParticleFX()
+
+	self.Firing = false
+end
+
+function Gun:SetCurrentAmmo(ammo: number)
+	self.Ammo = ammo
+	UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, ammo)
+end
+function Gun:SetReserveAmmo(ammo: number)
+	self.ReserveAmmo = ammo
+	UI_EVENTS.UpdateReserveAmmo:FireClient(self.Equipment.Owner, ammo)
+end
+
+function Gun:_refillMagazine(roundsNeeded: number)
+	local roundsGiven = 0
+	if self.ReserveAmmo < roundsNeeded then
+		-- dump the rest of the ammo into the mag
+		roundsGiven = self.ReserveAmmo
+	else
+		roundsGiven = roundsNeeded
+	end
+	self:SetCurrentAmmo(self.Ammo + roundsGiven)
+	self:SetReserveAmmo(self.ReserveAmmo - roundsGiven)
+end
+
+function Gun:Reload()
+	if self.Reloading or self.Firing then return end
+	if self.Ammo == self._cfg.MagazineCapacity or self.ReserveAmmo < 1 then return end
+
+	local roundsNeeded = (self._cfg.MagazineCapacity - self.Ammo)
+
+	self.Reloading = true
+	self.ReloadEvent:FireClient(self.Equipment.Owner)
+
+	-- should probably sync this with anim events
+	-- self:PlayReloadSound()
+
+	local animationManager = self.Equipment.AnimationManager
+	local reloadTrack: AnimationTrack
+	if self.Aiming then
+		reloadTrack = animationManager:GetAnimation("AimReload")
+	else
+		reloadTrack = animationManager:GetAnimation("Reload")
+	end
+
+	if reloadTrack ~= nil then
+		reloadTrack:Play()
+		reloadTrack.Stopped:Wait()
+	end
+
+	self:_refillMagazine(roundsNeeded)
+
+	self.Reloading = false
 end
 
 return Gun

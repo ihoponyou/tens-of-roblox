@@ -40,13 +40,14 @@ local GunClient = Component.new({
 function GunClient:Construct()
 	self._trove = Trove.new()
     self._folder = Find.path(ReplicatedStorage, "Equipment/"..self.Instance.Name)
+    self.CasingModel = Find.path(self._folder, "Casing")
 
     self.BoltHeldOpen = false
     self._primaryDown = false
+	self._canReload = true
 
     self.AimPercent = self._trove:Add(Instance.new("NumberValue"))
-
-    self.CasingModel = Find.path(self._folder, "Casing")
+	self.ReloadEvent = self.Instance:WaitForChild("Reload")
 end
 
 function GunClient:Start()
@@ -71,6 +72,10 @@ function GunClient:Start()
             self:_onUnequipped()
         end
     end)
+
+	self._trove:Connect(self.ReloadEvent.OnClientEvent, function()
+		self:_reload()
+	end)
 end
 
 function GunClient:Stop()
@@ -113,12 +118,6 @@ function GunClient:_updateOffsets(_)
 	viewmodel.PullScale = NumberLerp(1, 0.1, self.AimPercent.Value)
 end
 
-function GunClient:_handleFireInput(_, userInputState: Enum.UserInputState, _)
-	self._primaryDown = userInputState == Enum.UserInputState.Begin
-
-	return Enum.ContextActionResult.Sink
-end
-
 function GunClient:Aim(bool: boolean)
 	-- print("aiming:", self.Aiming)
 	self.Aiming = bool
@@ -138,6 +137,20 @@ function GunClient:_handleAimInput(_, userInputState: Enum.UserInputState, _)
 	return Enum.ContextActionResult.Sink
 end
 
+function GunClient:_handleFireInput(_, userInputState: Enum.UserInputState, _)
+	self._primaryDown = userInputState == Enum.UserInputState.Begin
+
+	return Enum.ContextActionResult.Sink
+end
+
+function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
+	if userInputState ~= Enum.UserInputState.Begin or not self._canReload then return Enum.ContextActionResult.Pass end
+
+	self.ReloadEvent:FireServer()
+
+	return Enum.ContextActionResult.Sink
+end
+
 function GunClient:_onEquipped()
     self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
 	self.RecoilSpring.Speed = 10
@@ -147,13 +160,15 @@ function GunClient:_onEquipped()
     ViewmodelController.Viewmodel.OffsetManager:AddOffset("Recoil", CFrame.new(), 1)
     ViewmodelController.Viewmodel.OffsetManager:AddOffset("Aim", CFrame.new(), 0)
 
-    ContextActionService:BindActionAtPriority("FireGun", function(...)
-        self:_handleFireInput(...)
-    end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Use"))
-
     ContextActionService:BindActionAtPriority("AimGun", function(...)
         self:_handleAimInput(...)
     end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("AltUse"))
+    ContextActionService:BindActionAtPriority("FireGun", function(...)
+        self:_handleFireInput(...)
+    end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Use"))
+	ContextActionService:BindActionAtPriority("ReloadGun", function(...)
+        self:_handleReloadInput(...)
+    end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Reload"))
 
     self._trove:BindToRenderStep("UpdateAimAndRecoilOffsets", Enum.RenderPriority.Camera.Value, function(_)
         self:_updateOffsets(_)
@@ -166,7 +181,7 @@ function GunClient:_onUnequipped()
     RunService:UnbindFromRenderStep("UpdateAimAndRecoilOffsets")
 
     CameraController.OffsetManager:RemoveOffset("Recoil")
-    CameraController.OffsetManager:RemoveOffset("Aim")    
+    CameraController.OffsetManager:RemoveOffset("Aim")
 end
 
 function GunClient:_ejectCasing()
@@ -197,14 +212,30 @@ function GunClient:_ejectCasing()
 	Debris:AddItem(casingClone, 3)
 end
 
-function GunClient:_doRecoil(horizontalKick: number, verticalKick: number, ammoLeft: number)
-	if CameraController.InFirstPerson then
-		ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")		
-	end
+function GunClient:_doRecoil(horizontalKick: number, verticalKick: number)
+	ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")
     self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
     self:_ejectCasing()
-    self.Ammo = ammoLeft
+end
+
+function GunClient:_reload()
+	self._canReload = false
+
+	local animationManager = ViewmodelController.Viewmodel.AnimationManager
+	local reloadTrack: AnimationTrack
+	if self.Aiming then
+		reloadTrack = animationManager:GetAnimation("AimReload")
+	else
+		reloadTrack = animationManager:GetAnimation("Reload")
+	end
+
+	if reloadTrack ~= nil then
+		reloadTrack:Play()
+		reloadTrack.Stopped:Wait()
+	end
+
+	self._canReload = true
 end
 
 return GunClient

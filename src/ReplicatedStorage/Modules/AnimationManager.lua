@@ -36,20 +36,23 @@ end
 
 function AnimationManager:GetAnimation(animationName: string): AnimationTrack
 	if type(animationName) ~= "string" then error("Invalid animation name") end
-	local animationTrack = self._animations[animationName]
-	if animationTrack == nil then error("No loaded animation with name \""..animationName.."\"") end
 
-	return self._animations[animationName]
+	local animationTrack = self._animations[animationName]
+
+	if animationTrack == nil then warn("No loaded animation with name \""..animationName.."\"") end
+
+	return animationTrack
 end
 
 function AnimationManager:PlayAnimation(animationName: string, fadeTime: number?, weight: number?, speed: number?)
 	local animationTrack = self:GetAnimation(animationName)
-	-- if string.match(animationName, "[iI]dle") then animationTrack.Priority = Enum.AnimationPriority.Idle end
+	if not animationTrack then return end
 	animationTrack:Play(fadeTime or 0.100000001, weight or 1, speed or 1)
 end
 
 function AnimationManager:StopAnimation(animationName: string, fadeTime: number?)
 	local animationTrack = self:GetAnimation(animationName)
+	if not animationTrack then return end
 	animationTrack:Stop(fadeTime or 0.100000001)
 end
 
