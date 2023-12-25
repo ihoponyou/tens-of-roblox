@@ -53,8 +53,8 @@ function Equipment:Construct()
     end
 
     if not self.WorldModel.PrimaryPart then
-        warn(self.Instance.Name .. " model has nil PrimaryPart")
         self.WorldModel.PrimaryPart = self.WorldModel:FindFirstChild("Handle") or self.WorldModel:GetChildren()[1] -- probably unsafe
+        warn(self.Instance.Name .. " model has nil PrimaryPart; set to " .. self.WorldModel.PrimaryPart.Name)
     end
     self.WorldModel.PrimaryPart.CanCollide = true
     self.WorldModel.PrimaryPart.CollisionGroup = "Equipment"
@@ -181,6 +181,7 @@ function Equipment:Drop(player: Player): boolean?
 
     if DEBUG then print(self.Owner.Name .. " dropped " .. self.Instance.Name) end
 
+    local oldOwner = self.Owner
     self.Owner = nil
     self.Character = nil
     self.Instance:SetAttribute("OwnerID", nil)
@@ -198,6 +199,14 @@ function Equipment:Drop(player: Player): boolean?
     self.Instance.Parent = workspace
     self.WorldModel.Parent = self.Instance
 
+    task.spawn(function()
+        modelRoot:SetNetworkOwner(oldOwner)
+        repeat
+            task.wait(5)
+        until modelRoot:FindFirstAncestorOfClass("Workspace") ~= nil and not modelRoot:CanSetNetworkOwnership()
+        modelRoot:SetNetworkOwnershipAuto()
+    end)
+    
     return true
 end
 

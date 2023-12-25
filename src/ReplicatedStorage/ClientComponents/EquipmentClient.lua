@@ -96,8 +96,8 @@ function EquipmentClient:_onEquipped()
 
     if self._cfg.ThirdPersonOnly then
         self:_rigToCharacter()
-        CameraController.AllowFirstPerson = false
         -- print("this thing is 3p only!!!")
+        CameraController.AllowFirstPerson = false
     elseif CameraController.InFirstPerson then
         self:_rigToViewmodel()
         ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Equip", 0)
@@ -109,8 +109,8 @@ end
 
 function EquipmentClient:_onUnequipped()
     if self._cfg.ThirdPersonOnly then
-        CameraController.AllowFirstPerson = true
         -- print("that thing was 3p only!!!")
+        CameraController.AllowFirstPerson = true
     elseif CameraController.InFirstPerson then
         local viewmodel = ViewmodelController.Viewmodel
         if not viewmodel then error("Cannot unrig equipment from viewmodel; no viewmodel") end
@@ -130,10 +130,10 @@ function EquipmentClient:_onDropped()
     self.WorldModel.Parent = self.Instance
 
     local destinationCFrame
-    if self._cfg.ThirdPersonOnly then
-        destinationCFrame = Players.LocalPlayer.Character.PrimaryPart.CFrame -- TODO: fix this
-    else
+    if CameraController.InFirstPerson then
         destinationCFrame = workspace.CurrentCamera.CFrame
+    else
+        destinationCFrame = Players.LocalPlayer.Character.PrimaryPart.CFrame -- TODO: fix this
     end
     self.WorldModel:PivotTo(destinationCFrame + destinationCFrame.LookVector)
     self.WorldModel.PrimaryPart.AssemblyLinearVelocity = (workspace.CurrentCamera.CFrame.LookVector * 30)
