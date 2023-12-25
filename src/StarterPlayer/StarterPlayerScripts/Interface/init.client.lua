@@ -37,18 +37,6 @@ local app = Roact.createElement(RoactRodux.StoreProvider, {
 })
 Roact.mount(app, PLAYER_GUI)
 
-ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
-    if userInputState ~= Enum.UserInputState.Begin then return end
-
-    settingsOpen = not settingsOpen
-    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledSettings(settingsOpen))
-    UserInputService.MouseIconEnabled = settingsOpen
-    menuBlur.Enabled = settingsOpen
-    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not settingsOpen)
-
-    return Enum.ContextActionResult.Pass
-end, true, Enum.KeyCode.M)
-
 UI_EVENTS.UpdateCurrentAmmo.OnClientEvent:Connect(function(ammo: number)
     -- print("current ammo: "..ammo)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.UpdatedCurrentAmmo(ammo))
@@ -57,6 +45,22 @@ UI_EVENTS.UpdateReserveAmmo.OnClientEvent:Connect(function(ammo: number)
     -- print("reserve ammo: "..ammo)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.UpdatedReserveAmmo(ammo))
 end)
+UI_EVENTS.CrosshairEnabled.Event:Connect(function(enabled: boolean)
+    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.EnabledCrosshair(enabled))
+end)
+
+ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
+    if userInputState ~= Enum.UserInputState.Begin then return end
+
+    settingsOpen = not settingsOpen
+    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledSettings(settingsOpen))
+    UI_EVENTS.CrosshairEnabled:Fire(not settingsOpen)
+    UserInputService.MouseIconEnabled = settingsOpen
+    menuBlur.Enabled = settingsOpen
+    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not settingsOpen)
+
+    return Enum.ContextActionResult.Pass
+end, true, Enum.KeyCode.M)
 
 UserInputService.MouseIconEnabled = false
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)

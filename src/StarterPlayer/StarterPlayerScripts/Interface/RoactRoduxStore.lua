@@ -20,9 +20,15 @@ RoactRoduxStore.Actions = {
     ToggledSettings = function(open: boolean)
         return {
             type = "ToggledSettings";
-            settingsOpen = open
+            settingsOpen = open;
         }
-    end
+    end;
+    EnabledCrosshair = function(enable: boolean)
+        return {
+            type = "EnabledCrosshair";
+            crosshairEnabled = enable;
+        }
+    end;
 }
 
 -- each entry is also an entry in the store's (?) state
@@ -41,7 +47,12 @@ RoactRoduxStore._reducers = {
         ToggledSettings = function(state, action)
             return action.settingsOpen
         end
-    })
+    });
+    CrosshairEnabled = Rodux.createReducer(false, {
+        EnabledCrosshair = function(state, action)
+            return action.crosshairEnabled
+        end
+    });
 }
 
 RoactRoduxStore.Reducer = Rodux.combineReducers(RoactRoduxStore._reducers)

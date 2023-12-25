@@ -98,8 +98,8 @@ function GunClient:_updateOffsets(_)
     local recoilOffset = self.RecoilSpring.Position
 
 	local cameraRecoil = CFrame.Angles(
-		math.rad(recoilOffset.Y * 2),
-		math.rad(recoilOffset.X * 2),
+		math.rad(recoilOffset.Y * 3),
+		math.rad(recoilOffset.X * 3),
 		0)
 	CameraController.OffsetManager:SetOffsetValue("Recoil", cameraRecoil)
 	CameraController.OffsetManager:SetOffsetAlpha("Recoil", NumberLerp(1, 0.75, self.AimPercent.Value))
@@ -122,6 +122,8 @@ function GunClient:Aim(bool: boolean)
 	-- print("aiming:", self.Aiming)
 	self.Aiming = bool
 	-- self.AimEvent:FireServer(self.Aiming)
+
+	ReplicatedStorage.UIEvents.CrosshairEnabled:Fire(not self.Aiming)
 
 	local tweenInfo = TweenInfo.new(if self.Aiming then ADS_IN_DURATION else ADS_OUT_DURATION, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 	local properties = { Value = if self.Aiming then 1 else 0 }

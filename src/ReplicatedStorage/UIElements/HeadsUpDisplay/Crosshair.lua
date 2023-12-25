@@ -16,7 +16,6 @@ end
 
 local function MainFrame(props)
     return Roact.createElement("Frame", {
-        Name = "Crosshair";
         BackgroundTransparency = 1;
         Position = UDim2.fromScale(0.5, 0.5);
         AnchorPoint = Vector2.new(0.5, 0.5);
@@ -24,11 +23,12 @@ local function MainFrame(props)
 
         [Roact.Children] = props.children;
     })
-end 
+end
 MainFrame = RoactRodux.connect(
     function(state, props)
+        print(state)
         return {
-            visible = not state.SettingsEnabled
+            visible = not state.SettingsEnabled and state.CrosshairEnabled
         }
     end
 )(MainFrame)
