@@ -149,32 +149,46 @@ function Gun:MakeImpactParticleFX(position, normal) -- (adapted from FastCast Ex
 	particle.Enabled = false
 end
 
-function Gun:_registerHit(instance: Instance)
-	local head = Find.path(self.Equipment.Character, "Head")
-	local cast = workspace:Raycast(head.CFrame.Position, instance.CFrame.Position-head.CFrame.Position, self._castParams)
-	-- print(cast.Instance, result)
-	if not cast then
-		print("erm (found nothing instead of hit)")
+function Gun:_registerHits(hits: {Instance})
+	local verbose = false
+	if hits == nil then
+		if verbose then warn("nil hits") end
 		return
-	elseif cast.Distance > self._cfg.BulletMaxDistance then
-		print(string.format("erm... (%d vs. %d)", cast.Distance, self._cfg.BulletMaxDistance))
-		return
-	elseif cast.Instance ~= instance then
-		print(string.format("erm...... (%s vs. %s)", cast.Instance.Name, instance.Name))
+	elseif type(hits) ~= "table" then
+		if verbose then warn("invalid hit table") end
 		return
 	end
 
-	local character: Model? = instance.Parent
-	if instance.Parent == nil then return end
-	if not character:IsA("Model") then return end
+	local head = Find.path(self.Equipment.Character, "Head")
+	for _, instance in hits do
+		local cast = workspace:Raycast(head.CFrame.Position, instance.CFrame.Position-head.CFrame.Position, self._castParams)
+		-- print(cast.Instance, result)
+		if not cast then
+			print("erm (found nothing instead of hit)")
+			return
+		elseif cast.Distance > self._cfg.BulletMaxDistance then
+			print(string.format("erm... (%d vs. %d)", cast.Distance, self._cfg.BulletMaxDistance))
+			return
+		elseif cast.Instance ~= instance then
+			print(string.format("erm...... (%s vs. %s)", cast.Instance.Name, instance.Name))
+			return
+		end
 
-	local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
-	if humanoid == nil then return end
+		local character: Model? = instance.Parent
+		if instance.Parent == nil then return end
+		if not character:IsA("Model") then return end
 
-	humanoid:TakeDamage(self._cfg.Damage)
+		local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
+		if humanoid == nil then return end
+
+		local damage = self._cfg.Damage
+		if instance.Name == "Head" then damage *= 2 end
+
+		humanoid:TakeDamage(damage)
+	end
 end
 
-function Gun:Fire(_, result: Instance)
+function Gun:Fire(_, hits: {Instance})
 	if not self.CanFire then return end
 	if self.Reloading or self.Firing then return end
 	if self.Ammo < 1 then return end
@@ -197,7 +211,7 @@ function Gun:Fire(_, result: Instance)
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
 
-	self:_registerHit(result)
+	self:_registerHits(hits)
 
 	self.Firing = false
 end

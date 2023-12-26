@@ -2,20 +2,23 @@
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
 local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
 local LOCAL_PLAYER = Players.LocalPlayer
 local PLAYER_GUI = LOCAL_PLAYER:WaitForChild("PlayerGui")
 local UI_EVENTS = ReplicatedStorage.UIEvents
-local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
+local hitEvent = UI_EVENTS.Hit
 
 local Roact = require(ReplicatedStorage.Packages.Roact)
 local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 local RoactRoduxStore = require(script.RoactRoduxStore)
 
+local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
 local SettingsMenu = require(UI_ELEMENTS.SettingsMenu)
 local HeadsUpDisplay = require(UI_ELEMENTS.HeadsUpDisplay)
+
 
 -- Roact.setGlobalConfig({
 --     elementTracing = true;
@@ -47,6 +50,12 @@ UI_EVENTS.UpdateReserveAmmo.OnClientEvent:Connect(function(ammo: number)
 end)
 UI_EVENTS.CrosshairEnabled.Event:Connect(function(enabled: boolean)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.EnabledCrosshair(enabled))
+end)
+hitEvent.Event:Connect(function()
+    SoundService:PlayLocalSound(SoundService:WaitForChild("HitmarkerSound"))
+    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(true))
+    task.wait(1)
+    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(false))
 end)
 
 ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)

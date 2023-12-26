@@ -4,6 +4,7 @@ local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
 -- definition of common ancestor
@@ -31,6 +32,7 @@ local ADS_IN_DURATION = ADS_SPEED
 local ADS_OUT_DURATION = ADS_SPEED * 0.75
 
 local RAND = Random.new(tick())
+local hitEvent = ReplicatedStorage.UIEvents.Hit
 
 local GunClient = Component.new({
 	Tag = "Gun",
@@ -98,9 +100,17 @@ function GunClient:Stop()
     self._trove:Destroy()
 end
 
-function GunClient:_hitReg(result: RaycastResult?)
+function GunClient:_hitReg(result: RaycastResult?): {Instance}
 	if not result then return end
-	self.EquipmentClient:Use(result.Instance)
+
+	local parent = result.Instance.Parent
+	if parent == nil then return end
+
+	if not parent:IsA("Model") then return end
+	if parent:FindFirstChildOfClass("Humanoid") == nil then return end
+
+	hitEvent:Fire()
+	return { result.Instance }
 end
 
 function GunClient:HeartbeatUpdate(_)
@@ -129,7 +139,8 @@ function GunClient:HeartbeatUpdate(_)
 	direction *= self._cfg.BulletMaxDistance
 
 	local cast = workspace:Raycast(origin, direction, self._castParams)
-	self:_hitReg(cast)
+	local hits = self:_hitReg(cast)
+	self.EquipmentClient:Use(hits)
 
 	if not self._cfg.FullyAutomatic then
 		self._triggerDown = false

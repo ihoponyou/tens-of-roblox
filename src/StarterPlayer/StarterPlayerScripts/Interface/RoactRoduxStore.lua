@@ -29,6 +29,12 @@ RoactRoduxStore.Actions = {
             crosshairEnabled = enable;
         }
     end;
+    ToggledHitmarker = function(shown: boolean)
+        return {
+            type = "ToggledHitmarker";
+            hitmarkerShown = shown;
+        }
+    end
 }
 
 -- each entry is also an entry in the store's (?) state
@@ -53,6 +59,11 @@ RoactRoduxStore._reducers = {
             return action.crosshairEnabled
         end
     });
+    HitmarkerShown = Rodux.createReducer(false, {
+        ToggledHitmarker = function(state, action)
+            return action.hitmarkerShown
+        end
+    })
 }
 
 RoactRoduxStore.Reducer = Rodux.combineReducers(RoactRoduxStore._reducers)
