@@ -1,11 +1,26 @@
 
-local DEBUG = false
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
+local Signal = require(ReplicatedStorage.Packages.Signal)
+local Trove = require(ReplicatedStorage.Packages.Trove)
+
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
+
+local DEBUG = false
+local SOCKET_ANGLES = {
+	Hip = {
+		UpperAngle = 30;
+		TwistAngle = 135;
+	};
+	Shoulder = {
+		UpperAngle = 100;
+	};
+	Neck = {
+		UpperAngle = 10;
+		TwistAngle = 30;
+	};
+}
 
 local Ragdoll = Component.new({
 	Tag = "Ragdoll",
@@ -15,102 +30,139 @@ local Ragdoll = Component.new({
 })
 
 type RagdollJoint = {
-	Motor: Motor6D,
-	Socket: BallSocketConstraint,
+	Motor: Motor6D;
+	Socket: BallSocketConstraint;
+	DragDetector: DragDetector;
 }
 
 function Ragdoll:Construct()
+	-- new instances; base types then instances
+	self.IsRagdolled = false
+	self._joints = {}
+
 	self._trove = Trove.new()
+
+	-- existing instances
 	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid")
-	self.Joints = {}
-end
+	self.Humanoid.BreakJointsOnDeath = false
+	self._trove:Connect(self.Humanoid.Died, function()
+		self:_onDied()
+	end)
 
-function Ragdoll:OnRagdolledChanged()
-	local enabled = self.Instance:GetAttribute("Ragdolled")
-	if enabled then
-		self.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-	else
-		self.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-	end
-	self:ToggleAllJoints(enabled)
-end
+	for _, motor: Motor6D in self.Instance:GetDescendants() do
+		if not motor:IsA("Motor6D") then continue end
+		if motor.Name == "RootJoint" then continue end
+		local socketType = motor.Name:match("Hip") or motor.Name:match("Shoulder") or motor.Name:match("Neck")
+		local jointName = motor.Name:gsub(" ", "")
 
-function Ragdoll:OnDied()
-	self:ToggleAllJoints(true)
-end
+		local attachment0 = Instance.new("Attachment")
+		attachment0.Name = jointName.."Attachment0"
+		attachment0.Parent = motor.Part0
+		-- attachment0.Visible = true
 
-function Ragdoll:_readJoints(torso: Part)
-	for _, v: Instance in torso:GetChildren() do
-		if not v:IsA("Motor6D") then continue end
+		local attachment1 = Instance.new("Attachment")
+		attachment1.Name = jointName.."Attachment1"
+		attachment1.Parent = motor.Part1
+		-- attachment1.Visible = true
 
-		local socket = torso:FindFirstChild(v.Name:gsub(" ", "") .. "Socket")
-		if not socket then
-			if DEBUG then warn("Ragdoll setup @ "..self.Instance:GetFullName()..": no corresponding ballsocket to " .. v.Name) end
-			continue
+		if socketType == "Hip" then
+			local c0Position = motor.C0.Position
+			local legC0 = CFrame.new(c0Position.X/2, c0Position.Y, c0Position.Z) * motor.C0.Rotation
+			attachment0.CFrame = legC0
+
+			local c1Position = motor.C1.Position
+			local legC1 = CFrame.new(0, c1Position.Y, c1Position.Z) * motor.C1.Rotation
+			attachment1.CFrame = legC1
+		else
+			attachment0.CFrame = motor.C0
+			attachment1.CFrame = motor.C1
 		end
 
-		self.Joints[v.Name] = {
-			Motor = v,
-			Socket = socket,
+		local socket = Instance.new("BallSocketConstraint")
+		socket.Name = jointName.."Socket"
+		socket.Parent = motor.Part1
+		socket.Attachment0 = attachment0
+		socket.Attachment1 = attachment1
+		socket.LimitsEnabled = true
+		socket.MaxFrictionTorque = 100
+		socket.Restitution = 0.25
+		socket.UpperAngle = SOCKET_ANGLES[socketType].UpperAngle
+		socket.TwistLimitsEnabled = socketType ~= "Shoulder"
+		if socket.TwistLimitsEnabled then
+			local twistAngle = SOCKET_ANGLES[socketType].TwistAngle
+			socket.TwistUpperAngle = twistAngle
+			socket.TwistLowerAngle = -twistAngle
+		end
+
+		local drag = Instance.new("DragDetector")
+		drag.Parent = motor.Part1
+		drag.DragStyle = Enum.DragDetectorDragStyle.TranslateViewPlane
+		drag.Responsiveness = 10
+
+		self._joints[jointName] = {
+			Motor = motor;
+			Socket = socket;
+			DragDetector = drag;
 		}
 
-        -- need to clean up joints if the motor gets destroyed
+		-- need to clean up joints if the motor gets destroyed
         --      e.g. an explosion
-		self._trove:Connect(v:GetPropertyChangedSignal("Parent"), (function()
-			if v.Parent ~= nil then return end
+		self._trove:Connect(motor:GetPropertyChangedSignal("Parent"), (function()
+			if motor.Parent ~= nil then return end
 
 			-- "amputate" the connected limb
 			socket:Destroy()
-			v.Part1.CanCollide = true
+			motor.Part1.CanCollide = true
 
-			self.Joints[v.Name] = nil
+			self._joints[motor.Name] = nil
 		end))
 	end
-end
 
-function Ragdoll:Start()
-	local torso: Part = self.Instance:FindFirstChild("Torso")
-	if not torso then
-		error("Ragdoll setup failed; no torso found")
-	end
-
-	self:_readJoints(torso)
-
-	self.Humanoid.BreakJointsOnDeath = false
 	self._trove:Connect(self.Instance:GetAttributeChangedSignal("Ragdolled"), function()
-		self:OnRagdolledChanged()
+		self:_onRagdolledChanged()
 	end)
 end
 
-function Ragdoll:ToggleJoint(jointName: string, loose: boolean?)
-	local joint: RagdollJoint = self.Joints[jointName]
+function Ragdoll:_onRagdolledChanged()
+	local enabled = self.Instance:GetAttribute("Ragdolled")
+
+	local state = if enabled then Enum.HumanoidStateType.Physics else Enum.HumanoidStateType.GettingUp
+	self.Humanoid:ChangeState(state)
+
+	self:ToggleAllJoints(enabled)
+end
+
+function Ragdoll:_onDied()
+	self:ToggleAllJoints(true)
+end
+
+function Ragdoll:ToggleJoint(jointName: string, loose: boolean)
+	local joint: RagdollJoint = self._joints[jointName]
 	if not joint then
 		error("No joint of name " .. jointName)
 	end
 
-	loose = if loose == nil then not joint.Motor.Enabled else loose
-
 	joint.Motor.Enabled = not loose
-	joint.Motor.Part0.CanCollide = loose
+	joint.Motor.Part1.CanCollide = loose
+	joint.DragDetector.Enabled = loose
 end
 
-function Ragdoll:ToggleAllJoints(loose: boolean?)
-	local ragdolled = if loose == nil then not self.Instance:GetAttribute("Ragdolled") else loose
-
-	for k, _: RagdollJoint in self.Joints do
-		self:ToggleJoint(k, ragdolled)
-		-- ragdolled = if enable == nil then not v.Motor.Enabled else enable
+function Ragdoll:ToggleAllJoints(loose: boolean)
+	for k, _: RagdollJoint in self._joints do
+		self:ToggleJoint(k, loose)
 	end
 
-	if ragdolled then
-		self.Instance.PrimaryPart.AssemblyLinearVelocity = Vector3.new(100, 100, 100)
+	if loose then
+		local rootPart = self.Instance.PrimaryPart
+		rootPart.AssemblyLinearVelocity = rootPart.CFrame.UpVector * 25 + rootPart.CFrame.LookVector * -25
 	end
 end
 
 function Ragdoll:Stop()
 	self._trove:Destroy()
-	self.Humanoid = nil
-	self.Joints = nil
+	setmetatable(self, nil)
+    table.clear(self)
+    table.freeze(self)
 end
 
 return Ragdoll

@@ -18,18 +18,19 @@ function RagdollClient:Construct()
 	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid")
 end
 
-function RagdollClient:OnRagdolledChanged()
-	local enabled = self.Instance:GetAttribute("Ragdolled")
-	if enabled then
-		self.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-	else
-		self.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-	end
+function RagdollClient:Start()
+	self._trove:Connect(self.Instance:GetAttributeChangedSignal("Ragdolled"), function() self:_onRagdolledChanged() end)
 end
 
-function RagdollClient:Start()
-	self.Humanoid.BreakJointsOnDeath = false
-	self._trove:Connect(self.Instance:GetAttributeChangedSignal("Ragdolled"), function() self:OnRagdolledChanged() end)
+function RagdollClient:Stop()
+	self._trove:Destroy()
+end
+
+function RagdollClient:_onRagdolledChanged()
+	local enabled = self.Instance:GetAttribute("Ragdolled")
+
+	local state = if enabled then Enum.HumanoidStateType.Physics else Enum.HumanoidStateType.GettingUp
+	self.Humanoid:ChangeState(state)
 end
 
 return RagdollClient

@@ -18,7 +18,7 @@ function Hitmarker:render()
         Position = UDim2.fromScale(0.5, 0.5);
         Visible = self.props.visible;
         Image = "rbxassetid://15443763135";
-        ImageColor3 = Color3.fromRGB(255, 0, 0);
+        -- ImageColor3 = Color3.fromRGB(255, 0, 0);
         BackgroundTransparency = 1;
 
         [Roact.Change.Visible] = function(rbx: ImageLabel)

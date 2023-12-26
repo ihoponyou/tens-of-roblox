@@ -1,5 +1,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
@@ -75,7 +76,7 @@ function InventoryController:SwitchSlot(slot: string)
     self.ActiveSlot = slot
     self.ActiveItem = self.Inventory[slot]
 
-    -- nothing to equip
+    UserInputService.MouseIconEnabled = self.ActiveItem == nil
     if self.ActiveItem == nil then return end
 
     local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()

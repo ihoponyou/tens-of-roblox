@@ -66,9 +66,7 @@ function InputController:LoadKeybind(action: string, keybind: Enum.KeyCode, log:
 		function(_, userInputState: Enum.UserInputState, _)
 			if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
 
-			self["_"..action](self)
-
-			return Enum.ContextActionResult.Sink
+			return self["_"..action](self)
 		end,
 		false, keybind)
 
@@ -123,25 +121,33 @@ function InputController:GetKeybind(action: string): Enum.KeyCode
 end
 
 function InputController:_Use()
+	if InventoryController.ActiveItem == nil then return Enum.ContextActionResult.Pass end
 	InventoryController:UseActiveItem()
+	return Enum.ContextActionResult.Sink
 end
 
 function InputController:_Drop(_)
+	if InventoryController.ActiveItem == nil then return Enum.ContextActionResult.Pass end
 	InventoryController:DropActiveItem()
+	return Enum.ContextActionResult.Sink
 end
 
 function InputController:_Primary()
 	InventoryController:SwitchSlot("Primary")
+	return Enum.ContextActionResult.Sink
 end
 function InputController:_Secondary()
 	InventoryController:SwitchSlot("Secondary")
+	return Enum.ContextActionResult.Sink
 end
 function InputController:_Tertiary()
 	InventoryController:SwitchSlot("Tertiary")
+	return Enum.ContextActionResult.Sink
 end
 
 function InputController:_ChangeCameraMode()
 	CameraController:TogglePOV()
+	return Enum.ContextActionResult.Sink
 end
 
 function InputController:KnitStart()

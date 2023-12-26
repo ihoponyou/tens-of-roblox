@@ -64,14 +64,14 @@ ContextActionService:BindAction("toggle_settings", function(_, userInputState, _
     settingsOpen = not settingsOpen
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledSettings(settingsOpen))
     UI_EVENTS.CrosshairEnabled:Fire(not settingsOpen)
-    UserInputService.MouseIconEnabled = settingsOpen
+    -- UserInputService.MouseIconEnabled = settingsOpen
     menuBlur.Enabled = settingsOpen
     StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not settingsOpen)
 
     return Enum.ContextActionResult.Pass
 end, true, Enum.KeyCode.M)
 
-UserInputService.MouseIconEnabled = false
+-- UserInputService.MouseIconEnabled = false
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)

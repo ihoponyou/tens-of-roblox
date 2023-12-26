@@ -13,21 +13,13 @@ local NonplayerCharacter = Component.new({
 
 function NonplayerCharacter:Construct()
 	self._trove = Trove.new()
+
+	-- self.Character = self._trove:Clone(game.StarterPlayer.StarterCharacter)
+	-- self.Character:PivotTo(self.Instance:GetPivot())
 end
 
 function NonplayerCharacter:Start()
-	-- https://devforum.roblox.com/t/how-to-set-network-ownership-on-npc/1276268
-	for _, descendant in pairs(self.Instance:GetDescendants()) do
-		if not descendant:IsA("BasePart") then continue end
-		-- Try to set the network owner
-		local success, errorReason = descendant:CanSetNetworkOwnership()
-		if success then
-			descendant:SetNetworkOwner(nil)
-		else
-			-- Sometimes this can fail, so throw an error to prevent mixed networkownership in the 'model'
-			error(errorReason)
-		end
-	end
+	
 end
 
 function NonplayerCharacter:Stop()
