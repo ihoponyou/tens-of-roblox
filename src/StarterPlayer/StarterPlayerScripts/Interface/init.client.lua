@@ -54,7 +54,7 @@ end)
 hitEvent.Event:Connect(function()
     SoundService:PlayLocalSound(SoundService:WaitForChild("HitmarkerSound"))
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(true))
-    task.wait(1)
+    task.wait(0.2)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(false))
 end)
 

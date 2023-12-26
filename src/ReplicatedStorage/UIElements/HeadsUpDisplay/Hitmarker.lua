@@ -5,30 +5,29 @@ local TweenService = game:GetService("TweenService")
 local Roact = require(ReplicatedStorage.Packages.Roact)
 local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 
-local Hitmarker = Roact.PureComponent:extend("Hitmarker")
+local START_SIZE = UDim2.fromOffset(60, 60)
+local END_SIZE = UDim2.fromOffset(50, 50)
 
-function Hitmarker:init()
-    self._tween = nil
-end
+local Hitmarker = Roact.PureComponent:extend("Hitmarker")
 
 function Hitmarker:render()
    return Roact.createElement("ImageLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5);
-        Size = UDim2.fromOffset(25, 25);
+        Size = START_SIZE;
         Position = UDim2.fromScale(0.5, 0.5);
         Visible = self.props.visible;
-        Image = "rbxassetid://15443763135";
+        Image = "rbxassetid://15763310980";
         -- ImageColor3 = Color3.fromRGB(255, 0, 0);
         BackgroundTransparency = 1;
 
         [Roact.Change.Visible] = function(rbx: ImageLabel)
             if not rbx.Visible then return end
-            rbx.Size = UDim2.fromOffset(25, 25);
-            rbx.ImageTransparency = 0
-            rbx:TweenSize(UDim2.fromOffset(20, 20), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 1.5, true)
-
+            rbx.Size = START_SIZE
+            rbx:TweenSize(END_SIZE, Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+            
             if self._tween then self._tween:Cancel() end
-            self._tween = TweenService:Create(rbx, TweenInfo.new(1.5), {ImageTransparency = .5})
+            rbx.ImageTransparency = 0
+            self._tween = TweenService:Create(rbx, TweenInfo.new(0.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), { ImageTransparency = 0.5 })
             self._tween:Play()
         end;
     });
