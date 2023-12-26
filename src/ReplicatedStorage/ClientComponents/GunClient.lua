@@ -1,6 +1,7 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -18,6 +19,7 @@ local Trove = require(Packages.Trove)
 local InputController, ViewmodelController, CameraController
 
 -- block for modules imported from same project
+local GunConfig = require(ReplicatedStorage.Source.GunConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
@@ -38,16 +40,26 @@ local GunClient = Component.new({
 })
 
 function GunClient:Construct()
-	self._trove = Trove.new()
+	self._cfg = GunConfig[self.Instance.Name]
     self._folder = Find.path(ReplicatedStorage, "Equipment/"..self.Instance.Name)
-    self.CasingModel = Find.path(self._folder, "Casing")
 
-    self.BoltHeldOpen = false
-    self._primaryDown = false
+	self._trove = Trove.new()
+    self.CasingModel = Find.path(self._folder, "Casing")
+	self.ReloadEvent = self.Instance:WaitForChild("Reload")
+
+    self._boltHeldOpen = false
+    self._triggerDown = false
+	self._canFire = true
 	self._canReload = true
+	self._fireDelay = 1/(self._cfg.RoundsPerMinute/60)
+	self._lastShotFired = 0
+	self._currentAmmo = self._cfg.MagazineCapacity
+
+	self._castParams = RaycastParams.new()
+	self._castParams.CollisionGroup = "Character"
+	self._castParams.FilterType = Enum.RaycastFilterType.Exclude
 
     self.AimPercent = self._trove:Add(Instance.new("NumberValue"))
-	self.ReloadEvent = self.Instance:WaitForChild("Reload")
 end
 
 function GunClient:Start()
@@ -76,22 +88,56 @@ function GunClient:Start()
 	self._trove:Connect(self.ReloadEvent.OnClientEvent, function()
 		self:_reload()
 	end)
+
+	self._trove:Connect(ReplicatedStorage.UIEvents.UpdateCurrentAmmo.OnClientEvent, function(ammo: number)
+		self._currentAmmo = ammo
+	end)
 end
 
 function GunClient:Stop()
     self._trove:Destroy()
 end
 
-local db = false
+function GunClient:_hitReg(result: RaycastResult?)
+	if not result then return end
+	self.EquipmentClient:Use(result.Instance)
+end
+
 function GunClient:HeartbeatUpdate(_)
     if not self.EquipmentClient.IsEquipped then return end
+	if not self._canFire then return end
+	if not self._triggerDown then return end
+	if self._currentAmmo < 1 then return end
 
-    if not db and self._primaryDown then
-        db = true
-        self.EquipmentClient:Use(workspace.CurrentCamera.CFrame.LookVector)
-        task.wait(.1)
-        db = false
-    end
+    self._canFire = false
+
+	-- local now = time()
+	-- print("actual time between shots:", (now-self._lastShotFired), "("..tostring(self._timeBetweenShots)..")")
+	-- self._lastShotFired = now
+
+	local origin: Vector3, direction: Vector3
+	if CameraController.InFirstPerson then
+		local cameraCFrame = workspace.CurrentCamera.CFrame
+		origin = cameraCFrame.Position
+		direction = cameraCFrame.LookVector
+	else
+		local head = Find.path(Players.LocalPlayer.Character, "Head")
+		local mouse = Players.LocalPlayer:GetMouse()
+		origin = head.Position
+		direction = (mouse.Hit.Position - origin).Unit
+	end
+	direction *= self._cfg.BulletMaxDistance
+
+	local cast = workspace:Raycast(origin, direction, self._castParams)
+	self:_hitReg(cast)
+
+	if not self._cfg.FullyAutomatic then
+		self._triggerDown = false
+	end
+
+    task.delay(self._fireDelay, function()
+		self._canFire = true
+	end)
 end
 
 function GunClient:_updateOffsets(_)
@@ -140,7 +186,7 @@ function GunClient:_handleAimInput(_, userInputState: Enum.UserInputState, _)
 end
 
 function GunClient:_handleFireInput(_, userInputState: Enum.UserInputState, _)
-	self._primaryDown = userInputState == Enum.UserInputState.Begin
+	self._triggerDown = userInputState == Enum.UserInputState.Begin
 
 	return Enum.ContextActionResult.Sink
 end
@@ -154,6 +200,8 @@ function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
 end
 
 function GunClient:_onEquipped()
+	self._castParams.FilterDescendantsInstances = { Players.LocalPlayer.Character }
+
     self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
 	self.RecoilSpring.Speed = 10
 	self.RecoilSpring.Damper = 1

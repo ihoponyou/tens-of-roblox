@@ -32,7 +32,7 @@ local DefaultKeybinds: {Enum.KeyCode} = {
     };
     AltUse = {
         DisplayName = "Alternate Use/Aim (Hold)";
-        Key = Enum.UserInputType.MouseButton2;
+        Key = Enum.KeyCode.Q;
     };
     Reload = {
         DisplayName = "Reload";

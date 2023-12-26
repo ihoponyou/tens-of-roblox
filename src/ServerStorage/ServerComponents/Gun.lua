@@ -14,10 +14,10 @@ local Trove = require(Packages.Trove)
 -- definitions derived from packages
 
 -- block for modules imported from same project
+local GunConfig = require(ReplicatedStorage.Source.GunConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
-local GunConfig = require(ServerStorage.Source.GunConfig)
 
 -- module level constants
 local DEBUG = true
@@ -49,7 +49,7 @@ function Gun:Construct()
 	self.CanFire = false
 
 	local CastParams = RaycastParams.new()
-	CastParams.IgnoreWater = true
+	CastParams.CollisionGroup = "Character"
 	CastParams.FilterType = Enum.RaycastFilterType.Exclude
 	CastParams.FilterDescendantsInstances = {}
 	self._castParams = CastParams
@@ -78,11 +78,13 @@ function Gun:Start()
 
 	self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
 		if equipped then
+			self._castParams.FilterDescendantsInstances = { self.Equipment.Character }
 			UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
 			UI_EVENTS.UpdateReserveAmmo:FireClient(self.Equipment.Owner, self.ReserveAmmo)
 			task.wait(.75)
 			self.CanFire = true
 		else
+			self._castParams.FilterDescendantsInstances = {}
 			self.CanFire = false
 		end
 	end)
@@ -147,12 +149,39 @@ function Gun:MakeImpactParticleFX(position, normal) -- (adapted from FastCast Ex
 	particle.Enabled = false
 end
 
-function Gun:Fire(_, direction: Vector3)
+function Gun:_registerHit(instance: Instance)
+	local head = Find.path(self.Equipment.Character, "Head")
+	local cast = workspace:Raycast(head.CFrame.Position, instance.CFrame.Position-head.CFrame.Position, self._castParams)
+	-- print(cast.Instance, result)
+	if not cast then
+		print("erm (found nothing instead of hit)")
+		return
+	elseif cast.Distance > self._cfg.BulletMaxDistance then
+		print(string.format("erm... (%d vs. %d)", cast.Distance, self._cfg.BulletMaxDistance))
+		return
+	elseif cast.Instance ~= instance then
+		print(string.format("erm...... (%s vs. %s)", cast.Instance.Name, instance.Name))
+		return
+	end
+
+	local character: Model? = instance.Parent
+	if instance.Parent == nil then return end
+	if not character:IsA("Model") then return end
+
+	local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
+	if humanoid == nil then return end
+
+	humanoid:TakeDamage(self._cfg.Damage)
+end
+
+function Gun:Fire(_, result: Instance)
 	if not self.CanFire then return end
 	if self.Reloading or self.Firing then return end
 	if self.Ammo < 1 then return end
-	-- print(player, direction)
 
+	-- TODO: check if gun is firing too fast
+
+	-- print(result)
 	self.Firing = true
 
 	self.Ammo -= 1
@@ -167,7 +196,8 @@ function Gun:Fire(_, direction: Vector3)
 
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
-	-- self:MakeImpactParticleFX()
+
+	self:_registerHit(result)
 
 	self.Firing = false
 end
@@ -176,6 +206,7 @@ function Gun:SetCurrentAmmo(ammo: number)
 	self.Ammo = ammo
 	UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, ammo)
 end
+
 function Gun:SetReserveAmmo(ammo: number)
 	self.ReserveAmmo = ammo
 	UI_EVENTS.UpdateReserveAmmo:FireClient(self.Equipment.Owner, ammo)

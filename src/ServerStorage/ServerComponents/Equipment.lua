@@ -1,4 +1,5 @@
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Component = require(ReplicatedStorage.Packages.Component)
@@ -225,6 +226,8 @@ function Equipment:_handleUse(player, ...: any)
         if verbose then warn("Cannot use unless equipped") end
         return
     end
+
+    -- print(player, ...)
 
     self.Use(player, ...)
 

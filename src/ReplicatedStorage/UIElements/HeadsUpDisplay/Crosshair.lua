@@ -3,7 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Roact = require(ReplicatedStorage.Packages.Roact)
 local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
-local Crosshair = Roact.Component:extend("Crosshair")
+local Crosshair = Roact.PureComponent:extend("Crosshair")
 
 function Crosshair:_crosshairTick(props)
     return Roact.createElement("Frame", {
@@ -26,7 +26,6 @@ local function MainFrame(props)
 end
 MainFrame = RoactRodux.connect(
     function(state, props)
-        print(state)
         return {
             visible = not state.SettingsEnabled and state.CrosshairEnabled
         }

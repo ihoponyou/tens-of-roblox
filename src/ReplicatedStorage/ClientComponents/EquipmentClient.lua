@@ -142,6 +142,7 @@ function EquipmentClient:_onDropped()
 end
 
 function EquipmentClient:Use(...: any)
+    -- print(...)
     self.UseEvent:FireServer(...)
 end
 
