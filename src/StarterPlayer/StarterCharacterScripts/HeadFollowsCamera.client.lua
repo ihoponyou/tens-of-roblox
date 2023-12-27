@@ -11,8 +11,9 @@ local CLAMP = math.clamp
 local ORIGINAL_NECK_C0 = neck.C0
 local MAX_PERIPHERAL_ANGLE = RAD(100)
 
+function OnRenderStepped(dt: number)    
+    if not neck.Enabled then return end
 
-function OnRenderStepped(dt: number)
     local camera = workspace.CurrentCamera
 
     local worldRotation = camera.CFrame.Rotation

@@ -45,9 +45,6 @@ function Ragdoll:Construct()
 	-- existing instances
 	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid")
 	self.Humanoid.BreakJointsOnDeath = false
-	self._trove:Connect(self.Humanoid.Died, function()
-		self:_onDied()
-	end)
 
 	for _, motor: Motor6D in self.Instance:GetDescendants() do
 		if not motor:IsA("Motor6D") then continue end
@@ -96,6 +93,7 @@ function Ragdoll:Construct()
 
 		local drag = Instance.new("DragDetector")
 		drag.Parent = motor.Part1
+		drag.Enabled = false
 		drag.DragStyle = Enum.DragDetectorDragStyle.TranslateViewPlane
 		drag.Responsiveness = 10
 
@@ -128,12 +126,9 @@ function Ragdoll:_onRagdolledChanged()
 
 	local state = if enabled then Enum.HumanoidStateType.Physics else Enum.HumanoidStateType.GettingUp
 	self.Humanoid:ChangeState(state)
+	self.Humanoid.AutoRotate = not enabled
 
 	self:ToggleAllJoints(enabled)
-end
-
-function Ragdoll:_onDied()
-	self:ToggleAllJoints(true)
 end
 
 function Ragdoll:ToggleJoint(jointName: string, loose: boolean)
@@ -160,9 +155,6 @@ end
 
 function Ragdoll:Stop()
 	self._trove:Destroy()
-	setmetatable(self, nil)
-    table.clear(self)
-    table.freeze(self)
 end
 
 return Ragdoll
