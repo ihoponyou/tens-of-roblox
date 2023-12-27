@@ -21,8 +21,8 @@ local NonplayerCharacterClient = Component.new({
 })
 
 function NonplayerCharacterClient:Construct()
-    CollectionService:AddTag(self.Instance, "Ragdoll")
-	CollectionService:AddTag(self.Instance, "Knockable")
+    -- CollectionService:AddTag(self.Instance, "Ragdoll")
+	-- CollectionService:AddTag(self.Instance, "Knockable")
 
 	self._trove = Trove.new()
 
@@ -36,14 +36,9 @@ function NonplayerCharacterClient:Construct()
         }
     })
 
-	self.Character = self._trove:Clone(CHARACTER_FOLDER.CharacterModel)
-	for _, v in self.Character:GetChildren() do
-		v.Parent = self.Instance
-	end
-	self.Humanoid = Instance.new("Humanoid")
-	self.Humanoid.Parent = self.Instance
-	self.Humanoid:ApplyDescriptionReset(CHARACTER_FOLDER.NoobDescription)
-	self._trove:Add(self.Humanoid)
+	self._habitat = self.Instance:WaitForChild("Habitat").Value
+
+	self.Humanoid = self.Instance:WaitForChild("Humanoid")
 
 	self.Animator = Instance.new("Animator")
 	self.Animator.Parent = self.Humanoid
@@ -56,25 +51,31 @@ function NonplayerCharacterClient:Construct()
 	self.AnimationManager:LoadAnimations(animations:GetChildren())
 	self.AnimationManager:PlayAnimation("Idle", 0)
 
+	self._trove:Connect(self.Humanoid.MoveToFinished, function(reached: boolean)
+		self.AnimationManager:StopAnimation("Walk")
+	end)
+
     self._trove:Connect(self.Instance:GetAttributeChangedSignal("Destination"), function()
-        if self.Instance:GetAttribute("Destination") == nil then return end
-        self.Humanoid:MoveTo(self.Instance:GetAttribute("Destination"))
+		self.AnimationManager:PlayAnimation("Walk")
     end)
 
-	self.Humanoid = self.Instance:WaitForChild("Humanoid")
-	self.Animator = self.Humanoid:WaitForChild("Animator")
+	self._trove:Connect(self.Instance:GetAttributeChangedSignal("Knocked"), function()
+		local knocked = self.Instance:GetAttribute("Knocked")
+		if not knocked then return end
+
+		self.AnimationManager:StopPlayingAnimations()
+	end)
 end
 
 function NonplayerCharacterClient:Start()
-	Timer.Simple(5, function()
+	-- Timer.Simple(5, function()
         -- self:_calculateDestination()
-    end, true)
+    -- end, true)
 end
 
 function NonplayerCharacterClient:Stop()
 	self._trove:Destroy()
 end
-
 
 function NonplayerCharacterClient:_followPath()
     local waypoints

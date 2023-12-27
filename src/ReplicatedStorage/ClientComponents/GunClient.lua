@@ -71,7 +71,9 @@ function GunClient:Start()
         CameraController = Knit.GetController("CameraController")
     end):catch(warn)
 
-	self.EquipmentClient = self:GetComponent(EquipmentClient)
+	EquipmentClient:WaitForInstance(self.Instance):andThen(function(component)
+		self.EquipmentClient = component
+	end):catch(warn):await()
 
 	self.Magazine = self.EquipmentClient.WorldModel:WaitForChild("Magazine")
 

@@ -166,12 +166,15 @@ function Gun:_registerHits(hits: {Instance})
 		if not cast then
 			print("erm (found nothing instead of hit)")
 			return
-		elseif cast.Distance > self._cfg.BulletMaxDistance then
+		elseif cast.Distance - self._cfg.BulletMaxDistance > 50 then
 			print(string.format("erm... (%d vs. %d)", cast.Distance, self._cfg.BulletMaxDistance))
 			return
 		elseif cast.Instance ~= instance then
-			print(string.format("erm...... (%s vs. %s)", cast.Instance.Name, instance.Name))
-			return
+			local distance = (cast.Position - instance.CFrame.Position).Magnitude
+			if distance > 10 then
+				print(string.format("erm...... (%s vs. %s)", cast.Instance.Name, instance.Name))
+				return
+			end
 		end
 
 		local character: Model? = instance.Parent

@@ -1,4 +1,5 @@
 
+local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Component = require(ReplicatedStorage.Packages.Component)
@@ -96,6 +97,7 @@ function Ragdoll:Construct()
 		drag.Enabled = false
 		drag.DragStyle = Enum.DragDetectorDragStyle.TranslateViewPlane
 		drag.Responsiveness = 10
+		drag.MaxActivationDistance = 10
 
 		self._joints[jointName] = {
 			Motor = motor;
@@ -149,6 +151,8 @@ function Ragdoll:ToggleAllJoints(loose: boolean)
 
 	if loose then
 		local rootPart = self.Instance.PrimaryPart
+		if rootPart == nil then return end
+		if rootPart.AssemblyLinearVelocity.Magnitude > 1 then return end
 		rootPart.AssemblyLinearVelocity = rootPart.CFrame.UpVector * 25 + rootPart.CFrame.LookVector * -25
 	end
 end

@@ -35,6 +35,7 @@ end
 function Knockable:_onKnockedChanged(isKnocked: boolean)
     self.IsKnocked = isKnocked
     self.Instance:SetAttribute("Ragdolled", isKnocked)
+    self.Instance:SetAttribute("Knocked", isKnocked)
     self.Humanoid:UnequipTools() -- TODO: replace this
 end
 

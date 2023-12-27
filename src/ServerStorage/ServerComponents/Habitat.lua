@@ -8,6 +8,8 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
+local GetRandomPositionInPart = require(ReplicatedStorage.Source.Modules.GetRandomPositionInPart)
+
 local Habitat = Component.new({
 	Tag = "Habitat",
 	Extensions = {
@@ -22,12 +24,12 @@ function Habitat:Construct()
     self._populus = {}
 
     for i=1, self.Population do
-        local npc = Instance.new("Model")
+        local npc = self._trove:Clone(ReplicatedStorage.Character.CharacterModel)
         npc.Name = i
         npc.Parent = self.Instance
         CollectionService:AddTag(npc, "NonplayerCharacter")
 
-        npc:PivotTo(self.Instance.CFrame * CFrame.new(0, 5, 0))
+        npc:PivotTo(CFrame.new(GetRandomPositionInPart(self.Instance)))
         table.insert(self._populus, npc)
     end
 end
