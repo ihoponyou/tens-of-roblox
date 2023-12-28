@@ -18,3 +18,8 @@ Rodux = "roblox/rodux@3.0.0"
 RoactRodux = "roblox/roact-rodux@0.3.0"
 EnumList = "sleitnick/enum-list@2.1.0"
 Timer = "sleitnick/timer@1.1.2"
+RoactSpring = "chriscerie/roact-spring@2.0.0"
+
+React = "jsdotlua/react@17.1.0"
+ReactSpring = "chriscerie/react-spring@2.0.0"
+ReactRedux = "chriscerie/react-redux@0.1.0"

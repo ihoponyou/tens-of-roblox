@@ -11,8 +11,9 @@ local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 local RoactRoduxStore = require(script.RoactRoduxStore)
 
 local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
-local SettingsMenu = require(UI_ELEMENTS.SettingsMenu)
+-- local SettingsMenu = require(UI_ELEMENTS.SettingsMenu)
 local HeadsUpDisplay = require(UI_ELEMENTS.HeadsUpDisplay)
+local SpringTest = require(script.SpringTest)
 
 local LOCAL_PLAYER = Players.LocalPlayer
 local PLAYER_GUI = LOCAL_PLAYER:WaitForChild("PlayerGui")
@@ -24,19 +25,18 @@ local inventoryEvent = UI_EVENTS.UpdatedInventory
 --     elementTracing = true;
 -- })
 
-local menuBlur = Instance.new("BlurEffect")
-menuBlur.Enabled = false
-menuBlur.Size = 16
-menuBlur.Name = "MenuBlur"
-menuBlur.Parent = workspace.CurrentCamera
-
-local settingsOpen = false
+-- local menuBlur = Instance.new("BlurEffect")
+-- menuBlur.Enabled = false
+-- menuBlur.Size = 16
+-- menuBlur.Name = "MenuBlur"
+-- menuBlur.Parent = workspace.CurrentCamera
 
 local app = Roact.createElement(RoactRodux.StoreProvider, {
     store = RoactRoduxStore.Instance;
 }, {
-    SettingsGui = Roact.createElement(SettingsMenu);
+    -- SettingsGui = Roact.createElement(SettingsMenu);
     HUD = Roact.createElement(HeadsUpDisplay);
+    -- SpringTest = Roact.createElement(SpringTest);
 })
 Roact.mount(app, PLAYER_GUI)
 
@@ -51,11 +51,11 @@ end)
 UI_EVENTS.CrosshairEnabled.Event:Connect(function(enabled: boolean)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.EnabledCrosshair(enabled))
 end)
-hitEvent.Event:Connect(function()
+UI_EVENTS.HitRegistered.OnClientEvent:Connect(function()
     SoundService:PlayLocalSound(SoundService:WaitForChild("HitmarkerSound"))
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(true))
-    task.wait(0.2)
-    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(false))
+    -- task.wait(0.2)
+    -- RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(false))
 end)
 
 inventoryEvent.Event:Connect(function(newInventory: {Instance})
@@ -63,18 +63,18 @@ inventoryEvent.Event:Connect(function(newInventory: {Instance})
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.UpdatedInventory(newInventory))
 end)
 
-ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
-    if userInputState ~= Enum.UserInputState.Begin then return end
+-- ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
+--     if userInputState ~= Enum.UserInputState.Begin then return end
 
-    settingsOpen = not settingsOpen
-    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledSettings(settingsOpen))
-    UI_EVENTS.CrosshairEnabled:Fire(not settingsOpen)
-    -- UserInputService.MouseIconEnabled = settingsOpen
-    menuBlur.Enabled = settingsOpen
-    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not settingsOpen)
+--     settingsOpen = not settingsOpen
+--     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledSettings(settingsOpen))
+--     UI_EVENTS.CrosshairEnabled:Fire(not settingsOpen)
+--     -- UserInputService.MouseIconEnabled = settingsOpen
+--     menuBlur.Enabled = settingsOpen
+--     StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not settingsOpen)
 
-    return Enum.ContextActionResult.Pass
-end, true, Enum.KeyCode.M)
+--     return Enum.ContextActionResult.Pass
+-- end, true, Enum.KeyCode.M)
 
 -- UserInputService.MouseIconEnabled = false
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)

@@ -82,7 +82,7 @@ function Equipment:Construct()
     self.PickUpPrompt = self._trove:Add(Instance.new("ProximityPrompt"))
     self.PickUpPrompt.Name = "PickUpPrompt"
     self.PickUpPrompt.Parent = self.WorldModel
-    self.PickUpPrompt.Style = Enum.ProximityPromptStyle.Custom
+    -- self.PickUpPrompt.Style = Enum.ProximityPromptStyle.Custom
 
     self.UseEvent = self._trove:Add(Instance.new("RemoteEvent"))
     self.UseEvent.Name = "UseEvent"

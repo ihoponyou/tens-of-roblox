@@ -22,7 +22,7 @@ local function MainFrame(props)
         Visible = props.visible;
         Rotation = props.rotation or 0;
 
-        [Roact.Children] = props.children;
+        [Roact.Children] = props.ticks;
     })
 end
 MainFrame = RoactRodux.connect(
@@ -36,7 +36,7 @@ MainFrame = RoactRodux.connect(
 function Crosshair:render()
     return Roact.createElement(MainFrame, {
         rotation = self.props.rotation;
-        children = {
+        ticks = {
             North = self:_crosshairTick{
                 anchorPoint = Vector2.new(0.5, 1);
                 vertical = true;

@@ -11,7 +11,7 @@ function PromptGui:render()
         Size = UDim2.fromOffset(200, 50);
         Enabled = false;
         StudsOffset = Vector3.yAxis * 0.5;
-        [Roact.Ref] = self.props.ref;
+        -- [Roact.Ref] = self.props.ref;
     }, {
         PromptLabel = Roact.createElement("TextLabel", {
             BackgroundTransparency = 1;

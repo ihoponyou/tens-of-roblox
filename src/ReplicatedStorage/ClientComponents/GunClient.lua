@@ -32,7 +32,6 @@ local ADS_IN_DURATION = ADS_SPEED
 local ADS_OUT_DURATION = ADS_SPEED * 0.75
 
 local RAND = Random.new(tick())
-local hitEvent = ReplicatedStorage.UIEvents.Hit
 
 local GunClient = Component.new({
 	Tag = "Gun",
@@ -51,8 +50,8 @@ function GunClient:Construct()
 
     self._boltHeldOpen = false
     self._triggerDown = false
-	self._canFire = true
-	self._canReload = true
+	self._firing = false
+	self._reloading = false
 	self._fireDelay = 1/(self._cfg.RoundsPerMinute/60)
 	self._lastShotFired = 0
 	self._currentAmmo = self._cfg.MagazineCapacity
@@ -77,9 +76,9 @@ function GunClient:Start()
 
 	self.Magazine = self.EquipmentClient.WorldModel:WaitForChild("Magazine")
 
-    self._trove:Connect(self.EquipmentClient.UseEvent.OnClientEvent, function(...: any)
-        self:_doRecoil(...)
-    end)
+    -- self._trove:Connect(self.EquipmentClient.UseEvent.OnClientEvent, function(...: any)
+    --     self:_doRecoil(...)
+    -- end)
 
     self._trove:Connect(self.EquipmentClient.Equipped, function(equipped: boolean)
         if equipped then
@@ -102,26 +101,12 @@ function GunClient:Stop()
     self._trove:Destroy()
 end
 
-function GunClient:_hitReg(result: RaycastResult?): {Instance}
-	if not result then return end
-
-	local parent = result.Instance.Parent
-	if parent == nil then return end
-
-	if not parent:IsA("Model") then return end
-	if parent:FindFirstChildOfClass("Humanoid") == nil then return end
-
-	hitEvent:Fire()
-	return { result.Instance }
-end
-
-function GunClient:HeartbeatUpdate(_)
-    if not self.EquipmentClient.IsEquipped then return end
-	if not self._canFire then return end
-	if not self._triggerDown then return end
+function GunClient:_fire()
+	if self._firing then return end
+	if self._reloading then return end
 	if self._currentAmmo < 1 then return end
 
-    self._canFire = false
+    self._firing = true
 
 	-- local now = time()
 	-- print("actual time between shots:", (now-self._lastShotFired), "("..tostring(self._timeBetweenShots)..")")
@@ -141,16 +126,24 @@ function GunClient:HeartbeatUpdate(_)
 	direction *= self._cfg.BulletMaxDistance
 
 	local cast = workspace:Raycast(origin, direction, self._castParams)
-	local hits = self:_hitReg(cast)
+	local hits = if cast then { cast.Instance } else nil -- eventually add piercing
 	self.EquipmentClient:Use(hits)
+	self:_doRecoil()
 
 	if not self._cfg.FullyAutomatic then
 		self._triggerDown = false
 	end
 
     task.delay(self._fireDelay, function()
-		self._canFire = true
+		self._firing = false
 	end)
+end
+
+function GunClient:HeartbeatUpdate(_)
+    if not self.EquipmentClient.IsEquipped then return end
+	if not self._triggerDown then return end
+
+	self:_fire()
 end
 
 function GunClient:_updateOffsets(_)
@@ -179,6 +172,7 @@ end
 
 function GunClient:Aim(bool: boolean)
 	-- print("aiming:", self.Aiming)
+	if self.Aiming == bool then return end
 	self.Aiming = bool
 	-- self.AimEvent:FireServer(self.Aiming)
 
@@ -205,9 +199,12 @@ function GunClient:_handleFireInput(_, userInputState: Enum.UserInputState, _)
 end
 
 function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
-	if userInputState ~= Enum.UserInputState.Begin or not self._canReload then return Enum.ContextActionResult.Pass end
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
 
-	self.ReloadEvent:FireServer()
+	if not self._reloading then
+		self:Aim(false)
+		self.ReloadEvent:FireServer()
+	end
 
 	return Enum.ContextActionResult.Sink
 end
@@ -275,15 +272,19 @@ function GunClient:_ejectCasing()
 	Debris:AddItem(casingClone, 3)
 end
 
-function GunClient:_doRecoil(horizontalKick: number, verticalKick: number)
+function GunClient:_doRecoil()
 	ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")
+	
+	-- TODO: make recoil patterns
+	local verticalKick = 25
+	local horizontalKick = math.random(-10, 10)
     self.RecoilSpring:Impulse(Vector3.new(horizontalKick, verticalKick, verticalKick))
 
     self:_ejectCasing()
 end
 
 function GunClient:_reload()
-	self._canReload = false
+	self._reloading = true
 
 	local animationManager = ViewmodelController.Viewmodel.AnimationManager
 	local reloadTrack: AnimationTrack
@@ -298,7 +299,7 @@ function GunClient:_reload()
 		reloadTrack.Stopped:Wait()
 	end
 
-	self._canReload = true
+	self._reloading = false
 end
 
 return GunClient

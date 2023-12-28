@@ -188,6 +188,7 @@ function Gun:_registerHits(hits: {Instance})
 		if instance.Name == "Head" then damage *= 2 end
 
 		humanoid:TakeDamage(damage)
+		UI_EVENTS.HitRegistered:FireClient(self.Equipment.Owner)
 	end
 end
 
@@ -204,11 +205,11 @@ function Gun:Fire(_, hits: {Instance})
 	self.Ammo -= 1
 
 	-- TODO: make recoil patterns
-	local verticalKick = 25
-	local horizontalKick = math.random(-10, 10)
+	-- local verticalKick = 25
+	-- local horizontalKick = math.random(-10, 10)
 
 	self.Equipment.AnimationManager:PlayAnimation("Fire")
-	self.Equipment.UseEvent:FireClient(self.Equipment.Owner, horizontalKick, verticalKick)
+	-- self.Equipment.UseEvent:FireClient(self.Equipment.Owner, horizontalKick, verticalKick)
 	UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
 
 	self:PlayFireSound()

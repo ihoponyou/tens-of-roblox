@@ -16,7 +16,7 @@ local function MainFrame(props)
         Size = UDim2.fromScale(1, 1);
         BackgroundTransparency = 1;
         Visible = props.enabled;
-        [Roact.Children] = props.children;
+        [Roact.Children] = props.elements;
     })
 end
 MainFrame = RoactRodux.connect(
@@ -32,7 +32,7 @@ function HeadsUpDisplay:render()
         IgnoreGuiInset = true;
     }, {
         MainFrame = Roact.createElement(MainFrame, {
-            children = {
+            elements = {
                 UIPadding = Roact.createElement("UIPadding", {
                     PaddingBottom = UDim.new(0.03, 0);
                     PaddingTop = UDim.new(0.03, 0);

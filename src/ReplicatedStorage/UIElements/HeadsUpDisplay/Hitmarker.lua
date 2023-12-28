@@ -23,12 +23,15 @@ function Hitmarker:render()
         [Roact.Change.Visible] = function(rbx: ImageLabel)
             if not rbx.Visible then return end
             rbx.Size = START_SIZE
-            rbx:TweenSize(END_SIZE, Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+            rbx:TweenSize(END_SIZE, Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true, function(...)
+                print(...)
+                -- rbx.Visible = false
+            end)
             
-            if self._tween then self._tween:Cancel() end
-            rbx.ImageTransparency = 0
-            self._tween = TweenService:Create(rbx, TweenInfo.new(0.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), { ImageTransparency = 0.5 })
-            self._tween:Play()
+            -- if self._tween then self._tween:Cancel() end
+            -- rbx.ImageTransparency = 0
+            -- self._tween = TweenService:Create(rbx, TweenInfo.new(0.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), { ImageTransparency = 0.5 })
+            -- self._tween:Play()
         end;
     });
 end

@@ -45,12 +45,12 @@ function EquipmentClient:Construct()
 
     self.ProximityPrompt = self.WorldModel:WaitForChild("PickUpPrompt")
     self.ProximityPrompt.RequiresLineOfSight = false
-    self.PromptGui = Roact.createRef()
-    local promptGui = Roact.createElement(PromptGui, {
-        equipment_name = self.Instance.Name;
-        ref = self.PromptGui;
-    })
-    self._promptTree = Roact.mount(promptGui, self.WorldModel)
+    -- self.PromptGui = Roact.createRef()
+    -- local promptGui = Roact.createElement(PromptGui, {
+    --     equipment_name = self.Instance.Name;
+    --     -- ref = self.PromptGui;
+    -- })
+    -- self._promptTree = Roact.mount(promptGui, self.WorldModel)
 
     self.EquipRequest = self.Instance:WaitForChild("EquipRequest")
     self.PickUpRequest = self.Instance:WaitForChild("PickUpRequest")
@@ -197,8 +197,8 @@ function EquipmentClient:Start()
     self._trove:Connect(self.ProximityPrompt.Triggered, function()
         self:PickUp()
     end)
-    self._trove:Connect(self.ProximityPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
-    self._trove:Connect(self.ProximityPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)
+    -- self._trove:Connect(self.ProximityPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
+    -- self._trove:Connect(self.ProximityPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)
 end
 
 function EquipmentClient:Stop()
