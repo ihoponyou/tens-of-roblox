@@ -4,11 +4,13 @@ local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
-local Configs = require(ReplicatedStorage.Source.EquipmentConfigs)
-local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local InventoryService
 
+local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
+local Configs = require(ReplicatedStorage.Source.EquipmentConfigs)
+
 local DEBUG = false
+local UPDATE_INVENTORY_EVENT = ReplicatedStorage.UIEvents.UpdatedInventory
 
 local InventoryController = Knit.CreateController({
     Name = "InventoryController";
@@ -25,6 +27,7 @@ function InventoryController:_onItemAdded(item: Instance)
 
     self.Inventory[slotType] = item
     if DEBUG then print(self.Inventory) end
+    UPDATE_INVENTORY_EVENT:Fire(self.Inventory)
 
     if self.ActiveSlot ~= slotType then return end
     self.ActiveItem = item
@@ -45,8 +48,10 @@ function InventoryController:_onItemRemoved(item: Instance)
     if not entry or entry ~= item then error("you do not have", item) end
 
     self.Inventory[slotType] = nil
-    if self.ActiveItem == item then self.ActiveItem = nil end
     if DEBUG then print(self.Inventory) end
+    UPDATE_INVENTORY_EVENT:Fire(self.Inventory)
+
+    if self.ActiveItem == item then self.ActiveItem = nil end
 end
 
 function InventoryController:UseActiveItem()

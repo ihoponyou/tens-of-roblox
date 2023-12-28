@@ -34,6 +34,17 @@ RoactRoduxStore.Actions = {
             type = "ToggledHitmarker";
             hitmarkerShown = shown;
         }
+    end;
+    UpdatedInventory = function(newInventory: {any})
+        local parsedInventory = {}
+        for k,v in newInventory do
+            parsedInventory[k] = tostring(v)
+        end
+
+        return {
+            type = "UpdatedInventory";
+            inventory = parsedInventory
+        }
     end
 }
 
@@ -63,7 +74,12 @@ RoactRoduxStore._reducers = {
         ToggledHitmarker = function(state, action)
             return action.hitmarkerShown
         end
-    })
+    });
+    Inventory = Rodux.createReducer({}, {
+        UpdatedInventory = function(_, action)
+            return action.inventory
+        end
+    });
 }
 
 RoactRoduxStore.Reducer = Rodux.combineReducers(RoactRoduxStore._reducers)

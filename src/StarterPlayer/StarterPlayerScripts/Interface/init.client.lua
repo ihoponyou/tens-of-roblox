@@ -6,11 +6,6 @@ local SoundService = game:GetService("SoundService")
 local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
-local LOCAL_PLAYER = Players.LocalPlayer
-local PLAYER_GUI = LOCAL_PLAYER:WaitForChild("PlayerGui")
-local UI_EVENTS = ReplicatedStorage.UIEvents
-local hitEvent = UI_EVENTS.Hit
-
 local Roact = require(ReplicatedStorage.Packages.Roact)
 local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 local RoactRoduxStore = require(script.RoactRoduxStore)
@@ -19,6 +14,11 @@ local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
 local SettingsMenu = require(UI_ELEMENTS.SettingsMenu)
 local HeadsUpDisplay = require(UI_ELEMENTS.HeadsUpDisplay)
 
+local LOCAL_PLAYER = Players.LocalPlayer
+local PLAYER_GUI = LOCAL_PLAYER:WaitForChild("PlayerGui")
+local UI_EVENTS = ReplicatedStorage.UIEvents
+local hitEvent = UI_EVENTS.Hit
+local inventoryEvent = UI_EVENTS.UpdatedInventory
 
 -- Roact.setGlobalConfig({
 --     elementTracing = true;
@@ -56,6 +56,11 @@ hitEvent.Event:Connect(function()
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(true))
     task.wait(0.2)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(false))
+end)
+
+inventoryEvent.Event:Connect(function(newInventory: {Instance})
+    -- print(newInventory)
+    RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.UpdatedInventory(newInventory))
 end)
 
 ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
