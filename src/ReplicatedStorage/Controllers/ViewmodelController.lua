@@ -25,7 +25,7 @@ function ViewmodelController:OnCharacterAdded(character: Model)
     -- apply local player's avatar to viewmodel
     viewmodelModel.RigHumanoid:ApplyDescription(
         if Knit.Player.UserId < 0 then
-            ReplicatedStorage.GuestDescription
+            ReplicatedStorage.Character.GuestDescription
         else
             Players:GetHumanoidDescriptionFromUserId(Knit.Player.UserId)
     )
