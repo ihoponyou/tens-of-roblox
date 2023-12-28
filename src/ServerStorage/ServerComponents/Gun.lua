@@ -90,7 +90,7 @@ function Gun:Start()
 	end)
 
 	self._trove:Connect(self.ReloadEvent.OnServerEvent, function(player: Player)
-		local verbose = true
+		local verbose = false
 		if self.Equipment.Owner ~= player then
 			if verbose then error("Non-owner tried reload") else return end
 		elseif not self.Equipment.IsEquipped then
@@ -159,23 +159,23 @@ function Gun:_registerHits(hits: {Instance})
 		return
 	end
 
-	local head = Find.path(self.Equipment.Character, "Head")
+	-- local head = Find.path(self.Equipment.Character, "Head")
 	for _, instance in hits do
-		local cast = workspace:Raycast(head.CFrame.Position, instance.CFrame.Position-head.CFrame.Position, self._castParams)
+		-- local cast = workspace:Raycast(head.CFrame.Position, instance.CFrame.Position-head.CFrame.Position, self._castParams)
 		-- print(cast.Instance, result)
-		if not cast then
-			print("erm (found nothing instead of hit)")
-			return
-		elseif cast.Distance - self._cfg.BulletMaxDistance > 50 then
-			print(string.format("erm... (%d vs. %d)", cast.Distance, self._cfg.BulletMaxDistance))
-			return
-		elseif cast.Instance ~= instance then
-			local distance = (cast.Position - instance.CFrame.Position).Magnitude
-			if distance > 10 then
-				print(string.format("erm...... (%s vs. %s)", cast.Instance.Name, instance.Name))
-				return
-			end
-		end
+		-- if not cast then
+		-- 	print("erm (found nothing instead of hit)")
+		-- 	return
+		-- elseif cast.Distance - self._cfg.BulletMaxDistance > 50 then
+		-- 	print(string.format("erm... (%d vs. %d)", cast.Distance, self._cfg.BulletMaxDistance))
+		-- 	return
+		-- elseif cast.Instance ~= instance then
+		-- 	local distance = (cast.Position - instance.CFrame.Position).Magnitude
+		-- 	if distance > 10 then
+		-- 		print(string.format("erm...... (%s vs. %s)", cast.Instance.Name, instance.Name))
+		-- 		return
+		-- 	end
+		-- end
 
 		local character: Model? = instance.Parent
 		if instance.Parent == nil then return end
