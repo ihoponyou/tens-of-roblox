@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local InventoryService
 
@@ -17,6 +18,7 @@ local InventoryController = Knit.CreateController({
     Inventory = {};
     ActiveItem = nil;
     ActiveSlot = nil;
+    ActiveSlotChanged = Signal.new()
 })
 
 function InventoryController:_onItemAdded(item: Instance)
@@ -71,14 +73,13 @@ function InventoryController:SwitchSlot(slot: string)
     if not isValidSlot(slot) then error("invalid slot") end
     -- print("switch from", self.ActiveItem, "to", self.Inventory[slot])
 
-    if self.ActiveSlot == slot then return end
-
     if self.ActiveItem ~= nil then
         local unequipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Unequip()
         if not unequipSuccess then error("could not unequip old slot") end
     end
 
     self.ActiveSlot = slot
+    self.ActiveSlotChanged:Fire(slot)
     self.ActiveItem = self.Inventory[slot]
 
     UserInputService.MouseIconEnabled = self.ActiveItem == nil

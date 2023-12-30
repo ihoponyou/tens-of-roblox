@@ -7,7 +7,6 @@ local RoactRodux = require(ReplicatedStorage.Packages.RoactRodux)
 
 local AmmoCounters = require(script.AmmoCounters)
 local Crosshair = require(script.Crosshair)
-local Hitmarker = require(script.Hitmarker)
 local InventorySlots = require(script.InventorySlots)
 local HeadsUpDisplay = Roact.Component:extend("HeadsUpDisplay")
 
@@ -45,7 +44,6 @@ function HeadsUpDisplay:render()
                     thickness = 2;
                     color = Color3.fromRGB(255, 255, 255);
                 });
-                Hitmarker = Roact.createElement(Hitmarker);
                 AmmoCounters = Roact.createElement(AmmoCounters);
                 InventorySlots = Roact.createElement(InventorySlots);
             }

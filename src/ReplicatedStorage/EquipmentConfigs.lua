@@ -7,7 +7,7 @@ local Configs = {
 		SlotType = "Secondary";
 		ThirdPersonOnly = false;
 	};
-    ["DragonSlayer"] = {
+    ["Dragonslayer"] = {
         SlotType = "Primary";
 		ThirdPersonOnly = true;
     }

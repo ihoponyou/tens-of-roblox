@@ -29,12 +29,6 @@ RoactRoduxStore.Actions = {
             crosshairEnabled = enable;
         }
     end;
-    ToggledHitmarker = function(shown: boolean)
-        return {
-            type = "ToggledHitmarker";
-            hitmarkerShown = shown;
-        }
-    end;
     UpdatedInventory = function(newInventory: {any})
         local parsedInventory = {}
         for k,v in newInventory do
@@ -68,11 +62,6 @@ RoactRoduxStore._reducers = {
     CrosshairEnabled = Rodux.createReducer(false, {
         EnabledCrosshair = function(state, action)
             return action.crosshairEnabled
-        end
-    });
-    HitmarkerShown = Rodux.createReducer(false, {
-        ToggledHitmarker = function(state, action)
-            return action.hitmarkerShown
         end
     });
     Inventory = Rodux.createReducer({}, {
