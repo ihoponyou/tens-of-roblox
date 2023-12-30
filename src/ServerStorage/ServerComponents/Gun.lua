@@ -159,10 +159,9 @@ function Gun:_registerHits(hits: {Instance})
 		return
 	end
 
-	-- local head = Find.path(self.Equipment.Character, "Head")
+	-- local head = self.Equipment.Character:FindFirstChild("Head")
 	for _, instance in hits do
 		-- local cast = workspace:Raycast(head.CFrame.Position, instance.CFrame.Position-head.CFrame.Position, self._castParams)
-		-- print(cast.Instance, result)
 		-- if not cast then
 		-- 	print("erm (found nothing instead of hit)")
 		-- 	return
@@ -183,12 +182,27 @@ function Gun:_registerHits(hits: {Instance})
 
 		local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
 		if humanoid == nil then return end
+		if humanoid.Health <= 0 then return end
 
 		local damage = self._cfg.Damage
-		if instance.Name == "Head" then damage *= 2 end
+		local isHeadshot = instance.Name == "Head"
+
+		if isHeadshot then
+			damage *= 2
+		end
 
 		humanoid:TakeDamage(damage)
-		UI_EVENTS.HitRegistered:FireClient(self.Equipment.Owner)
+
+		local hitType = "Hit"
+		if humanoid.Health <= 0 then
+			hitType = "Kill"
+		-- elseif isHeadshot then
+		-- 	hitType = "Headshot"
+		elseif damage < 15 then
+			hitType = "Graze"
+		end
+
+		UI_EVENTS.HitRegistered:FireClient(self.Equipment.Owner, hitType)
 	end
 end
 

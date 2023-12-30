@@ -52,7 +52,7 @@ UI_EVENTS.CrosshairEnabled.Event:Connect(function(enabled: boolean)
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.EnabledCrosshair(enabled))
 end)
 UI_EVENTS.HitRegistered.OnClientEvent:Connect(function()
-    SoundService:PlayLocalSound(SoundService:WaitForChild("HitmarkerSound"))
+    
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(true))
     -- task.wait(0.2)
     -- RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledHitmarker(false))
@@ -63,20 +63,6 @@ inventoryEvent.Event:Connect(function(newInventory: {Instance})
     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.UpdatedInventory(newInventory))
 end)
 
--- ContextActionService:BindAction("toggle_settings", function(_, userInputState, _)
---     if userInputState ~= Enum.UserInputState.Begin then return end
-
---     settingsOpen = not settingsOpen
---     RoactRoduxStore.Instance:dispatch(RoactRoduxStore.Actions.ToggledSettings(settingsOpen))
---     UI_EVENTS.CrosshairEnabled:Fire(not settingsOpen)
---     -- UserInputService.MouseIconEnabled = settingsOpen
---     menuBlur.Enabled = settingsOpen
---     StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not settingsOpen)
-
---     return Enum.ContextActionResult.Pass
--- end, true, Enum.KeyCode.M)
-
--- UserInputService.MouseIconEnabled = false
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
