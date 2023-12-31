@@ -7,7 +7,7 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local Configs = require(ReplicatedStorage.Source.EquipmentConfigs)
+local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local AnimationManager = require(ReplicatedStorage.Source.Modules.AnimationManager)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
@@ -39,7 +39,7 @@ function Equipment:Construct()
 
     self.IsEquipped = false
     self.Owner = nil
-    self.Config = Configs[self.Instance.Name]
+    self.Config = EquipmentConfig[self.Instance.Name]
 
     if not isValidSlotType(self.Config.SlotType) then error("Invalid slot type") end
 
@@ -73,6 +73,7 @@ function Equipment:Construct()
     self.PickUpRequest = self._trove:Add(Instance.new("RemoteFunction"))
     self.PickUpRequest.Name = "PickUpRequest"
     self.PickUpRequest.Parent = self.Instance
+    self.PickedUp = Signal.new()
 
     self.EquipRequest = self._trove:Add(Instance.new("RemoteFunction"))
     self.EquipRequest.Name = "EquipRequest"
@@ -101,8 +102,7 @@ function Equipment:PickUp(player: Player): boolean
     local character = player.Character
     if not character then error("Cannot rig equipment to owner; no character") end
 
-    -- TODO: check for proper holster limb
-    local holsterLimb = character:FindFirstChild("Torso")
+    local holsterLimb = character:FindFirstChild(self.WorldModel:GetAttribute("HolsterLimb"))
     if not holsterLimb then error("Cannot rig equipment to character; character missing holster's limb") end
 
     local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
@@ -126,6 +126,7 @@ function Equipment:PickUp(player: Player): boolean
     self.WorldModel.PrimaryPart.CanCollide = false
 
     self.PickUpPrompt.Enabled = false
+    self.PickedUp:Fire(true)
     return true
 end
 
@@ -157,15 +158,15 @@ function Equipment:Unequip(player: Player): boolean?
     if self.Owner ~= player then error("Non-owner requested unequip") end
     -- if not self.IsEquipped then error("not equipped") end
 
-    local torso = self.Character:FindFirstChild("Torso")
-    if not torso then error("Cannot rig equipment to character; character missing torso") end
+    local holsterLimb = self.Character:FindFirstChild(self.WorldModel:GetAttribute("HolsterLimb"))
+    if not holsterLimb then error("Cannot rig equipment to character; character missing holster's limb") end
 
     local modelRootJoint: Motor6D = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
     if not modelRootJoint then error("Cannot unrig equipment from character; equipment missing RootJoint") end
 
     self.AnimationManager:StopPlayingAnimations(0)
     modelRootJoint.C0 = modelRootJoint:GetAttribute("HolsterC0")
-    modelRootJoint.Part0 = torso
+    modelRootJoint.Part0 = holsterLimb
 
     self.IsEquipped = false
     self.Equipped:Fire(false)
@@ -207,7 +208,8 @@ function Equipment:Drop(player: Player): boolean?
         until modelRoot:FindFirstAncestorOfClass("Workspace") ~= nil and not modelRoot:CanSetNetworkOwnership()
         modelRoot:SetNetworkOwnershipAuto()
     end)
-    
+
+    self.PickedUp:Fire(false)
     return true
 end
 

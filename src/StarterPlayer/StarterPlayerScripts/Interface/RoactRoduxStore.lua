@@ -29,17 +29,6 @@ RoactRoduxStore.Actions = {
             crosshairEnabled = enable;
         }
     end;
-    UpdatedInventory = function(newInventory: {any})
-        local parsedInventory = {}
-        for k,v in newInventory do
-            parsedInventory[k] = tostring(v)
-        end
-
-        return {
-            type = "UpdatedInventory";
-            inventory = parsedInventory
-        }
-    end
 }
 
 -- each entry is also an entry in the store's (?) state
@@ -62,11 +51,6 @@ RoactRoduxStore._reducers = {
     CrosshairEnabled = Rodux.createReducer(false, {
         EnabledCrosshair = function(state, action)
             return action.crosshairEnabled
-        end
-    });
-    Inventory = Rodux.createReducer({}, {
-        UpdatedInventory = function(_, action)
-            return action.inventory
         end
     });
 }

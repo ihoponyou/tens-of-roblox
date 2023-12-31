@@ -2,6 +2,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 -- definition of common ancestor
@@ -14,7 +15,7 @@ local Trove = require(Packages.Trove)
 -- definitions derived from packages
 
 -- block for modules imported from same project
-local GunConfig = require(ReplicatedStorage.Source.GunConfig)
+local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
@@ -40,7 +41,7 @@ function Gun:Construct()
 		CollectionService:AddTag(self.Instance, v)
 	end
 
-	self._cfg = GunConfig[self.Instance.Name]
+	self._cfg = EquipmentConfig[self.Instance.Name]
 	self._trove = Trove.new()
 
 	self.Aiming = false
@@ -54,10 +55,16 @@ function Gun:Construct()
 	CastParams.FilterDescendantsInstances = {}
 	self._castParams = CastParams
 
-	local reloadEvent = Instance.new("RemoteEvent")
-	reloadEvent.Name = "Reload"
-	reloadEvent.Parent = self.Instance
-	self.ReloadEvent = reloadEvent
+	local function newRemoteEvent(name: string): RemoteEvent
+		local event = Instance.new("RemoteEvent")
+		event.Name = name
+		event.Parent = self.Instance
+		return event
+	end
+
+	self.ReloadEvent = newRemoteEvent("ReloadEvent")
+	self.UpdateCurrentAmmo = newRemoteEvent("UpdateCurrentAmmo")
+	self.UpdateReserveAmmo = newRemoteEvent("UpdateReserveAmmo")
 end
 
 function Gun:Start()
@@ -76,11 +83,20 @@ function Gun:Start()
 		self:Fire(player, ...)
 	end
 
+	self._trove:Connect(self.Equipment.PickedUp, function(pickedUp: boolean)
+		-- print(self.Ammo, "/", self.ReserveAmmo)
+		if pickedUp then
+			task.wait(.05) -- current ammo doesnt update otherwise
+			self.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
+			self.UpdateReserveAmmo:FireClient(self.Equipment.Owner, self.ReserveAmmo)
+		end
+	end)
+
 	self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
 		if equipped then
 			self._castParams.FilterDescendantsInstances = { self.Equipment.Character }
-			UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
-			UI_EVENTS.UpdateReserveAmmo:FireClient(self.Equipment.Owner, self.ReserveAmmo)
+			self.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
+			self.UpdateReserveAmmo:FireClient(self.Equipment.Owner, self.ReserveAmmo)
 			task.wait(.75)
 			self.CanFire = true
 		else
@@ -224,7 +240,7 @@ function Gun:Fire(_, hits: {Instance})
 
 	self.Equipment.AnimationManager:PlayAnimation("Fire")
 	-- self.Equipment.UseEvent:FireClient(self.Equipment.Owner, horizontalKick, verticalKick)
-	UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
+	self.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
 
 	self:PlayFireSound()
 	self:DoMuzzleFlash()
@@ -236,12 +252,12 @@ end
 
 function Gun:SetCurrentAmmo(ammo: number)
 	self.Ammo = ammo
-	UI_EVENTS.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, ammo)
+	self.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, ammo)
 end
 
 function Gun:SetReserveAmmo(ammo: number)
 	self.ReserveAmmo = ammo
-	UI_EVENTS.UpdateReserveAmmo:FireClient(self.Equipment.Owner, ammo)
+	self.UpdateReserveAmmo:FireClient(self.Equipment.Owner, ammo)
 end
 
 function Gun:_refillMagazine(roundsNeeded: number)

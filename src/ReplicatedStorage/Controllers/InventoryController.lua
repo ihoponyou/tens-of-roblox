@@ -8,28 +8,30 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local InventoryService
 
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
-local Configs = require(ReplicatedStorage.Source.EquipmentConfigs)
+local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 
 local DEBUG = false
-local UPDATE_INVENTORY_EVENT = ReplicatedStorage.UIEvents.UpdatedInventory
 
 local InventoryController = Knit.CreateController({
     Name = "InventoryController";
+
     Inventory = {};
+    InventoryChanged = Signal.new();
+
     ActiveItem = nil;
     ActiveSlot = nil;
-    ActiveSlotChanged = Signal.new()
+    ActiveSlotChanged = Signal.new();
 })
 
 function InventoryController:_onItemAdded(item: Instance)
     if DEBUG then print('added', item) end
 
-    local slotType = Configs[item.Name].SlotType
+    local slotType = EquipmentConfig[item.Name].SlotType
     if not slotType then error("this equipment does not have a slot type") end
 
     self.Inventory[slotType] = item
     if DEBUG then print(self.Inventory) end
-    UPDATE_INVENTORY_EVENT:Fire(self.Inventory)
+    self.InventoryChanged:Fire(self.Inventory)
 
     if self.ActiveSlot ~= slotType then return end
     self.ActiveItem = item
@@ -43,7 +45,7 @@ end
 function InventoryController:_onItemRemoved(item: Instance)
     if DEBUG then print('removed', item) end
 
-    local slotType = Configs[item.Name].SlotType
+    local slotType = EquipmentConfig[item.Name].SlotType
     if not slotType then error("this equipment does not have a slot type") end
 
     local entry = self.Inventory[slotType]
@@ -51,7 +53,7 @@ function InventoryController:_onItemRemoved(item: Instance)
 
     self.Inventory[slotType] = nil
     if DEBUG then print(self.Inventory) end
-    UPDATE_INVENTORY_EVENT:Fire(self.Inventory)
+    self.InventoryChanged:Fire(self.Inventory)
 
     if self.ActiveItem == item then self.ActiveItem = nil end
 end

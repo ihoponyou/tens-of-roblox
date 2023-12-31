@@ -11,6 +11,7 @@ local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 
 local InventoryController
 
+local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
 local HeadsUpDisplay = require(UI_ELEMENTS.HeadsUpDisplay)
@@ -49,16 +50,21 @@ StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 
-local testAmmoEvent = Instance.new("BindableEvent")
-
 local function AmmoCounter(props)
+    local ammo: number, setAmmo = React.useState(-1)
+    useEventConnection(props.update.OnClientEvent, function(newAmmo: number)
+        setAmmo(function(oldAmmo)
+            return newAmmo
+        end)
+    end)
+
     return React.createElement("TextLabel", {
         AnchorPoint = AMMO_STYLES[props.counterType].AnchorPoint;
         BackgroundTransparency = 1;
         Position = AMMO_STYLES[props.counterType].Position;
         Size = AMMO_STYLES[props.counterType].Size;
         FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Bold);
-        Text = props.ammo;
+        Text = ammo;
         TextColor3 = AMMO_STYLES[props.counterType].TextColor3;
         TextScaled = true;
         TextStrokeColor3 = Color3.new(0, 0, 0);
@@ -68,20 +74,7 @@ local function AmmoCounter(props)
     })
 end
 
-local function AmmoLabels(_)
-    local currentAmmo: number, setCurrentAmmo = React.useState(-1)
-    useEventConnection(testAmmoEvent.Event, function(ammo: number)
-        setCurrentAmmo(function(oldAmmo)
-            return ammo
-        end)
-    end)
-    local reserveAmmo: number, setReserveAmmo = React.useState(-1)
-    useEventConnection(testAmmoEvent.Event, function(ammo: number)
-        setReserveAmmo(function(oldAmmo)
-            return ammo
-        end)
-    end)
-
+local function AmmoLabels(props)
     return React.createElement(
         React.Fragment,
         nil,
@@ -93,20 +86,21 @@ local function AmmoLabels(_)
         }),
         React.createElement(AmmoCounter, {
             counterType = "Current";
-            ammo = currentAmmo;
+            update = props.updateCurrent;
         }),
         React.createElement(AmmoCounter, {
             counterType = "Reserve";
-            ammo = reserveAmmo;
+            update = props.updateReserve;
         })
     )
 end
 
 local function EquipmentSlot(props)
-    local worldModel = Find.path(ReplicatedStorage, "Equipment/"..props.equipmentName.."/WorldModel");
+    local worldModel = Find.path(ReplicatedStorage, "Equipment/"..props.equipmentInstance.Name.."/WorldModel");
     local viewportPosition = worldModel:GetAttribute("ViewportPosition") or UDim2.fromScale(1, 0.5)
-    local hasAmmo = worldModel:GetAttribute("HasAmmo") or false
-
+    local gunComponent = GunClient:FromInstance(props.equipmentInstance)
+    local hasAmmo = gunComponent ~= nil
+    -- print(props.equipmentInstance.Name, "gun?", hasAmmo)
     return React.createElement("Frame", {
         AnchorPoint = Vector2.new(1, 0.5);
         BackgroundColor3 = Color3.new(0, 0, 0);
@@ -124,18 +118,19 @@ local function EquipmentSlot(props)
                 prefab = worldModel;
                 position = viewportPosition
             });
-            if hasAmmo then React.createElement(AmmoLabels) else nil;
+            if not hasAmmo then nil else React.createElement(AmmoLabels, {
+                updateCurrent = gunComponent.UpdateCurrentAmmo;
+                updateReserve = gunComponent.UpdateReserveAmmo;
+            });
         }
     })
 end
 
 -- local dict: {[string]: number}
 
-local exampleEvent = Instance.new("BindableEvent")
-
 local function Inventory()
-    local inventoryState: { [string]: string }, setInventoriesState = React.useState({})
-    useEventConnection(exampleEvent.Event, function(value: string)
+    local inventory: { [string]: Instance }, setInventoriesState = React.useState({})
+    useEventConnection(InventoryController.InventoryChanged, function(value: string)
         setInventoriesState(function(oldValue)
             return table.clone(value)
         end)
@@ -159,10 +154,10 @@ local function Inventory()
             PaddingRight = UDim.new(0, 5);
         })
     }
-    for slot, equipment in inventoryState do
+    for slot, equipment in inventory do
         elements[slot] = React.createElement(EquipmentSlot, {
             slotType = slot;
-            equipmentName = equipment;
+            equipmentInstance = equipment;
             isEquipped = equippedSlot == slot;
         })
     end
@@ -182,22 +177,5 @@ local root = ReactRoblox.createRoot(container)
 root:render({
     Inventory = React.createElement(Inventory)
 })
-
-local inv: {[SlotType]: string} = {
-    Primary = "Dragonslayer";
-    Secondary = "Deagle";
-}
-local ammo = 99
-while task.wait(3) do
-    if time() > 9 then
-        inv.Primary = nil
-    end
-
-    testAmmoEvent:fire(ammo)
-    ammo -= 1
-
-    exampleEvent:Fire(inv)
-    -- print(inv)
-end
 
 -- print("Interface loaded")

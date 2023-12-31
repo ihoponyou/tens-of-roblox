@@ -12,7 +12,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local CameraController, ViewmodelController
 
-local EquipmentConfigs = require(ReplicatedStorage.Source.EquipmentConfigs)
+local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
@@ -28,7 +28,7 @@ local EquipmentClient = Component.new({
 })
 
 function EquipmentClient:Construct()
-    self._cfg = EquipmentConfigs[self.Instance.Name]
+    self._cfg = EquipmentConfig[self.Instance.Name]
     self._folder = Find.path(ReplicatedStorage, "Equipment/"..self.Instance.Name)
 
     if not self._cfg.ThirdPersonOnly then

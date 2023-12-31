@@ -20,7 +20,7 @@ local Trove = require(Packages.Trove)
 local InputController, ViewmodelController, CameraController
 
 -- block for modules imported from same project
-local GunConfig = require(ReplicatedStorage.Source.GunConfig)
+local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
@@ -41,12 +41,15 @@ local GunClient = Component.new({
 })
 
 function GunClient:Construct()
-	self._cfg = GunConfig[self.Instance.Name]
+	self._cfg = EquipmentConfig[self.Instance.Name]
     self._folder = Find.path(ReplicatedStorage, "Equipment/"..self.Instance.Name)
 
 	self._trove = Trove.new()
     self.CasingModel = Find.path(self._folder, "Casing")
-	self.ReloadEvent = self.Instance:WaitForChild("Reload")
+
+	self.ReloadEvent = self.Instance:WaitForChild("ReloadEvent")
+	self.UpdateCurrentAmmo = self.Instance:WaitForChild("UpdateCurrentAmmo")
+	self.UpdateReserveAmmo = self.Instance:WaitForChild("UpdateReserveAmmo")
 
     self._boltHeldOpen = false
     self._triggerDown = false
@@ -92,7 +95,7 @@ function GunClient:Start()
 		self:_reload()
 	end)
 
-	self._trove:Connect(ReplicatedStorage.UIEvents.UpdateCurrentAmmo.OnClientEvent, function(ammo: number)
+	self._trove:Connect(self.UpdateCurrentAmmo.OnClientEvent, function(ammo: number)
 		self._currentAmmo = ammo
 	end)
 end
@@ -261,7 +264,7 @@ function GunClient:_ejectCasing()
 	) * 10
 
 	local rotationMultiplier = 1 + RAND:NextNumber()
-	local xRotation = 2*math.pi * rotationMultiplier
+	local xRotation = -2*math.pi * rotationMultiplier
 	local yRotation = -4*math.pi * rotationMultiplier
 	casingClone.AssemblyAngularVelocity = Vector3.new(xRotation, yRotation, 0)
 
@@ -274,7 +277,7 @@ end
 
 function GunClient:_doRecoil()
 	ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")
-	
+
 	-- TODO: make recoil patterns
 	local verticalKick = 25
 	local horizontalKick = math.random(-10, 10)
