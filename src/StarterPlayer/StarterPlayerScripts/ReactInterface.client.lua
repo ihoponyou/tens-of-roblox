@@ -16,32 +16,6 @@ local container = Instance.new("ScreenGui")
 container.Parent = Players.LocalPlayer.PlayerGui
 container.IgnoreGuiInset = true
 
-local START_SIZE = UDim2.fromOffset(60, 60)
-local END_SIZE = UDim2.fromOffset(50, 50)
-
-local function Hitmarker()
-    local styles, api = ReactSpring.useSpring(function()
-        return {
-            reset = true;
-            from = { size = START_SIZE };
-            to = { size = END_SIZE };
-        }
-    end)
-
-    -- React.useEffect(function()
-    --     api.start({ size = END_SIZE })
-    -- end, {})
-
-    return React.createElement("ImageLabel", {
-        AnchorPoint = Vector2.new(0.5, 0.5);
-        Size = styles.size;
-        Image = "rbxassetid://15763310980";
-        ImageTransparency = 0;
-        BackgroundTransparency = 1;
-        Position = UDim2.fromScale(0.5, 0.5);
-    })
-end
-
 local root = ReactRoblox.createRoot(container)
 
 local hitmarker = React.createElement(Hitmarker)

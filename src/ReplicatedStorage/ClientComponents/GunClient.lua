@@ -57,7 +57,8 @@ function GunClient:Construct()
 	self._reloading = false
 	self._fireDelay = 1/(self._cfg.RoundsPerMinute/60)
 	self._lastShotFired = 0
-	self._currentAmmo = self._cfg.MagazineCapacity
+	self.CurrentAmmo = self._cfg.MagazineCapacity
+	self.ReserveAmmo = self._cfg.MagazineCapacity * self._cfg.ReserveMagazines
 
 	self._castParams = RaycastParams.new()
 	self._castParams.CollisionGroup = "Character"
@@ -96,7 +97,10 @@ function GunClient:Start()
 	end)
 
 	self._trove:Connect(self.UpdateCurrentAmmo.OnClientEvent, function(ammo: number)
-		self._currentAmmo = ammo
+		self.CurrentAmmo = ammo
+	end)
+	self._trove:Connect(self.UpdateReserveAmmo.OnClientEvent, function(ammo: number)
+		self.ReserveAmmo = ammo
 	end)
 end
 
@@ -107,7 +111,7 @@ end
 function GunClient:_fire()
 	if self._firing then return end
 	if self._reloading then return end
-	if self._currentAmmo < 1 then return end
+	if self.CurrentAmmo < 1 then return end
 
     self._firing = true
 
@@ -213,6 +217,7 @@ function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
 end
 
 function GunClient:_onEquipped()
+	self._equipTrove = self._trove:Extend()
 	self._castParams.FilterDescendantsInstances = { Players.LocalPlayer.Character }
 
     self.RecoilSpring = Spring.new(Vector3.new(0, 0, 0)) -- x: horizontal recoil, y: vertical recoil, z: "forwards" recoil
@@ -233,18 +238,20 @@ function GunClient:_onEquipped()
         self:_handleReloadInput(...)
     end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Reload"))
 
-    self._trove:BindToRenderStep("UpdateAimAndRecoilOffsets", Enum.RenderPriority.Camera.Value, function(_)
+    self._equipTrove:BindToRenderStep("UpdateAimAndRecoilOffsets", Enum.RenderPriority.Camera.Value, function(_)
         self:_updateOffsets(_)
     end)
+
+	self._equipTrove:Add(function()
+		ContextActionService:UnbindAction("FireGun")
+		ContextActionService:UnbindAction("AimGun")
+		CameraController.OffsetManager:RemoveOffset("Recoil")
+    	CameraController.OffsetManager:RemoveOffset("Aim")
+	end)
 end
 
 function GunClient:_onUnequipped()
-    ContextActionService:UnbindAction("FireGun")
-	ContextActionService:UnbindAction("AimGun")
-    RunService:UnbindFromRenderStep("UpdateAimAndRecoilOffsets")
-
-    CameraController.OffsetManager:RemoveOffset("Recoil")
-    CameraController.OffsetManager:RemoveOffset("Aim")
+    self._equipTrove:Clean()
 end
 
 function GunClient:_ejectCasing()

@@ -131,8 +131,21 @@ function Equipment:PickUp(player: Player): boolean
 end
 
 function Equipment:Equip(player: Player): boolean?
-    if player ~= self.Owner then error("Non-owner requested equip") end
-    if self.IsEquipped then error("already equipped") end
+    local verbose = false
+    if player ~= self.Owner then
+        if verbose then
+            error("Non-owner requested equip")
+        else
+            return
+        end
+    end
+    if self.IsEquipped then
+        if verbose then
+            error("already equipped")
+        else
+            return
+        end
+    end
 
     local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
     if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end

@@ -11,16 +11,14 @@ local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 
 local InventoryController
 
+local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
-local UI_ELEMENTS = ReplicatedStorage.Source.UIElements
-local HeadsUpDisplay = require(UI_ELEMENTS.HeadsUpDisplay)
 local useEventConnection = require(script.useEventConnection)
 local ViewportSlot = require(script.ViewportSlot)
 
 local LOCAL_PLAYER = Players.LocalPlayer
 local PLAYER_GUI = LOCAL_PLAYER.PlayerGui
-local UI_EVENTS = ReplicatedStorage.UIEvents
 
 export type SlotType = "Primary" | "Secondary" | "Tertiary" | "Melee"
 
@@ -40,7 +38,7 @@ local AMMO_STYLES = {
     },
     Reserve = {
         AnchorPoint = Vector2.new(0, 0);
-        Position = UDim2.fromScale(0.1, 0.5);
+        Position = UDim2.fromScale(0.1, 0.55);
         Size = UDim2.fromScale(0.5, 0.35);
         TextColor3 = Color3.fromRGB(180, 180, 180);
     }
@@ -51,7 +49,7 @@ StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 
 local function AmmoCounter(props)
-    local ammo: number, setAmmo = React.useState(-1)
+    local ammo: number, setAmmo = React.useState(props.initial)
     useEventConnection(props.update.OnClientEvent, function(newAmmo: number)
         setAmmo(function(oldAmmo)
             return newAmmo
@@ -71,6 +69,7 @@ local function AmmoCounter(props)
         TextStrokeTransparency = 0;
         TextXAlignment = Enum.TextXAlignment.Right;
         TextYAlignment = Enum.TextYAlignment.Center;
+        ZIndex = 2;
     })
 end
 
@@ -86,10 +85,12 @@ local function AmmoLabels(props)
         }),
         React.createElement(AmmoCounter, {
             counterType = "Current";
+            initial = props.initialCurrent;
             update = props.updateCurrent;
         }),
         React.createElement(AmmoCounter, {
             counterType = "Reserve";
+            initial = props.initialReserve;
             update = props.updateReserve;
         })
     )
@@ -97,9 +98,11 @@ end
 
 local function EquipmentSlot(props)
     local worldModel = Find.path(ReplicatedStorage, "Equipment/"..props.equipmentInstance.Name.."/WorldModel");
-    local viewportPosition = worldModel:GetAttribute("ViewportPosition") or UDim2.fromScale(1, 0.5)
+    local viewportPosition = EquipmentConfig[props.equipmentInstance.Name].ViewportPosition or UDim2.fromScale(1, 0.5)
     local gunComponent = GunClient:FromInstance(props.equipmentInstance)
+
     local hasAmmo = gunComponent ~= nil
+
     -- print(props.equipmentInstance.Name, "gun?", hasAmmo)
     return React.createElement("Frame", {
         AnchorPoint = Vector2.new(1, 0.5);
@@ -107,6 +110,7 @@ local function EquipmentSlot(props)
         BackgroundTransparency = 0.6;
         Size = if hasAmmo then AMMO_SLOT_SIZE else DEFAULT_SLOT_SIZE;
         SizeConstraint = Enum.SizeConstraint.RelativeYY;
+        ZIndex = 0;
 
         children = {
             Corner = React.createElement("UICorner");
@@ -119,14 +123,14 @@ local function EquipmentSlot(props)
                 position = viewportPosition
             });
             if not hasAmmo then nil else React.createElement(AmmoLabels, {
+                initialCurrent = gunComponent.CurrentAmmo;
                 updateCurrent = gunComponent.UpdateCurrentAmmo;
+                initialReserve = gunComponent.ReserveAmmo;
                 updateReserve = gunComponent.UpdateReserveAmmo;
             });
         }
     })
 end
-
--- local dict: {[string]: number}
 
 local function Inventory()
     local inventory: { [string]: Instance }, setInventoriesState = React.useState({})

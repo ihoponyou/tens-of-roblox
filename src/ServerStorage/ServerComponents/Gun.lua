@@ -86,7 +86,6 @@ function Gun:Start()
 	self._trove:Connect(self.Equipment.PickedUp, function(pickedUp: boolean)
 		-- print(self.Ammo, "/", self.ReserveAmmo)
 		if pickedUp then
-			task.wait(.05) -- current ammo doesnt update otherwise
 			self.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
 			self.UpdateReserveAmmo:FireClient(self.Equipment.Owner, self.ReserveAmmo)
 		end
@@ -97,7 +96,7 @@ function Gun:Start()
 			self._castParams.FilterDescendantsInstances = { self.Equipment.Character }
 			self.UpdateCurrentAmmo:FireClient(self.Equipment.Owner, self.Ammo)
 			self.UpdateReserveAmmo:FireClient(self.Equipment.Owner, self.ReserveAmmo)
-			task.wait(.75)
+			task.wait(0.8)
 			self.CanFire = true
 		else
 			self._castParams.FilterDescendantsInstances = {}

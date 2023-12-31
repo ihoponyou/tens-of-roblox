@@ -2,6 +2,7 @@ local Configs = {
 	["AK-47"] = {
 		SlotType = "Primary";
 		ThirdPersonOnly = false;
+		ViewportPosition = UDim2.fromScale(1.05, 0);
 
 		RoundsPerMinute = 600;
 		MaxSpreadAngle = 1;
@@ -28,6 +29,7 @@ local Configs = {
 	["Deagle"] = {
 		SlotType = "Secondary";
 		ThirdPersonOnly = true;
+		ViewportPosition = UDim2.fromScale(2, 0.2);
 
 		Damage = 35;
 		FullyAutomatic = false;

@@ -45,22 +45,12 @@ function EquipmentClient:Construct()
 
     self.ProximityPrompt = self.WorldModel:WaitForChild("PickUpPrompt")
     self.ProximityPrompt.RequiresLineOfSight = false
-    -- self.PromptGui = Roact.createRef()
-    -- local promptGui = Roact.createElement(PromptGui, {
-    --     equipment_name = self.Instance.Name;
-    --     -- ref = self.PromptGui;
-    -- })
-    -- self._promptTree = Roact.mount(promptGui, self.WorldModel)
 
     self.EquipRequest = self.Instance:WaitForChild("EquipRequest")
     self.PickUpRequest = self.Instance:WaitForChild("PickUpRequest")
     self.UseEvent = self.Instance:WaitForChild("UseEvent")
 
     self._riggedToViewmodel = false
-end
-
-function EquipmentClient:_onPickedUp()
-    -- TODO: add to inventory GUI
 end
 
 function EquipmentClient:_rigToViewmodel()
@@ -148,14 +138,12 @@ end
 
 function EquipmentClient:PickUp(): boolean
     local pickUpSuccess = self.PickUpRequest:InvokeServer(true)
-    if pickUpSuccess then self:_onPickedUp() end
     return pickUpSuccess
 end
 
 function EquipmentClient:Equip(): boolean
     local equipSuccess = self.EquipRequest:InvokeServer(true)
-    self:_onEquipped() -- pre emptively equip
-    if not equipSuccess then self:_onUnequipped() end
+    if equipSuccess then self:_onEquipped() end
     return equipSuccess
 end
 

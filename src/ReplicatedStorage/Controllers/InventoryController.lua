@@ -73,26 +73,37 @@ local function isValidSlot(slot: string)
 end
 function InventoryController:SwitchSlot(slot: string)
     if not isValidSlot(slot) then error("invalid slot") end
-    -- print("switch from", self.ActiveItem, "to", self.Inventory[slot])
 
-    if self.ActiveItem ~= nil then
-        local unequipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Unequip()
-        if not unequipSuccess then error("could not unequip old slot") end
+    local heldItem = self.ActiveItem
+    local newItem = self.Inventory[slot]
+
+    -- unequip the currently held item if it exists; will happen even if new slot is same
+    if heldItem ~= nil then
+        local unequipSuccess = EquipmentClient:FromInstance(heldItem):Unequip()
+        if unequipSuccess then
+            self.ActiveItem = nil
+        end
+    end
+
+    UserInputService.MouseIconEnabled = newItem == nil
+
+    -- allows slot to be de-selected and have no active slot
+    if self.ActiveSlot == slot then
+        self.ActiveSlot = nil
+        self.ActiveSlotChanged:Fire(nil)
+        return
+    end
+
+    -- equip the item at the new slot if it exists
+    if newItem ~= nil then
+        local equipSuccess = EquipmentClient:FromInstance(newItem):Equip()
+        if equipSuccess then
+            self.ActiveItem = newItem
+        end
     end
 
     self.ActiveSlot = slot
     self.ActiveSlotChanged:Fire(slot)
-    self.ActiveItem = self.Inventory[slot]
-
-    UserInputService.MouseIconEnabled = self.ActiveItem == nil
-    if self.ActiveItem == nil then return end
-
-    local equipSuccess = EquipmentClient:FromInstance(self.ActiveItem):Equip()
-    -- print(equipSuccess)
-    if not equipSuccess then
-        self.ActiveItem = nil
-        error("could not equip new slot")
-    end
 end
 
 function InventoryController:KnitStart()
