@@ -9,6 +9,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Timer = require(ReplicatedStorage.Packages.Timer)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
+local VectorMath = require(ReplicatedStorage.Source.Modules.VectorMath)
 local GetRandomPositionInPart = require(ReplicatedStorage.Source.Modules.GetRandomPositionInPart)
 local Knockable = require(ServerStorage.Source.ServerComponents.Knockable)
 
@@ -25,6 +26,7 @@ local NonplayerCharacter = Component.new({
 function NonplayerCharacter:Construct()
 	CollectionService:AddTag(self.Instance, "Ragdoll")
 	CollectionService:AddTag(self.Instance, "Knockable")
+	-- self.Instance:SetAttribute("Log", true)
 
 	self._trove = Trove.new()
 
@@ -47,7 +49,7 @@ function NonplayerCharacter:Construct()
 	self._target = nil
 	self._destination = Vector3.new()
 	-- time between npc heartbeats
-	self._heartbeatDelay = RAND:NextNumber(1, 5)
+	self._heartbeatDelay = 0.2
 	-- time that has passed since last npc heartbeat
 	self._heartbeatTime = 0
 
@@ -68,9 +70,14 @@ function NonplayerCharacter:Stop()
 end
 
 function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
-	self._heartbeatTime += deltaTime
-	if self._heartbeatTime < self._heartbeatDelay then return end
-	self._heartbeatTime = 0
+	if not self.Instance.PrimaryPart then
+		self.Instance:Destroy()
+		return
+	end
+
+	-- self._heartbeatTime += deltaTime
+	-- if self._heartbeatTime < self._heartbeatDelay then return end
+	-- self._heartbeatTime = 0
 
 	self:CurrentState()
 end
@@ -82,8 +89,8 @@ function NonplayerCharacter:SearchForTarget()
 
 		local distance = (character.PrimaryPart.Position - self.Instance.PrimaryPart.Position).Magnitude
 		if distance <= 50 then
-			print(self.Instance.Name..": target found")
 			self._target = character
+			CollectionService:AddTag(self._target, "Targeted")
 		end
 	end
 end
@@ -91,33 +98,65 @@ end
 function NonplayerCharacter:Wandering()
 	self:SearchForTarget()
 
-	if self._target == nil then
-		self._heartbeatDelay = RAND:NextNumber(1, 3)
-		self:_calculateDestination()
-		self.Humanoid:MoveTo(self._destination)
-	else
+	if self._target ~= nil then
 		self.CurrentState = self.Following
+		return
 	end
-end
 
-function NonplayerCharacter:Jumping()
-	
+	local alignedVelocty = Vector3.zero-- self:GetAlignedVelocity()
+
+	if alignedVelocty.Magnitude > 0 then
+		self.Humanoid:Move(alignedVelocty)
+	else
+		local myRoot = self.Instance.PrimaryPart
+		local floorCast = workspace:Raycast(myRoot.CFrame.Position + myRoot.CFrame.LookVector, Vector3.yAxis * -5)
+
+		self.Humanoid:Move(if floorCast ~= nil then myRoot.CFrame.LookVector else -self.Humanoid.MoveDirection)
+	end
 end
 
 function NonplayerCharacter:Following()
 	self._heartbeatDelay = 0.1
 
 	local targetRoot = self._target.PrimaryPart
-	local targetVelocity = targetRoot.AssemblyLinearVelocity
-	local projectedPosition = targetRoot.CFrame.Position + targetVelocity
+	-- local targetVelocity = targetRoot.AssemblyLinearVelocity
+	-- local projectedPosition = targetRoot.CFrame.Position + targetVelocity * self._heartbeatDelay
 
-	self.Humanoid:MoveTo(projectedPosition)
+	self.Humanoid:MoveTo(targetRoot.CFrame.Position, targetRoot)
 end
 
 function NonplayerCharacter:_calculateDestination()
 	self._destination = GetRandomPositionInPart(self.Habitat)
 
     self.Instance:SetAttribute("Destination", self._destination)
+end
+
+function NonplayerCharacter:GetAlignedVelocity(): Vector3
+	local resultant = { X = 0, Y = 0, Z = 0 }
+	local neighborCount = 0
+
+	for _, agent: Model in CollectionService:GetTagged("NonplayerCharacter") do
+		if agent == self.Instance then continue end
+		if agent.PrimaryPart == nil then continue end
+
+		local distanceToAgent = VectorMath.DistanceBetweenParts(agent.PrimaryPart, self.Instance.PrimaryPart)
+		if distanceToAgent <= 10 then
+			local agentVelocity = agent.PrimaryPart.AssemblyLinearVelocity
+			resultant.X += agentVelocity.X
+			resultant.Z += agentVelocity.Z
+			neighborCount += 1
+		end
+	end
+
+	if neighborCount == 0 then
+		return Vector3.new()
+	end
+
+	resultant.X /= neighborCount
+	resultant.Z /= neighborCount
+	local resultantVector = Vector3.new(resultant.X, 0, resultant.Z)
+
+	return resultantVector.Unit
 end
 
 return NonplayerCharacter
