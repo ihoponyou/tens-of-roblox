@@ -1,5 +1,7 @@
+--!strict
 
 local CollectionService = game:GetService("CollectionService")
+local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -30,11 +32,11 @@ function NonplayerCharacter:Construct()
 
 	self._trove = Trove.new()
 
-	self.Habitat = self.Instance.Parent
-	local habitat = Instance.new("ObjectValue")
-	habitat.Name = "Habitat"
-	habitat.Parent = self.Instance
-	habitat.Value = self.Habitat
+	-- self.Habitat = self.Instance.Parent
+	-- local habitat = Instance.new("ObjectValue")
+	-- habitat.Name = "Habitat"
+	-- habitat.Parent = self.Instance
+	-- habitat.Value = self.Habitat
 
 	self.Humanoid = Instance.new("Humanoid")
 	self.Humanoid.Parent = self.Instance
@@ -43,15 +45,31 @@ function NonplayerCharacter:Construct()
 	self.Humanoid.NameDisplayDistance = 10
 	self.Humanoid.HealthDisplayDistance = 10
 	self.Humanoid:ApplyDescriptionReset(CHARACTER_FOLDER.NoobDescription)
+	-- self._trove:Connect(self.Humanoid.StateChanged, print)
 	self._trove:Add(self.Humanoid)
+
+	-- time between npc heartbeats
+	self._heartbeatDelay = 10
+	-- time that has passed since last npc heartbeat
+	self._heartbeatTime = 0
 
 	self.CurrentState = function() print("override this") end
 	self._target = nil
-	self._destination = Vector3.new()
-	-- time between npc heartbeats
-	self._heartbeatDelay = 0.2
-	-- time that has passed since last npc heartbeat
-	self._heartbeatTime = 0
+
+	self._destination = nil
+	self._path = PathfindingService:CreatePath({
+		AgentRadius = 1;
+		AgentHeight = 5;
+		AgentCanJump = true;
+		AgentCanClimb = true;
+		Costs = {
+			Water = 20;
+		};
+	})
+	self._waypoints = nil
+	self._nextWaypointIndex = nil
+	self._reachedConnection = nil
+	self._blockedConncetion = nil
 
 	self._searchParams = OverlapParams.new()
 	self._searchParams.CollisionGroup = "Character"
@@ -62,7 +80,19 @@ end
 function NonplayerCharacter:Start()
 	self.Knockable = self:GetComponent(Knockable)
 
+	local visual = Instance.new("Part")
+	visual.Anchored = true
+	-- visual.CanCollide = false
+	-- visual.Parent = workspace
+	-- visual.BrickColor = BrickColor.Yellow()
+
+	local spawnLocation = self:_getPositionAround()
+	visual.CFrame = CFrame.new(spawnLocation)
+
+	self.Instance:PivotTo(visual.CFrame)
+
 	self.CurrentState = self.Wandering
+	self:CurrentState()
 end
 
 function NonplayerCharacter:Stop()
@@ -75,9 +105,23 @@ function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
 		return
 	end
 
-	-- self._heartbeatTime += deltaTime
-	-- if self._heartbeatTime < self._heartbeatDelay then return end
-	-- self._heartbeatTime = 0
+	self._heartbeatTime += deltaTime
+	if self._heartbeatTime < self._heartbeatDelay then return end
+	self._heartbeatTime = 0
+
+	if self.CurrentState == self.Idling then return end
+	-- self:SearchForTarget()
+
+	if self._target ~= nil then
+		self.CurrentState = self.Following
+		return
+	else
+		-- if RAND:NextInteger(0,1) == 1 then
+			self.CurrentState = self.Wandering
+		-- else
+		-- 	self.CurrentState = self.Idling
+		-- end
+	end
 
 	self:CurrentState()
 end
@@ -95,24 +139,83 @@ function NonplayerCharacter:SearchForTarget()
 	end
 end
 
-function NonplayerCharacter:Wandering()
-	self:SearchForTarget()
+function NonplayerCharacter:_onBlocked(blockedWaypointIdx: number, destination)
+	-- only consider blocked waypoints in front
+	if blockedWaypointIdx >= self._nextWaypointIndex then
+		-- disconnect current handler; new one is connected when path is calculated
+		self._blockedConncetion:Disconnect()
 
-	if self._target ~= nil then
-		self.CurrentState = self.Following
+		-- recalculate path around obstacle
+		self:_followPath(destination)
+	end
+end
+
+function NonplayerCharacter:_onMoveToFinished(reached: boolean, destination)
+	local stepSuccess = reached and self._nextWaypointIndex < #self._waypoints
+	if stepSuccess then
+		self._nextWaypointIndex += 1
+
+		local waypoint = self._waypoints[self._nextWaypointIndex]
+
+		self.Humanoid:MoveTo(waypoint.Position)
+		if waypoint.Action == Enum.PathWaypointAction.Jump then
+			self.Humanoid.Jump = true
+		end
+	elseif  self._nextWaypointIndex == #self._waypoints then
+		self._destination = self:_getPositionAround()
+	else
+		print("completed path")
+		self.CurrentState = self.Idling
+		self._reachedConnection:Disconnect()
+		self._blockedConncetion:Disconnect()
+	end
+end
+
+function NonplayerCharacter:_followPath(destination: Vector3)
+	local success, errorMessage = pcall(function()
+		self._path:ComputeAsync(self.Instance.PrimaryPart.Position, self._destination)
+	end)
+	if success and self._path.Status == Enum.PathStatus.Success then
+		self._waypoints = self._path:GetWaypoints()
+
+		self._blockedConncetion = self._path.Blocked:Connect(function(...)
+			self:_onBlocked(..., destination)
+		end)
+
+		if not self._reachedConnection then
+			self._reachedConnection = self.Humanoid.MoveToFinished:Connect(function(...)
+				self:_onMoveToFinished(..., destination)
+			end)
+		end
+
+		self._nextWaypointIndex = 2
+
+		local waypoint = self._waypoints[self._nextWaypointIndex]
+		self.Humanoid:MoveTo(self._waypoints[self._nextWaypointIndex].Position)
+		if waypoint.Action == Enum.PathWaypointAction.Jump then
+			self.Humanoid.Jump = true
+		end
+	elseif self._path.Status == Enum.PathStatus.NoPath then
+		local a = Instance.new("Attachment")
+		a.Visible = true
+		a.Parent = workspace.Terrain
+		a.CFrame = CFrame.new(self._destination)
+		self._destination = self:_getPositionAround()
+	else
+		warn(errorMessage)
 		return
 	end
+end
 
-	local alignedVelocty = Vector3.zero-- self:GetAlignedVelocity()
-
-	if alignedVelocty.Magnitude > 0 then
-		self.Humanoid:Move(alignedVelocty)
-	else
-		local myRoot = self.Instance.PrimaryPart
-		local floorCast = workspace:Raycast(myRoot.CFrame.Position + myRoot.CFrame.LookVector, Vector3.yAxis * -5)
-
-		self.Humanoid:Move(if floorCast ~= nil then myRoot.CFrame.LookVector else -self.Humanoid.MoveDirection)
+function NonplayerCharacter:Wandering()
+	if not self._destination then
+		self._destination = self:_getPositionAround()
 	end
+	self:_followPath(workspace["finch area"].finch.CFrame.Position)
+end
+
+function NonplayerCharacter:Idling()
+	self.Humanoid:Move(Vector3.zero)
 end
 
 function NonplayerCharacter:Following()
@@ -125,13 +228,22 @@ function NonplayerCharacter:Following()
 	self.Humanoid:MoveTo(targetRoot.CFrame.Position, targetRoot)
 end
 
-function NonplayerCharacter:_calculateDestination()
-	self._destination = GetRandomPositionInPart(self.Habitat)
+function NonplayerCharacter:_getPositionWithinHabitat(): Vector3
+	local floorCast
+	repeat
+		local destinationXZ = GetRandomPositionInPart(self.Habitat)
+		floorCast = workspace:Raycast(destinationXZ, Vector3.yAxis * -100)
+	until floorCast ~= nil
 
-    self.Instance:SetAttribute("Destination", self._destination)
+	-- return workspace["finch area"].finch.CFrame.Position
+	return floorCast.Position
 end
 
-function NonplayerCharacter:GetAlignedVelocity(): Vector3
+function NonplayerCharacter:_getPositionAround(): Vector3
+	return VectorMath.GetPositionInRadius(self.Instance.PrimaryPart.CFrame.Position, 10)
+end
+
+function NonplayerCharacter:MapNeighborsToVelocity(neighbors: {Model}, fn: (Model) -> Vector3): Vector3
 	local resultant = { X = 0, Y = 0, Z = 0 }
 	local neighborCount = 0
 
@@ -148,15 +260,22 @@ function NonplayerCharacter:GetAlignedVelocity(): Vector3
 		end
 	end
 
-	if neighborCount == 0 then
-		return Vector3.new()
+	if neighborCount > 0 then
+		resultant.X /= neighborCount
+		resultant.Z /= neighborCount
 	end
 
-	resultant.X /= neighborCount
-	resultant.Z /= neighborCount
-	local resultantVector = Vector3.new(resultant.X, 0, resultant.Z)
-
+	local resultantVector = Vector3.new(unpack(resultant))
 	return resultantVector.Unit
+end
+
+function NonplayerCharacter:GetAlignedVelocity(agent: Model, velocity: Vector3): Vector3
+	local distanceToAgent = VectorMath.DistanceBetweenParts(agent.PrimaryPart, self.Instance.PrimaryPart)
+	if distanceToAgent <= 10 then
+		local agentVelocity = agent.PrimaryPart.AssemblyLinearVelocity
+		resultant.X += agentVelocity.X
+		resultant.Z += agentVelocity.Z
+	end
 end
 
 return NonplayerCharacter

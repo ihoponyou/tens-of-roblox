@@ -51,13 +51,13 @@ function NonplayerCharacterClient:Construct()
 	self.AnimationManager:LoadAnimations(animations:GetChildren())
 	self.AnimationManager:PlayAnimation("Idle", 0)
 
-	self._trove:Connect(self.Humanoid.MoveToFinished, function(reached: boolean)
-		self.AnimationManager:StopAnimation("Walk")
+	self._trove:Connect(self.Humanoid.StateChanged, function(old, new: Enum.HumanoidStateType)
+		if new == Enum.HumanoidStateType.Running then
+			self.AnimationManager:PlayAnimation("Walk")
+		else
+			self.AnimationManager:StopAnimation("Walk")
+		end
 	end)
-
-    self._trove:Connect(self.Instance:GetAttributeChangedSignal("Destination"), function()
-		self.AnimationManager:PlayAnimation("Walk")
-    end)
 
 	self._trove:Connect(self.Instance:GetAttributeChangedSignal("Knocked"), function()
 		local knocked = self.Instance:GetAttribute("Knocked")
