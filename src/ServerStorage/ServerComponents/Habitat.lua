@@ -1,5 +1,6 @@
+--!strict
 
--- essentially an npc spawner that defines where they may path
+-- essentially an npc spawner
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,7 +9,8 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
-local GetRandomPositionInPart = require(ReplicatedStorage.Source.Modules.GetRandomPositionInPart)
+local RaycastUtil = require(ReplicatedStorage.Source.Modules.RaycastUtil)
+local VectorMath = require(ReplicatedStorage.Source.Modules.VectorMath)
 
 local Habitat = Component.new({
 	Tag = "Habitat",
@@ -26,16 +28,46 @@ function Habitat:Construct()
     for i=1, self.Population do
         local npc = self._trove:Clone(ReplicatedStorage.Character.CharacterModel)
         npc.Name = i
-        npc.Parent = self.Instance
+
         CollectionService:AddTag(npc, "NonplayerCharacter")
 
-        npc:PivotTo(CFrame.new(GetRandomPositionInPart(self.Instance)))
         table.insert(self._populus, npc)
+    end
+end
+
+function Habitat:Start()
+    for _, npc: Model in self._populus do
+        npc:PivotTo(CFrame.new(self:GetValidSpawnPosition() + Vector3.yAxis * 3))
+        npc.Parent = self.Instance
+        -- npc.PrimaryPart.Anchored = true
     end
 end
 
 function Habitat:Stop()
 	self._trove:Destroy()
+end
+
+-- returns a position that sits on a solid surface in the habitat
+function Habitat:GetValidSpawnPosition(): Vector3
+    local visualize = true
+    local floorCast: RaycastResult?
+    repeat
+        local origin = VectorMath.GetPositionInPart(self.Instance)
+        floorCast = RaycastUtil.RaycastWithVisual(origin, Vector3.yAxis * -50)
+    until floorCast ~= nil
+
+    if visualize then
+        local visual = Instance.new("Part")
+        visual.BrickColor = BrickColor.Yellow()
+        visual.Anchored = true
+        visual.CFrame = CFrame.new(floorCast.Position)
+        visual.CanCollide = false
+        visual.CanQuery = false
+        visual.CanTouch = false
+        visual.Parent = workspace
+    end
+
+    return floorCast.Position
 end
 
 return Habitat

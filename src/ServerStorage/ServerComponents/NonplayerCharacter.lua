@@ -12,7 +12,6 @@ local Timer = require(ReplicatedStorage.Packages.Timer)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
 local VectorMath = require(ReplicatedStorage.Source.Modules.VectorMath)
-local GetRandomPositionInPart = require(ReplicatedStorage.Source.Modules.GetRandomPositionInPart)
 local Knockable = require(ServerStorage.Source.ServerComponents.Knockable)
 
 local CHARACTER_FOLDER = ReplicatedStorage.Character
@@ -49,7 +48,7 @@ function NonplayerCharacter:Construct()
 	self._trove:Add(self.Humanoid)
 
 	-- time between npc heartbeats
-	self._heartbeatDelay = 10
+	self._heartbeatDelay = 2
 	-- time that has passed since last npc heartbeat
 	self._heartbeatTime = 0
 
@@ -80,17 +79,6 @@ end
 function NonplayerCharacter:Start()
 	self.Knockable = self:GetComponent(Knockable)
 
-	local visual = Instance.new("Part")
-	visual.Anchored = true
-	-- visual.CanCollide = false
-	-- visual.Parent = workspace
-	-- visual.BrickColor = BrickColor.Yellow()
-
-	local spawnLocation = self:_getPositionAround()
-	visual.CFrame = CFrame.new(spawnLocation)
-
-	self.Instance:PivotTo(visual.CFrame)
-
 	self.CurrentState = self.Wandering
 	self:CurrentState()
 end
@@ -109,34 +97,7 @@ function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
 	if self._heartbeatTime < self._heartbeatDelay then return end
 	self._heartbeatTime = 0
 
-	if self.CurrentState == self.Idling then return end
-	-- self:SearchForTarget()
-
-	if self._target ~= nil then
-		self.CurrentState = self.Following
-		return
-	else
-		-- if RAND:NextInteger(0,1) == 1 then
-			self.CurrentState = self.Wandering
-		-- else
-		-- 	self.CurrentState = self.Idling
-		-- end
-	end
-
 	self:CurrentState()
-end
-
-function NonplayerCharacter:SearchForTarget()
-	for _,player in Players:GetPlayers() do
-		local character = player.Character
-		if not character then continue end
-
-		local distance = (character.PrimaryPart.Position - self.Instance.PrimaryPart.Position).Magnitude
-		if distance <= 50 then
-			self._target = character
-			CollectionService:AddTag(self._target, "Targeted")
-		end
-	end
 end
 
 function NonplayerCharacter:_onBlocked(blockedWaypointIdx: number, destination)
@@ -150,22 +111,22 @@ function NonplayerCharacter:_onBlocked(blockedWaypointIdx: number, destination)
 	end
 end
 
-function NonplayerCharacter:_onMoveToFinished(reached: boolean, destination)
+function NonplayerCharacter:_travelToNextWaypoint()
+	local waypoint = self._waypoints[self._nextWaypointIndex]
+	self.Humanoid:MoveTo(waypoint.Position)
+	if waypoint.Action == Enum.PathWaypointAction.Jump then
+		self.Humanoid.Jump = true
+	end
+end
+
+function NonplayerCharacter:_onMoveToFinished(reached: boolean)
 	local stepSuccess = reached and self._nextWaypointIndex < #self._waypoints
 	if stepSuccess then
 		self._nextWaypointIndex += 1
-
-		local waypoint = self._waypoints[self._nextWaypointIndex]
-
-		self.Humanoid:MoveTo(waypoint.Position)
-		if waypoint.Action == Enum.PathWaypointAction.Jump then
-			self.Humanoid.Jump = true
-		end
+		self:_travelToNextWaypoint()
 	elseif  self._nextWaypointIndex == #self._waypoints then
-		self._destination = self:_getPositionAround()
-	else
-		print("completed path")
 		self.CurrentState = self.Idling
+	else
 		self._reachedConnection:Disconnect()
 		self._blockedConncetion:Disconnect()
 	end
@@ -173,8 +134,9 @@ end
 
 function NonplayerCharacter:_followPath(destination: Vector3)
 	local success, errorMessage = pcall(function()
-		self._path:ComputeAsync(self.Instance.PrimaryPart.Position, self._destination)
+		self._path:ComputeAsync(self.Instance.PrimaryPart.Position, destination)
 	end)
+
 	if success and self._path.Status == Enum.PathStatus.Success then
 		self._waypoints = self._path:GetWaypoints()
 
@@ -184,34 +146,32 @@ function NonplayerCharacter:_followPath(destination: Vector3)
 
 		if not self._reachedConnection then
 			self._reachedConnection = self.Humanoid.MoveToFinished:Connect(function(...)
-				self:_onMoveToFinished(..., destination)
+				self:_onMoveToFinished(...)
 			end)
 		end
 
-		self._nextWaypointIndex = 2
-
-		local waypoint = self._waypoints[self._nextWaypointIndex]
-		self.Humanoid:MoveTo(self._waypoints[self._nextWaypointIndex].Position)
-		if waypoint.Action == Enum.PathWaypointAction.Jump then
+		local belowStart = self.Instance.PrimaryPart.CFrame.Position.Y < self._waypoints[1].Position.Y
+		if belowStart then
 			self.Humanoid.Jump = true
 		end
-	elseif self._path.Status == Enum.PathStatus.NoPath then
+
+		self._nextWaypointIndex = 2
+		self:_travelToNextWaypoint()
+	elseif success and self._path.Status == Enum.PathStatus.NoPath then
 		local a = Instance.new("Attachment")
-		a.Visible = true
 		a.Parent = workspace.Terrain
-		a.CFrame = CFrame.new(self._destination)
-		self._destination = self:_getPositionAround()
+		a.Visible = true
+		a.CFrame = CFrame.new(destination)
 	else
 		warn(errorMessage)
-		return
 	end
 end
 
 function NonplayerCharacter:Wandering()
 	if not self._destination then
-		self._destination = self:_getPositionAround()
+		self:_followPath(Vector3.new(0, 0, 0))
 	end
-	self:_followPath(workspace["finch area"].finch.CFrame.Position)
+	self:_followPath(Vector3.zero)
 end
 
 function NonplayerCharacter:Idling()
@@ -231,7 +191,7 @@ end
 function NonplayerCharacter:_getPositionWithinHabitat(): Vector3
 	local floorCast
 	repeat
-		local destinationXZ = GetRandomPositionInPart(self.Habitat)
+		local destinationXZ = VectorMath.GetPositionInPart(self.Habitat)
 		floorCast = workspace:Raycast(destinationXZ, Vector3.yAxis * -100)
 	until floorCast ~= nil
 
@@ -240,42 +200,9 @@ function NonplayerCharacter:_getPositionWithinHabitat(): Vector3
 end
 
 function NonplayerCharacter:_getPositionAround(): Vector3
-	return VectorMath.GetPositionInRadius(self.Instance.PrimaryPart.CFrame.Position, 10)
-end
-
-function NonplayerCharacter:MapNeighborsToVelocity(neighbors: {Model}, fn: (Model) -> Vector3): Vector3
-	local resultant = { X = 0, Y = 0, Z = 0 }
-	local neighborCount = 0
-
-	for _, agent: Model in CollectionService:GetTagged("NonplayerCharacter") do
-		if agent == self.Instance then continue end
-		if agent.PrimaryPart == nil then continue end
-
-		local distanceToAgent = VectorMath.DistanceBetweenParts(agent.PrimaryPart, self.Instance.PrimaryPart)
-		if distanceToAgent <= 10 then
-			local agentVelocity = agent.PrimaryPart.AssemblyLinearVelocity
-			resultant.X += agentVelocity.X
-			resultant.Z += agentVelocity.Z
-			neighborCount += 1
-		end
-	end
-
-	if neighborCount > 0 then
-		resultant.X /= neighborCount
-		resultant.Z /= neighborCount
-	end
-
-	local resultantVector = Vector3.new(unpack(resultant))
-	return resultantVector.Unit
-end
-
-function NonplayerCharacter:GetAlignedVelocity(agent: Model, velocity: Vector3): Vector3
-	local distanceToAgent = VectorMath.DistanceBetweenParts(agent.PrimaryPart, self.Instance.PrimaryPart)
-	if distanceToAgent <= 10 then
-		local agentVelocity = agent.PrimaryPart.AssemblyLinearVelocity
-		resultant.X += agentVelocity.X
-		resultant.Z += agentVelocity.Z
-	end
+	local position = VectorMath.GetPositionInRadius(self.Instance.PrimaryPart.CFrame.Position, 50)
+	local floorCast = workspace:Raycast(position, Vector3.yAxis * -50)
+	return if floorCast ~= nil then floorCast.Position else position
 end
 
 return NonplayerCharacter

@@ -36,7 +36,7 @@ function NonplayerCharacterClient:Construct()
         }
     })
 
-	self._habitat = self.Instance:WaitForChild("Habitat").Value
+	-- self._habitat = self.Instance:WaitForChild("Habitat").Value
 
 	self.Humanoid = self.Instance:WaitForChild("Humanoid")
 
@@ -65,12 +65,6 @@ function NonplayerCharacterClient:Construct()
 
 		self.AnimationManager:StopPlayingAnimations()
 	end)
-end
-
-function NonplayerCharacterClient:Start()
-	-- Timer.Simple(5, function()
-        -- self:_calculateDestination()
-    -- end, true)
 end
 
 function NonplayerCharacterClient:Stop()
