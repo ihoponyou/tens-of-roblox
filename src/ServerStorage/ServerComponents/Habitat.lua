@@ -49,11 +49,13 @@ end
 
 -- returns a position that sits on a solid surface in the habitat
 function Habitat:GetValidSpawnPosition(): Vector3
-    local visualize = true
+    local visualize = false
     local floorCast: RaycastResult?
     repeat
         local origin = VectorMath.GetPositionInPart(self.Instance)
-        floorCast = RaycastUtil.RaycastWithVisual(origin, Vector3.yAxis * -50)
+        floorCast = if visualize
+            then RaycastUtil.RaycastWithVisual(origin, Vector3.yAxis * -50)
+            else workspace:Raycast(origin, Vector3.yAxis * -50)
     until floorCast ~= nil
 
     if visualize then

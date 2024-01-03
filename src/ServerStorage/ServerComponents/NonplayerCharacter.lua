@@ -48,19 +48,20 @@ function NonplayerCharacter:Construct()
 	self._trove:Add(self.Humanoid)
 
 	-- time between npc heartbeats
-	self._heartbeatDelay = 2
+	self._heartbeatDelay = RAND:NextNumber(0.5, 1.5)
 	-- time that has passed since last npc heartbeat
 	self._heartbeatTime = 0
 
 	self.CurrentState = function() print("override this") end
-	self._target = nil
 
-	self._destination = nil
+	self._targetReached = false
+	self._targetPart = nil
+	self._lastPosition = self.Instance:GetPivot().Position
 	self._path = PathfindingService:CreatePath({
 		AgentRadius = 1;
 		AgentHeight = 5;
 		AgentCanJump = true;
-		AgentCanClimb = true;
+		AgentCanClimb = false;
 		Costs = {
 			Water = 20;
 		};
@@ -68,7 +69,7 @@ function NonplayerCharacter:Construct()
 	self._waypoints = nil
 	self._nextWaypointIndex = nil
 	self._reachedConnection = nil
-	self._blockedConncetion = nil
+	self._blockedConnection = nil
 
 	self._searchParams = OverlapParams.new()
 	self._searchParams.CollisionGroup = "Character"
@@ -79,7 +80,10 @@ end
 function NonplayerCharacter:Start()
 	self.Knockable = self:GetComponent(Knockable)
 
-	self.CurrentState = self.Wandering
+	self.Instance.PrimaryPart:SetNetworkOwner(nil)
+
+	self._targetPart = workspace:WaitForChild("ihoponyou"):WaitForChild("Head")
+	self.CurrentState = self.Following
 	self:CurrentState()
 end
 
@@ -95,28 +99,48 @@ function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
 
 	self._heartbeatTime += deltaTime
 	if self._heartbeatTime < self._heartbeatDelay then return end
-	self._heartbeatTime = 0
+	self._heartbeatDelay = RAND:NextNumber(0.5 , 1.5)
 
 	self:CurrentState()
+
+	self._heartbeatTime = 0
+end
+
+function NonplayerCharacter:_isNearTarget()
+	return VectorMath.DistanceBetweenParts(self.Instance.PrimaryPart, self._targetPart) < 5
 end
 
 function NonplayerCharacter:_onBlocked(blockedWaypointIdx: number, destination)
 	-- only consider blocked waypoints in front
 	if blockedWaypointIdx >= self._nextWaypointIndex then
 		-- disconnect current handler; new one is connected when path is calculated
-		self._blockedConncetion:Disconnect()
+		self._blockedConnection:Disconnect()
 
 		-- recalculate path around obstacle
-		self:_followPath(destination)
+		self:_calculatePath(destination)
+		self:_travelToNextWaypoint()
 	end
 end
 
 function NonplayerCharacter:_travelToNextWaypoint()
 	local waypoint = self._waypoints[self._nextWaypointIndex]
+	if not waypoint then return end
+
+	local currentCFrame: CFrame = self.Instance:GetPivot()
+	local distanceTraveled = (currentCFrame.Position - self._lastPosition).Magnitude
+	local distanceProjected = self.Humanoid.WalkSpeed * self._heartbeatTime/4
+	if distanceTraveled < distanceProjected then
+		self.Humanoid:Move(currentCFrame.LookVector)
+		task.wait()
+		self.Humanoid.Jump = true
+	end
+
 	self.Humanoid:MoveTo(waypoint.Position)
 	if waypoint.Action == Enum.PathWaypointAction.Jump then
 		self.Humanoid.Jump = true
 	end
+
+	self._lastPosition = currentCFrame.Position
 end
 
 function NonplayerCharacter:_onMoveToFinished(reached: boolean)
@@ -125,14 +149,14 @@ function NonplayerCharacter:_onMoveToFinished(reached: boolean)
 		self._nextWaypointIndex += 1
 		self:_travelToNextWaypoint()
 	elseif  self._nextWaypointIndex == #self._waypoints then
-		self.CurrentState = self.Idling
+		-- self.CurrentState = self.Idling
 	else
 		self._reachedConnection:Disconnect()
-		self._blockedConncetion:Disconnect()
+		self._blockedConnection:Disconnect()
 	end
 end
 
-function NonplayerCharacter:_followPath(destination: Vector3)
+function NonplayerCharacter:_calculatePath(destination: Vector3)
 	local success, errorMessage = pcall(function()
 		self._path:ComputeAsync(self.Instance.PrimaryPart.Position, destination)
 	end)
@@ -140,7 +164,7 @@ function NonplayerCharacter:_followPath(destination: Vector3)
 	if success and self._path.Status == Enum.PathStatus.Success then
 		self._waypoints = self._path:GetWaypoints()
 
-		self._blockedConncetion = self._path.Blocked:Connect(function(...)
+		self._blockedConnection = self._path.Blocked:Connect(function(...)
 			self:_onBlocked(..., destination)
 		end)
 
@@ -150,13 +174,7 @@ function NonplayerCharacter:_followPath(destination: Vector3)
 			end)
 		end
 
-		local belowStart = self.Instance.PrimaryPart.CFrame.Position.Y < self._waypoints[1].Position.Y
-		if belowStart then
-			self.Humanoid.Jump = true
-		end
-
 		self._nextWaypointIndex = 2
-		self:_travelToNextWaypoint()
 	elseif success and self._path.Status == Enum.PathStatus.NoPath then
 		local a = Instance.new("Attachment")
 		a.Parent = workspace.Terrain
@@ -168,10 +186,11 @@ function NonplayerCharacter:_followPath(destination: Vector3)
 end
 
 function NonplayerCharacter:Wandering()
-	if not self._destination then
-		self:_followPath(Vector3.new(0, 0, 0))
+	self:_calculatePath(Vector3.zero)
+	if self.Instance.PrimaryPart.CFrame.Position.Y < self._waypoints[2].Position.Y then
+		self.Humanoid.Jump = true
 	end
-	self:_followPath(Vector3.zero)
+	self:_travelToNextWaypoint()
 end
 
 function NonplayerCharacter:Idling()
@@ -179,13 +198,16 @@ function NonplayerCharacter:Idling()
 end
 
 function NonplayerCharacter:Following()
-	self._heartbeatDelay = 0.1
+	local targetPosition = self._targetPart.Position
+	if self:_isNearTarget() then
+		local explosion = Instance.new("Explosion")
+		explosion.Position = targetPosition
+		explosion.BlastRadius = 0
+		explosion.Parent = workspace
+	end
 
-	local targetRoot = self._target.PrimaryPart
-	-- local targetVelocity = targetRoot.AssemblyLinearVelocity
-	-- local projectedPosition = targetRoot.CFrame.Position + targetVelocity * self._heartbeatDelay
-
-	self.Humanoid:MoveTo(targetRoot.CFrame.Position, targetRoot)
+	self:_calculatePath(targetPosition)
+	self:_travelToNextWaypoint()
 end
 
 function NonplayerCharacter:_getPositionWithinHabitat(): Vector3
