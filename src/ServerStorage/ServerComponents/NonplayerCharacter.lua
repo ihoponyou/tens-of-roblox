@@ -82,6 +82,8 @@ function NonplayerCharacter:Start()
 
 	self._targetPart = workspace:WaitForChild("ihoponyou").PrimaryPart
 	self.CurrentState = self.Following
+
+	-- self:FollowPath(Vector3.new(16.399, 60, -141.673))
 end
 
 function NonplayerCharacter:Stop()
@@ -94,10 +96,6 @@ function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
 		return
 	end
 
-	self._heartbeatTime += deltaTime
-	if self._heartbeatTime < self._heartbeatDelay then return end
-	self._heartbeatTime = 0
-
 	if self.Humanoid.Health <= 0 then
 		self.CurrentState = self.Idling
 	end
@@ -105,47 +103,8 @@ function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
 	self:CurrentState()
 end
 
-function NonplayerCharacter:_travelToNextWaypoint()
-	local waypoint = self._waypoints[self._nextWaypointIndex]
-	if not waypoint then
-		warn("no next waypoint"..tostring(self._nextWaypointIndex))
-		return
-	end
-
-	if waypoint.Action == Enum.PathWaypointAction.Jump then
-		self.Humanoid.Jump = true
-	end
-	self.Humanoid:MoveTo(waypoint.Position)
-end
-
-function NonplayerCharacter:_pathTo(destination: Vector3)
-	local success, errorMessage = pcall(function()
-		self._path:ComputeAsync(self.Instance.PrimaryPart.Position, destination)
-	end)
-
-	self._waypoints = nil
-	self._nextWaypointIndex = -1
-
-	if not success then
-		warn(errorMessage)
-	elseif self._path.Status == Enum.PathStatus.NoPath then
-		self.Humanoid:MoveTo(destination)
-	elseif self._path.Status == Enum.PathStatus.Success then
-		self._waypoints = self._path:GetWaypoints()
-
-		for i, v in self._waypoints do
-			self._nextWaypointIndex = i+1
-			self:_travelToNextWaypoint()
-			local reached = self.Humanoid.MoveToFinished:Wait()
-		end
-
-		self._nextWaypointIndex = 2
-		self:_travelToNextWaypoint()
-	end
-end
-
 function NonplayerCharacter:Wandering()
-	self:_pathTo(Vector3.zero)
+	-- self:_pathTo(Vector3.zero)
 end
 
 function NonplayerCharacter:Idling()
@@ -153,8 +112,31 @@ function NonplayerCharacter:Idling()
 end
 
 function NonplayerCharacter:Following()
-	local targetPosition = self._targetPart.Position
-	self:_pathTo(targetPosition)
+	local destination = Vector3.new()
+
+	for _, v in Players:GetPlayers() do
+		local char = v.Character
+		if not char then continue end
+		destination = char.HumanoidRootPart.Position
+	end
+
+	local currentPosition = self.Instance.PrimaryPart.Position
+	local above = destination.Y - currentPosition.Y > 0.5
+
+	self.Humanoid:MoveTo(destination)
+	if not above then return end
+
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = CollectionService:GetTagged("NonplayerCharacter")
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	local castOrigin = self.Instance.PrimaryPart.CFrame
+	local castSize = Vector3.new(2, 4, 0.1)
+	local blocked = workspace:Blockcast(castOrigin, castSize, (destination-currentPosition).Unit * 3, raycastParams)
+
+	if blocked then
+		if blocked.Instance:IsA("TrussPart") then return end
+		self.Humanoid.Jump = true
+	end
 end
 
 return NonplayerCharacter
