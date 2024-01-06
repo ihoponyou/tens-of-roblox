@@ -25,6 +25,10 @@ local DefaultKeybinds: {Enum.KeyCode} = {
     --     DisplayName = "Move Left";
     --     Key = Enum.KeyCode.A;
     -- };
+    Run = {
+        DisplayName = "Run (Hold)";
+        Key = Enum.KeyCode.LeftShift;
+    };
 	-- Equipment
     Use = {
         DisplayName = "Use Equipment/Primary Fire";

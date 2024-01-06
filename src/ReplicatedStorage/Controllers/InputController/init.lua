@@ -7,9 +7,10 @@ local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
+local InventoryController, CameraController, MovementController
+
 local DEFAULT_KEYBINDS = require(script.DefaultKeybinds)
 
-local InventoryController, CameraController
 -- maps inputs to functionality
 local InputController = Knit.CreateController {
 	Name = "InputController";
@@ -64,9 +65,7 @@ function InputController:LoadKeybind(action: string, keybind: Enum.KeyCode, log:
 
 	ContextActionService:BindAction(action,
 		function(_, userInputState: Enum.UserInputState, _)
-			if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
-
-			return self["_"..action](self)
+			return self["_"..action](self, userInputState)
 		end,
 		false, keybind)
 
@@ -120,39 +119,59 @@ function InputController:GetKeybind(action: string): Enum.KeyCode
 	return self.Keybinds[action].Key
 end
 
-function InputController:_Use()
+function InputController:_Use(userInputState)
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
 	if InventoryController.ActiveItem == nil then return Enum.ContextActionResult.Pass end
 	InventoryController:UseActiveItem()
 	return Enum.ContextActionResult.Sink
 end
 
-function InputController:_Drop(_)
+function InputController:_Drop(userInputState)
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+
 	if InventoryController.ActiveItem == nil then return Enum.ContextActionResult.Pass end
 	InventoryController:DropActiveItem()
 	return Enum.ContextActionResult.Sink
 end
 
-function InputController:_Primary()
+function InputController:_Primary(userInputState)
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+
 	InventoryController:SwitchSlot("Primary")
 	return Enum.ContextActionResult.Sink
 end
-function InputController:_Secondary()
+function InputController:_Secondary(userInputState)
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+
 	InventoryController:SwitchSlot("Secondary")
 	return Enum.ContextActionResult.Sink
 end
-function InputController:_Tertiary()
+function InputController:_Tertiary(userInputState)
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+
 	InventoryController:SwitchSlot("Tertiary")
 	return Enum.ContextActionResult.Sink
 end
 
-function InputController:_ChangeCameraMode()
+function InputController:_ChangeCameraMode(userInputState)
+	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+
 	CameraController:TogglePOV()
 	return Enum.ContextActionResult.Sink
+end
+
+function InputController:_Run(userInputState: Enum.UserInputState)
+	if userInputState == Enum.UserInputState.Begin then
+		MovementController:StartRun()
+	else
+		MovementController:StopRun()
+	end
 end
 
 function InputController:KnitStart()
 	InventoryController = Knit.GetController("InventoryController")
 	CameraController = Knit.GetController("CameraController")
+	MovementController = Knit.GetController("MovementController")
 
 	self.Keybinds = table.clone(DEFAULT_KEYBINDS)
 

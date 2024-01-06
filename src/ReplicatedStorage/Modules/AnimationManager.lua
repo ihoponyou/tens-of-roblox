@@ -64,6 +64,7 @@ function AnimationManager:StopPlayingAnimations(fadeTime: number?)
 end
 
 function AnimationManager:Destroy()
+	self:StopPlayingAnimations(0)
     setmetatable(self, nil)
     table.clear(self)
     table.freeze(self)
