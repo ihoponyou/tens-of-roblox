@@ -27,15 +27,15 @@ end
 function AnimationController:KnitStart()
     MovementController = Knit.GetController("MovementController")
 
-    MovementController.Running:Connect(function(isRunning: boolean)
-        if isRunning then
-            self.AnimationManager:StopAnimation("Walk")
-            self.AnimationManager:PlayAnimation("Run")
-        else
-            self.AnimationManager:StopAnimation("Run")
-            self.AnimationManager:PlayAnimation("Walk")
-        end
-    end)
+    -- MovementController.Running:Connect(function(isRunning: boolean)
+    --     if isRunning then
+    --         self.AnimationManager:StopAnimation("Walk")
+    --         self.AnimationManager:PlayAnimation("Run")
+    --     else
+    --         self.AnimationManager:StopAnimation("Run")
+    --         self.AnimationManager:PlayAnimation("Walk")
+    --     end
+    -- end)
 end
 
 function AnimationController:OnCharacterAdded(character: Model)
