@@ -4,6 +4,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
+local ClientCast = require(ReplicatedStorage.Packages.ClientCast)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
@@ -39,6 +40,7 @@ function Melee:Construct()
 	CastParams.FilterType = Enum.RaycastFilterType.Exclude
 	CastParams.FilterDescendantsInstances = {}
 	self._castParams = CastParams
+	self._caster = nil
 
 	self._combo = 1
 	self._attacking = false
@@ -71,6 +73,9 @@ function Melee:Start()
 			self._equipTrove:Clean()
 		end
 	end)
+
+	self._caster = ClientCast.new(self.Equipment.WorldModel, self._castParams)
+	self._caster:SetRecursive(true)
 end
 
 function Melee:Stop()
@@ -86,7 +91,7 @@ function Melee:Attack(player: Player, ...)
 	end)
 
     self.Equipment.AnimationManager:PlayAnimation("Attack"..tostring(self._combo))
-
+	self._caster:Start()
 	self._combo += 1
 	if self._combo > self._cfg.MaxCombo then
 		-- if nothing is hit then endlag
