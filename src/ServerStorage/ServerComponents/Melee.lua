@@ -13,6 +13,7 @@ local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 
 local DEBUG = true
+local COMBO_RESET_DELAY = 1
 
 local Melee = Component.new({
 	Tag = "Melee",
@@ -38,6 +39,9 @@ function Melee:Construct()
 	CastParams.FilterType = Enum.RaycastFilterType.Exclude
 	CastParams.FilterDescendantsInstances = {}
 	self._castParams = CastParams
+
+	self._combo = 1
+	self._attacking = false
 end
 
 function Melee:Start()
@@ -46,18 +50,25 @@ function Melee:Start()
 	end):catch(warn):await()
 
 	self.Equipment.Use = function(player, ...)
-		self:Attack()
+		self:Attack(player, ...)
 	end
-
-	self._trove:Connect(self.Equipment.PickedUp, function(pickedUp: boolean)
-
-	end)
 
 	self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
 		if equipped then
+			self._equipTrove = self._trove:Extend()
+
+			for i=1, self._cfg.MaxCombo do
+				local attackAnimation = self.Equipment.AnimationManager:GetAnimation("Attack"..tostring(i))
+				self._equipTrove:Connect(attackAnimation:GetMarkerReachedSignal("end"), function()
+					self._attacking = false
+				end)
+			end
+
 			self._castParams.FilterDescendantsInstances = { self.Equipment.Character }
 		else
 			self._castParams.FilterDescendantsInstances = {}
+
+			self._equipTrove:Clean()
 		end
 	end)
 end
@@ -66,9 +77,23 @@ function Melee:Stop()
     self._trove:Destroy()
 end
 
-function Melee:Attack()
-    print("shawing")
-    self.Equipment.AnimationManager:PlayAnimation("Attack")
+function Melee:Attack(player: Player, ...)
+	if self._attacking then return end
+
+	if self._comboResetThread then task.cancel(self._comboResetThread) end
+    self._comboResetThread = task.delay(COMBO_RESET_DELAY, function()
+		self._combo = 1
+	end)
+
+    self.Equipment.AnimationManager:PlayAnimation("Attack"..tostring(self._combo))
+
+	self._combo += 1
+	if self._combo > self._cfg.MaxCombo then
+		-- if nothing is hit then endlag
+		self._combo = 1
+	end
+
+	self._attacking = true
 end
 
 return Melee

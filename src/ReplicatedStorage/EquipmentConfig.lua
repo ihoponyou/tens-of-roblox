@@ -25,6 +25,8 @@ local Configs = {
     ["Dragonslayer"] = {
         SlotType = "Primary";
 		ThirdPersonOnly = true;
+
+		MaxCombo = 3;
     };
 	["Deagle"] = {
 		SlotType = "Secondary";
