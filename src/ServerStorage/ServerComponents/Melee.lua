@@ -15,6 +15,7 @@ local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 
 local DEBUG = true
 local COMBO_RESET_DELAY = 1
+local DAMAGE_POINTS_PER_STUD = 1
 
 local Melee = Component.new({
 	Tag = "Melee",
@@ -35,12 +36,10 @@ function Melee:Construct()
 	self._cfg = EquipmentConfig[self.Instance.Name]
 	self._trove = Trove.new()
 
-	local CastParams = RaycastParams.new()
-	CastParams.CollisionGroup = "Character"
-	CastParams.FilterType = Enum.RaycastFilterType.Exclude
-	CastParams.FilterDescendantsInstances = {}
-	self._castParams = CastParams
-	self._caster = nil
+	local castParams = RaycastParams.new()
+	castParams.FilterType = Enum.RaycastFilterType.Exclude
+	castParams.FilterDescendantsInstances = {}
+	self._castParams = castParams
 
 	self._combo = 1
 	self._attacking = false
@@ -50,6 +49,36 @@ function Melee:Start()
 	Equipment:WaitForInstance(self.Instance):andThen(function(component)
 		self.Equipment = component
 	end):catch(warn):await()
+
+	self.AttackSound = self.Equipment.WorldModel.PrimaryPart:FindFirstChild("AttackSound")
+	if not self.AttackSound then
+		warn(self.Instance.Name.." has no attack sound")
+	end
+
+	-- create damage points for client cast
+	local tip = self.Equipment.WorldModel.PrimaryPart:FindFirstChild("Tip")
+	local pommel = self.Equipment.WorldModel.PrimaryPart:FindFirstChild("Pommel")
+	if tip and pommel then
+		local bladeDirection: Vector3 = tip.WorldPosition - pommel.WorldPosition
+		local points = math.round(bladeDirection.Magnitude/DAMAGE_POINTS_PER_STUD)
+
+		for i=0, points do
+			local dmgPoint = Instance.new("Attachment")
+			dmgPoint.Name = "DmgPoint"
+			dmgPoint.Parent = self.Equipment.WorldModel.PrimaryPart
+			dmgPoint.WorldPosition = pommel.WorldPosition + bladeDirection * i/points
+		end
+	else
+		warn("cannot setup damage points for "..self.Instance.Name)
+	end
+
+	self._caster = ClientCast.new(self.Equipment.WorldModel, self._castParams)
+	self._caster:SetRecursive(true)
+	self._trove:Add(self._caster)
+
+	self._caster.HumanoidCollided:Connect(function(...)
+		self:_onHumanoidCollided(...)
+	end)
 
 	self.Equipment.Use = function(player, ...)
 		self:Attack(player, ...)
@@ -61,28 +90,54 @@ function Melee:Start()
 
 			for i=1, self._cfg.MaxCombo do
 				local attackAnimation = self.Equipment.AnimationManager:GetAnimation("Attack"..tostring(i))
+
+				self._equipTrove:Connect(attackAnimation:GetMarkerReachedSignal("start"), function()
+					self._hitDebounce = {}
+					-- self._caster:StartDebug()
+					self._caster:Start()
+
+					self:PlayAttackSound()
+				end)
+
 				self._equipTrove:Connect(attackAnimation:GetMarkerReachedSignal("end"), function()
+					-- self._caster:DisableDebug()
+					self._caster:Stop()
+
 					self._attacking = false
 				end)
 			end
 
+			-- self._caster:SetOwner(self.Equipment.Owner)
 			self._castParams.FilterDescendantsInstances = { self.Equipment.Character }
+			self._caster:EditRaycastParams(self._castParams)
 		else
+			-- self._caster:SetOwner(nil)
 			self._castParams.FilterDescendantsInstances = {}
+			self._caster:EditRaycastParams(self._castParams)
 
 			self._equipTrove:Clean()
 		end
 	end)
-
-	self._caster = ClientCast.new(self.Equipment.WorldModel, self._castParams)
-	self._caster:SetRecursive(true)
 end
 
 function Melee:Stop()
     self._trove:Destroy()
 end
 
+function Melee:PlayAttackSound()
+	local sound = self.AttackSound
+	if not sound then return end
+
+	local pitchShift: PitchShiftSoundEffect = sound:FindFirstChildOfClass("PitchShiftSoundEffect")
+	if pitchShift then
+		pitchShift.Octave = math.random(0.5, 1.5)
+	end
+
+	self.AttackSound:Play()
+end
+
 function Melee:Attack(player: Player, ...)
+	if not self.Equipment.IsEquipped then return end
 	if self._attacking then return end
 
 	if self._comboResetThread then task.cancel(self._comboResetThread) end
@@ -91,7 +146,7 @@ function Melee:Attack(player: Player, ...)
 	end)
 
     self.Equipment.AnimationManager:PlayAnimation("Attack"..tostring(self._combo))
-	self._caster:Start()
+
 	self._combo += 1
 	if self._combo > self._cfg.MaxCombo then
 		-- if nothing is hit then endlag
@@ -99,6 +154,27 @@ function Melee:Attack(player: Player, ...)
 	end
 
 	self._attacking = true
+end
+
+function Melee:_onHumanoidCollided(raycastResult: RaycastResult, humanoid: Humanoid)
+	if self._hitDebounce[humanoid] then return end
+	self._hitDebounce[humanoid] = true
+	if humanoid.Health <= 0 then return end
+
+	humanoid:TakeDamage(self._cfg.Damage)
+
+	local hitType = "Hit"
+	if humanoid.Health <= 0 then
+		hitType = "Kill"
+	elseif self._cfg.Damage < 15 then
+		hitType = "Graze"
+	end
+
+	ReplicatedStorage.UIEvents.HitRegistered:FireClient(self.Equipment.Owner, hitType)
+
+	task.delay(0.5, function()
+		self._hitDebounce[humanoid] = false
+	end)
 end
 
 return Melee
