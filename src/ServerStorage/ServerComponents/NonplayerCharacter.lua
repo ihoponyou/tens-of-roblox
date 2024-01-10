@@ -11,6 +11,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Timer = require(ReplicatedStorage.Packages.Timer)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
+local ModelUtil = require(ReplicatedStorage.Source.Modules.ModelUtil)
 local VectorMath = require(ReplicatedStorage.Source.Modules.VectorMath)
 local Knockable = require(ServerStorage.Source.ServerComponents.Knockable)
 
@@ -27,6 +28,7 @@ local NonplayerCharacter = Component.new({
 function NonplayerCharacter:Construct()
 	CollectionService:AddTag(self.Instance, "Ragdoll")
 	CollectionService:AddTag(self.Instance, "Knockable")
+	CollectionService:AddTag(self.Instance, "Respawnable")
 	-- self.Instance:SetAttribute("Log", true)
 
 	self._trove = Trove.new()
@@ -52,7 +54,7 @@ function NonplayerCharacter:Construct()
 	-- time that has passed since last npc heartbeat
 	self._heartbeatTime = 0
 
-	self.CurrentState = function() print("override this") end
+	self.CurrentState = function() print("nil state") end
 
 	self._targetPart = nil
 	self._path = PathfindingService:CreatePath({
@@ -78,12 +80,16 @@ end
 function NonplayerCharacter:Start()
 	self.Knockable = self:GetComponent(Knockable)
 
-	self.Instance.PrimaryPart:SetNetworkOwner(nil)
+	ModelUtil.SetModelNetworkOwner(self.Instance, nil)
+	self._trove:Connect(self.Knockable.Knocked, function(isKnocked: boolean)
+		if isKnocked then
+			ModelUtil.SetModelNetworkOwnershipAuto(self.Instance)
+		else
+			ModelUtil.SetModelNetworkOwner(self.Instance, nil)
+		end
+	end)
 
-	self._targetPart = workspace:WaitForChild("ihoponyou").PrimaryPart
-	self.CurrentState = self.Following
-
-	-- self:FollowPath(Vector3.new(16.399, 60, -141.673))
+	self.CurrentState = self.Wandering
 end
 
 function NonplayerCharacter:Stop()
@@ -100,11 +106,48 @@ function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
 		self.CurrentState = self.Idling
 	end
 
+	if self._targetPart ~= nil and self.CurrentState ~= self.Following then
+		self.CurrentState = self.Following
+	end
+
 	self:CurrentState()
 end
 
+function NonplayerCharacter:SearchForTarget()
+	local results = workspace:GetPartBoundsInRadius(self.Instance.PrimaryPart.Position, 50, self._searchParams)
+
+	-- local closestPlayer
+	local shortestDistance = math.huge
+	local processed: { [Model]: number? } = {}
+	for _, v in results do
+		local parent: Model? = v.Parent
+		if not parent then continue end
+		if processed[parent] then continue end
+
+		if not parent.ClassName == "Model" then
+			processed[parent] = -1
+			continue
+		end
+
+		local player = Players:GetPlayerFromCharacter(parent)
+		if not player then
+			processed[parent] = -2
+			continue
+		end
+
+		local distance = (self.Instance.PrimaryPart.Position - parent.PrimaryPart.Position).Magnitude
+		if distance < shortestDistance then
+			shortestDistance = distance
+			self._targetPart = parent.PrimaryPart
+			-- closestPlayer = player
+		end
+	end
+	-- print(closestPlayer)
+end
+
 function NonplayerCharacter:Wandering()
-	-- self:_pathTo(Vector3.zero)
+	self.Humanoid:MoveTo(Vector3.zero)
+	self:SearchForTarget()
 end
 
 function NonplayerCharacter:Idling()
