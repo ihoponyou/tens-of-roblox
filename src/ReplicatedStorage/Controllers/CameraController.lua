@@ -9,6 +9,7 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local OffsetManager = require(ReplicatedStorage.Source.Modules.OffsetManager)
+local PlayerModule = require(Knit.Player.PlayerScripts:WaitForChild("PlayerModule"))
 
 local CameraController = Knit.CreateController {
 	Name = "CameraController";
@@ -25,9 +26,13 @@ local CameraController = Knit.CreateController {
 
 	LockedChanged = Signal.new();
 
-	InFirstPerson = false;
+	-- shift lock doesnt show initially if player starts in third person
+	InFirstPerson = true;
 	AllowFirstPerson = true;
 	FirstPersonChanged = Signal.new();
+
+	ShiftLocked = false;
+	ForceShiftLock = false;
 }
 
 function CameraController:KnitInit()
@@ -52,7 +57,7 @@ function CameraController:OnCharacterAdded(character: Model)
 	self.Character = character
 end
 
-function CameraController:TogglePOV(enterFirstPerson: boolean)
+function CameraController:TogglePOV(enterFirstPerson: boolean?)
 	local inFirstPerson = if enterFirstPerson == nil then not self.InFirstPerson else enterFirstPerson
 	if inFirstPerson and not self.AllowFirstPerson then return end
 	local localPlayer = Knit.Player
@@ -72,6 +77,9 @@ end
 function CameraController:OnRenderStepped(_)
 	if not self.AllowFirstPerson and self.InFirstPerson then
 		self:TogglePOV(false)
+	end
+	if self.ForceShiftLock and not self.ShiftLocked then
+		self:ToggleShiftLock(true)
 	end
 
 	local camera = workspace.CurrentCamera
@@ -106,6 +114,11 @@ function CameraController:Unlock()
 	RunService:UnbindFromRenderStep(self.RenderName)
 
 	self.LockedChanged:Fire(false)
+end
+
+function CameraController:ToggleShiftLock(lock: boolean)
+	self.ShiftLocked = lock
+	PlayerModule:ToggleShiftLock(lock)
 end
 
 return CameraController

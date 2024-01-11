@@ -1,20 +1,24 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
-
 local characterTags = {
+    "Character";
     "Ragdoll";
     "Knockable";
 }
 
-function OnCharacterAdded(character: Model)
+local function OnCharacterAdded(character: Model)
     for _, tag in characterTags do
         CollectionService:AddTag(character, tag)
     end
 end
 
-function OnPlayerAdded(player: Player)
+local function OnPlayerAdded(player: Player)
+    if player.Character then OnCharacterAdded(player.Character) end
     player.CharacterAdded:Connect(OnCharacterAdded)
 end
 
+for _,v in Players:GetPlayers() do
+    OnPlayerAdded(v)
+end
 Players.PlayerAdded:Connect(OnPlayerAdded)

@@ -37,8 +37,10 @@ end
 
 function Habitat:Start()
     for _, npc: Model in self._populus do
-        npc:PivotTo(CFrame.new(self:GetValidSpawnPosition() + Vector3.yAxis * 3))
+        local spawnPosition = self:GetValidSpawnPosition() + Vector3.yAxis * 3
+        npc:PivotTo(CFrame.new(spawnPosition))
         npc.Parent = self.Instance
+        npc:SetAttribute("SpawnLocation", spawnPosition)
         -- npc.PrimaryPart.Anchored = true
     end
 end

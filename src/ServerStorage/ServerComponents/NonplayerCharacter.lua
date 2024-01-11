@@ -26,6 +26,7 @@ local NonplayerCharacter = Component.new({
 })
 
 function NonplayerCharacter:Construct()
+	CollectionService:AddTag(self.Instance, "Character")
 	CollectionService:AddTag(self.Instance, "Ragdoll")
 	CollectionService:AddTag(self.Instance, "Knockable")
 	CollectionService:AddTag(self.Instance, "Respawnable")
@@ -75,6 +76,8 @@ function NonplayerCharacter:Construct()
 	self._searchParams.CollisionGroup = "Character"
 	self._searchParams.FilterDescendantsInstances = { self.Instance }
 	self._searchParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	self.AttackRadius = 0.5
 end
 
 function NonplayerCharacter:Start()
@@ -106,8 +109,15 @@ function NonplayerCharacter:HeartbeatUpdate(deltaTime: number)
 		self.CurrentState = self.Idling
 	end
 
-	if self._targetPart ~= nil and self.CurrentState ~= self.Following then
-		self.CurrentState = self.Following
+	if self._targetPart ~= nil then
+		if self._targetPart.Parent == nil then
+			self._targetPart = nil
+			self.CurrentState = self.Wandering
+		else
+			self.CurrentState = self.Following
+		end
+	else
+		self.CurrentState = self.Wandering
 	end
 
 	self:CurrentState()
@@ -152,32 +162,35 @@ end
 
 function NonplayerCharacter:Idling()
 	self.Humanoid:Move(Vector3.zero)
+	self:SearchForTarget()
 end
 
 function NonplayerCharacter:Following()
-	local destination = Vector3.new()
-
-	for _, v in Players:GetPlayers() do
-		local char = v.Character
-		if not char then continue end
-		destination = char.HumanoidRootPart.Position
-	end
+	local destination = self._targetPart.Position
 
 	local currentPosition = self.Instance.PrimaryPart.Position
-	local above = destination.Y - currentPosition.Y > 0.5
+	local toDestination = destination - currentPosition
+	local above = toDestination.Y > 0.5
+	local flatDirection = Vector3.new(1, 0, 1) * toDestination.Unit
 
-	self.Humanoid:MoveTo(destination)
+	self.Humanoid:MoveTo(destination - flatDirection * self.AttackRadius)
 	if not above then return end
 
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterDescendantsInstances = CollectionService:GetTagged("NonplayerCharacter")
+	raycastParams.FilterDescendantsInstances = CollectionService:GetTagged("Character")
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	local castOrigin = self.Instance.PrimaryPart.CFrame
-	local castSize = Vector3.new(2, 4, 0.1)
-	local blocked = workspace:Blockcast(castOrigin, castSize, (destination-currentPosition).Unit * 3, raycastParams)
+	local castOrigin = self.Instance.PrimaryPart.CFrame + Vector3.yAxis * -self.Humanoid.HipHeight
+	local castSize = Vector3.new(2, 2, 0.1)
+	local blocked = workspace:Blockcast(castOrigin, castSize, (destination-currentPosition).Unit * 2, raycastParams)
 
 	if blocked then
-		if blocked.Instance:IsA("TrussPart") then return end
+		local hitInstance = blocked.Instance
+		if hitInstance:IsA("TrussPart") then return end
+		if hitInstance.Parent then
+			local player = Players:GetPlayerFromCharacter(hitInstance.Parent)
+			if player ~= nil then return end
+		end
+
 		self.Humanoid.Jump = true
 	end
 end

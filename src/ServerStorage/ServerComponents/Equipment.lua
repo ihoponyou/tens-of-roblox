@@ -1,4 +1,5 @@
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -40,6 +41,7 @@ function Equipment:Construct()
     self.IsEquipped = false
     self.Owner = nil
     self.Config = EquipmentConfig[self.Instance.Name]
+    CollectionService:AddTag(self.Instance, self.Config.Type)
 
     if not isValidSlotType(self.Config.SlotType) then error("Invalid slot type") end
 
@@ -83,7 +85,8 @@ function Equipment:Construct()
     self.PickUpPrompt = self._trove:Add(Instance.new("ProximityPrompt"))
     self.PickUpPrompt.Name = "PickUpPrompt"
     self.PickUpPrompt.Parent = self.WorldModel
-    -- self.PickUpPrompt.Style = Enum.ProximityPromptStyle.Custom
+    self.PickUpPrompt.ClickablePrompt = false
+    self.PickUpPrompt.Style = Enum.ProximityPromptStyle.Custom
 
     self.UseEvent = self._trove:Add(Instance.new("RemoteEvent"))
     self.UseEvent.Name = "UseEvent"
@@ -119,9 +122,12 @@ function Equipment:PickUp(player: Player): boolean
     modelRootJoint.C0 = modelRootJoint:GetAttribute("HolsterC0")
 
     self.Owner = player
+    self._deathConnection = player.CharacterRemoving:Connect(function()
+        self:Drop(player)
+    end)
     self.Character = character
     self.Instance:SetAttribute("OwnerID", player.UserId)
-    self.Instance.Parent = player.Backpack
+    self.Instance.Parent = player:WaitForChild("Inventory")
 
     self.WorldModel.PrimaryPart.CanCollide = false
 
@@ -197,6 +203,7 @@ function Equipment:Drop(player: Player): boolean?
     if DEBUG then print(self.Owner.Name .. " dropped " .. self.Instance.Name) end
 
     local oldOwner = self.Owner
+    self._deathConnection:Disconnect()
     self.Owner = nil
     self.Character = nil
     self.Instance:SetAttribute("OwnerID", nil)
@@ -226,7 +233,6 @@ function Equipment:Drop(player: Player): boolean?
     return true
 end
 
--- meant to be overriden; basically an abstract method
 function Equipment.Use(_: Player, _: any)
     warn("equipment use not overriden")
 end

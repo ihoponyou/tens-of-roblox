@@ -1,8 +1,16 @@
-local Configs = {
+
+-- melee sound pitches can be bounded by attributes on the pitchshiftsoundeffect on their attacksound
+-- positions in viewports can be changed by 
+
+local EquipmentConfig = {
 	["AK-47"] = {
+		Type = "Gun";
 		SlotType = "Primary";
 		ThirdPersonOnly = false;
-		ViewportPosition = UDim2.fromScale(1.05, 0);
+		Viewport = {
+			ElementPosition = UDim2.fromScale(1.05, 0);
+			ModelCFrame = CFrame.new(1, 0, -2) * CFrame.Angles(0, 0, 0)
+		};
 
 		Damage = 20;
 		RoundsPerMinute = 600;
@@ -19,23 +27,37 @@ local Configs = {
 		FullyAutomatic = true;
 	};
 	["ClassicSword"] = {
+		Type = "Melee";
 		SlotType = "Secondary";
 		ThirdPersonOnly = false;
+		Viewport = {
+			ElementPosition = nil;
+			ModelCFrame = CFrame.new(0.6, 0, -2) * CFrame.Angles(0, math.rad(-90), math.rad(90))
+		};
 
 		Damage = 33;
 		MaxCombo = 2;
 	};
     ["Dragonslayer"] = {
+		Type = "Melee";
         SlotType = "Primary";
 		ThirdPersonOnly = true;
+		Viewport = {
+			ElementPosition = nil;
+			ModelCFrame = CFrame.new(2, 0, -2) * CFrame.Angles(0, math.rad(-90), math.rad(90))
+		};
 
-		Damage = 40;
+		Damage = 100;
 		MaxCombo = 3;
     };
 	["Deagle"] = {
+		Type = "Gun";
 		SlotType = "Secondary";
 		ThirdPersonOnly = true;
-		ViewportPosition = UDim2.fromScale(2, 0.2);
+		Viewport = {
+			ElementPosition = UDim2.fromScale(2, 0.2);
+			ModelCFrame = CFrame.new(0, 0, -2) * CFrame.Angles(0, math.rad(90), 0)
+		};
 
 		Damage = 35;
 		FullyAutomatic = false;
@@ -53,4 +75,4 @@ local Configs = {
 	};
 }
 
-return Configs
+return EquipmentConfig

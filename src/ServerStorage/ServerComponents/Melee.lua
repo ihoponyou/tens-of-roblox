@@ -14,7 +14,7 @@ local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 
 local DEBUG = true
-local COMBO_RESET_DELAY = 1
+local COMBO_RESET_DELAY = 1.3
 local DAMAGE_POINTS_PER_STUD = 1
 
 local Melee = Component.new({
@@ -24,15 +24,7 @@ local Melee = Component.new({
 	},
 })
 
-local dependencies = {
-	"Equipment"
-}
-
 function Melee:Construct()
-	for _, v in dependencies do
-		CollectionService:AddTag(self.Instance, v)
-	end
-
 	self._cfg = EquipmentConfig[self.Instance.Name]
 	self._trove = Trove.new()
 
@@ -45,10 +37,35 @@ function Melee:Construct()
 	self._attacking = false
 end
 
+function Melee:_setupAttackAnimation(animationTrack: AnimationTrack)
+	local startSignal = animationTrack:GetMarkerReachedSignal("start")
+	if not startSignal then
+		warn(self.Instance.Name, animationTrack.Name, "has no start KeyframeMarker")
+		return
+	end
+	self._equipTrove:Connect(startSignal, function()
+		self._hitDebounce = {}
+		-- self._caster:StartDebug()
+		self._caster:Start()
+
+		self:PlayAttackSound()
+	end)
+
+	local endSignal = animationTrack:GetMarkerReachedSignal("end")
+	if not startSignal then
+		warn(self.Instance.Name, animationTrack.Name, "has no end KeyframeMarker")
+		return
+	end
+	self._equipTrove:Connect(endSignal, function()
+		-- self._caster:DisableDebug()
+		self._caster:Stop()
+
+		self._attacking = false
+	end)
+end
+
 function Melee:Start()
-	Equipment:WaitForInstance(self.Instance):andThen(function(component)
-		self.Equipment = component
-	end):catch(warn):await()
+	self.Equipment = self:GetComponent(Equipment)
 
 	self.AttackSound = self.Equipment.WorldModel.PrimaryPart:FindFirstChild("AttackSound")
 	if not self.AttackSound then
@@ -90,28 +107,22 @@ function Melee:Start()
 
 			for i=1, self._cfg.MaxCombo do
 				local attackAnimation = self.Equipment.AnimationManager:GetAnimation("Attack"..tostring(i))
+				if not attackAnimation then continue end
 
-				self._equipTrove:Connect(attackAnimation:GetMarkerReachedSignal("start"), function()
-					self._hitDebounce = {}
-					-- self._caster:StartDebug()
-					self._caster:Start()
-
-					self:PlayAttackSound()
-				end)
-
-				self._equipTrove:Connect(attackAnimation:GetMarkerReachedSignal("end"), function()
-					-- self._caster:DisableDebug()
-					self._caster:Stop()
-
-					self._attacking = false
-				end)
+				self:_setupAttackAnimation(attackAnimation)
 			end
 
-			-- self._caster:SetOwner(self.Equipment.Owner)
+			-- reset any animation controlled values
+			self._equipTrove:Add(function()
+				self._caster:DisableDebug()
+				self._caster:Stop()
+
+				self._attacking = false
+			end)
+
 			self._castParams.FilterDescendantsInstances = { self.Equipment.Character }
 			self._caster:EditRaycastParams(self._castParams)
 		else
-			-- self._caster:SetOwner(nil)
 			self._castParams.FilterDescendantsInstances = {}
 			self._caster:EditRaycastParams(self._castParams)
 
@@ -130,7 +141,9 @@ function Melee:PlayAttackSound()
 
 	local pitchShift: PitchShiftSoundEffect = sound:FindFirstChildOfClass("PitchShiftSoundEffect")
 	if pitchShift then
-		pitchShift.Octave = math.random(0.5, 1.5)
+		local minShift = pitchShift:GetAttribute("Lower") or 0.5
+		local maxShift = pitchShift:GetAttribute("Upper") or 2
+		pitchShift.Octave = math.random(minShift, maxShift)
 	end
 
 	self.AttackSound:Play()

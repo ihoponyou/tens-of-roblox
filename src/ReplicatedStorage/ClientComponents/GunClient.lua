@@ -146,14 +146,14 @@ function GunClient:_fire()
 	end)
 end
 
-function GunClient:HeartbeatUpdate(_)
+function GunClient:HeartbeatUpdate()
     if not self.EquipmentClient.IsEquipped then return end
 	if not self._triggerDown then return end
 
 	self:_fire()
 end
 
-function GunClient:_updateOffsets(_)
+function GunClient:_updateOffsets()
     local recoilOffset = self.RecoilSpring.Position
 
 	local cameraRecoil = CFrame.Angles(
@@ -239,7 +239,7 @@ function GunClient:_onEquipped()
     end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Reload"))
 
     self._equipTrove:BindToRenderStep("UpdateAimAndRecoilOffsets", Enum.RenderPriority.Camera.Value, function(_)
-        self:_updateOffsets(_)
+        self:_updateOffsets()
     end)
 
 	self._equipTrove:Add(function()

@@ -7,7 +7,7 @@ type Props = {
     prefab: Model
 }
 
-local Viewport: React.FC<Props> = function(props)
+local Viewport: React.FC<Props> = function(props: Props)
     local viewportRef = React.useRef(React.createRef())
 
     React.useEffect(function()

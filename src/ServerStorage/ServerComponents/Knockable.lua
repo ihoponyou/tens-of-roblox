@@ -1,4 +1,5 @@
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -18,6 +19,7 @@ local Knockable = Component.new({
 
 local KNOCK_THRESHOLD = 0
 local RECOVER_THRESHOLD = 0.10
+local BLEED_OUT_TIME = 5
 
 function Knockable:Construct()
     self.IsKnocked = false
@@ -39,13 +41,18 @@ function Knockable:SetKnocked(isKnocked: boolean)
     if isKnocked then
         -- TODO: reviving
 
-        self._bleedOutThread = task.delay(5, function()
+        self._bleedOutThread = task.delay(BLEED_OUT_TIME, function()
             self._bleedOutThread = nil
-            print'game over'
+
             if self.Respawnable ~= nil then
                 self.Respawnable:Respawn()
             else
-                self.Instance:Destroy()
+                local player = Players:GetPlayerFromCharacter(self.Instance)
+                if player then
+                    player:LoadCharacter()
+                else
+                    self.Instance:Destroy()
+                end
             end
         end)
     else
@@ -61,10 +68,12 @@ function Knockable:Start()
     self.Respawnable = self:GetComponent(Respawnable)
 
     self._trove:Connect(self.Humanoid.HealthChanged, function(health: number)
-        if self.IsKnocked and health > self.Humanoid.MaxHealth * RECOVER_THRESHOLD then
-            print'recover'
+        if self.IsKnocked and health > (self.Humanoid.MaxHealth * RECOVER_THRESHOLD) then
             self:SetKnocked(false)
-        elseif health > KNOCK_THRESHOLD then return end
+            return
+        elseif health > (self.Humanoid.MaxHealth * KNOCK_THRESHOLD) then
+            return
+        end
 
         self:SetKnocked(true)
     end)

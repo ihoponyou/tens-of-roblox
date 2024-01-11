@@ -31,16 +31,8 @@ local Gun = Component.new({
 	},
 })
 
-local dependencies = {
-	"Equipment"
-}
 
 function Gun:Construct()
-	-- ensure gun gets dependent components
-	for _, v in dependencies do
-		CollectionService:AddTag(self.Instance, v)
-	end
-
 	self._cfg = EquipmentConfig[self.Instance.Name]
 	self._trove = Trove.new()
 
@@ -68,9 +60,7 @@ function Gun:Construct()
 end
 
 function Gun:Start()
-	Equipment:WaitForInstance(self.Instance):andThen(function(component)
-		self.Equipment = component
-	end):catch(warn):await()
+	self.Equipment = self:GetComponent(Equipment)
 
 	local modelRoot = self.Equipment.WorldModel.PrimaryPart
 	self.FirePoint = modelRoot.FirePoint

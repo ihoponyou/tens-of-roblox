@@ -6,7 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Component = require(ReplicatedStorage.Packages.Component)
 local Knit = require(ReplicatedStorage.Packages.Knit)
-local Roact = require(ReplicatedStorage.Packages.Roact)
+local React = require(ReplicatedStorage.Packages.React)
+local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
@@ -22,7 +23,6 @@ local PromptGui = require(ReplicatedStorage.Source.UIElements.PromptGui)
 local EquipmentClient = Component.new({
 	Tag = "Equipment",
 	Extensions = {
-		LocalPlayerExclusive,
         Logger,
 	},
 })
@@ -42,6 +42,10 @@ function EquipmentClient:Construct()
     self.Equipped = Signal.new()
 
     self.WorldModel = self.Instance:WaitForChild("WorldModel")
+    local container = Instance.new("Folder")
+    container.Name = "Interface"
+    container.Parent = self.WorldModel
+    self._reactRoot = ReactRoblox.createRoot(container)
 
     self.ProximityPrompt = self.WorldModel:WaitForChild("PickUpPrompt")
     self.ProximityPrompt.RequiresLineOfSight = false
@@ -84,6 +88,8 @@ function EquipmentClient:_onEquipped()
     self.IsEquipped = true
     self.Character = Players.LocalPlayer.Character
 
+    CameraController.ForceShiftLock = true
+
     if self._cfg.ThirdPersonOnly then
         self:_rigToCharacter()
         -- print("this thing is 3p only!!!")
@@ -98,6 +104,8 @@ function EquipmentClient:_onEquipped()
 end
 
 function EquipmentClient:_onUnequipped()
+    CameraController.ForceShiftLock = false
+
     if self._cfg.ThirdPersonOnly then
         -- print("that thing was 3p only!!!")
         CameraController.AllowFirstPerson = true
@@ -159,14 +167,6 @@ function EquipmentClient:Drop(): boolean
     return dropSuccess
 end
 
-function EquipmentClient:_setupForLocalPlayer()
-    if DEBUG then print('LOCAL PLAYER OWNS THIS') end
-end
-
-function EquipmentClient:_cleanUpForLocalPlayer()
-    if DEBUG then print('LOCAL PLAYER NO LONGER OWNS THIS') end
-end
-
 function EquipmentClient:Start()
     Knit.OnStart():andThen(function()
         CameraController = Knit.GetController("CameraController")
@@ -185,8 +185,19 @@ function EquipmentClient:Start()
     self._trove:Connect(self.ProximityPrompt.Triggered, function()
         self:PickUp()
     end)
-    -- self._trove:Connect(self.ProximityPrompt.PromptShown, function() self.PromptGui:getValue().Enabled = true end)
-    -- self._trove:Connect(self.ProximityPrompt.PromptHidden, function() self.PromptGui:getValue().Enabled = false end)
+    self._trove:Connect(self.ProximityPrompt.PromptShown, function()
+        -- print'shown'
+        self._reactRoot:render({
+            EquipPrompt = React.createElement(PromptGui, {
+                equipmentName = self.Instance.Name,
+                adornee = self.WorldModel,
+            })
+        })
+    end)
+    self._trove:Connect(self.ProximityPrompt.PromptHidden, function()
+        -- print'hidden'
+        self._reactRoot:render({})
+    end)
 end
 
 function EquipmentClient:Stop()

@@ -14,22 +14,11 @@ local Respawnable = Component.new {
 }
 
 function Respawnable:Construct()
-	self._trove = Trove.new()
-
 	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
 
-	self.SpawnLocation = Vector3.zero
+	self.SpawnLocation = self.Instance:GetAttribute("SpawnLocation") or Vector3.zero
 end
 
-function Respawnable:Start()
-
-end
-
-function Respawnable:Stop()
-	self._trove:Clean()
-end
-
--- refill health, teleport to spawn location
 function Respawnable:Respawn()
 	self.Humanoid.Health = self.Humanoid.MaxHealth
 	self.Instance:PivotTo(CFrame.new(self.SpawnLocation))

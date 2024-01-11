@@ -1,25 +1,23 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Roact = require(ReplicatedStorage.Packages.Roact)
+local React = require(ReplicatedStorage.Packages.React)
 
-local PromptGui = Roact.Component:extend("PromptGui")
-
-function PromptGui:render()
-    return Roact.createElement("BillboardGui", {
+local function PromptGui(props)
+    return React.createElement("BillboardGui", {
         AlwaysOnTop = true;
+        Adornee = props.adornee;
         Size = UDim2.fromOffset(200, 50);
-        Enabled = false;
+        Enabled = true;
         StudsOffset = Vector3.yAxis * 0.5;
-        -- [Roact.Ref] = self.props.ref;
     }, {
-        PromptLabel = Roact.createElement("TextLabel", {
+        PromptLabel = React.createElement("TextLabel", {
             BackgroundTransparency = 1;
             TextStrokeTransparency = 0.5;
             TextColor3 = Color3.fromRGB(255, 255, 255);
             FontFace = Font.new("rbxassetid://12187365364");
             RichText = true;
-            Text = "<b>[E]</b> PICK UP " .. self.props.equipment_name:upper();
+            Text = "<b>[E]</b> PICK UP " .. props.equipmentName:upper();
             TextSize = 24;
             Size = UDim2.fromScale(1, 1);
         })
