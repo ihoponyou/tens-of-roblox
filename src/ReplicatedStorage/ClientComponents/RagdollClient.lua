@@ -14,7 +14,10 @@ local RagdollClient = Component.new {
 
 function RagdollClient:Construct()
 	self._trove = Trove.new()
-	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid")
+	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
+
+	self.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	self.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 end
 
 function RagdollClient:Start()

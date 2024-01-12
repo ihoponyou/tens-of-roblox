@@ -37,15 +37,16 @@ type RagdollJoint = {
 }
 
 function Ragdoll:Construct()
-	-- new instances; base types then instances
 	self.IsRagdolled = false
 	self._joints = {}
 
 	self._trove = Trove.new()
 
-	-- existing instances
 	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid")
 	self.Humanoid.BreakJointsOnDeath = false
+
+	self.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	self.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 
 	for _, motor: Motor6D in self.Instance:GetDescendants() do
 		if not motor:IsA("Motor6D") then continue end
