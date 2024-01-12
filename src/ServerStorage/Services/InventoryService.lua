@@ -1,66 +1,62 @@
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
-local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local InventoryService = Knit.CreateService {
+local InventoryService = Knit.CreateService({
     Name = "InventoryService",
     Client = {
-        -- fire these with instance as argument to protect server's equipment component
-        ItemAdded = Knit.CreateSignal();
-        ItemRemoved = Knit.CreateSignal();
+        InventoryChanged = Knit.CreateSignal(),
+        ActiveSlotChanged = Knit.CreateSignal()
     },
 
-    PlayerInventories = {},
-    _playerConnections = {}
-}
+    PlayerInventories = {}
+})
 
-function InventoryService:OnPlayerAdded(player: Player)
-    local inventoryFolder = Instance.new("Folder")
-    inventoryFolder.Name = "Inventory"
-    inventoryFolder.Parent = player
+function InventoryService:_onPlayerAdded(player: Player)
+    local inventory = Instance.new("Folder")
+    inventory.Name = "Inventory"
+    inventory.Parent = player
 
     self.PlayerInventories[player.UserId] = {}
-    self._playerConnections[player.UserId] = player.CharacterAdded:Connect(function(character)
-        self:ClearInventory(player)
-    end)
-end
-
-function InventoryService:OnPlayerRemoving(player: Player)
-    self.PlayerInventories[player.UserId] = nil
-    self._playerConnections[player.UserId]:Disconnect()
-    self._playerConnections[player.UserId] = nil
 end
 
 function InventoryService:KnitInit()
-    Players.PlayerAdded:Connect(function(player) self:OnPlayerAdded(player) end)
-    Players.PlayerRemoving:Connect(function(player) self:OnPlayerRemoving(player) end)
+    for _, v in Players:GetPlayers() do
+        self:_onPlayerAdded(v)
+    end
+    Players.PlayerAdded:Connect(function(player) 
+        self:_onPlayerAdded(player)
+    end)
+    Players.PlayerRemoving:Connect(function(player: Player) 
+        self.PlayerInventories[player.UserId] = nil
+    end)
 end
 
-function InventoryService:GiveItem(player: Player, item): boolean
-    local currentItemAtSlot = self.PlayerInventories[player.UserId][item.Config.SlotType]
-    if currentItemAtSlot ~= nil then
-        warn(player.Name .. "already has an item @ slot " .. item.Config.SlotType)
-        return false
+function InventoryService:PickUp(player: Player, equipment, pickingUp: boolean): boolean
+    if pickingUp and equipment.Owner ~= nil then return false end
+
+    local inventory = self.PlayerInventories[player.UserId]
+    if not pickingUp and inventory == nil then
+        -- warn("player has no inventory")
+        return true
+    end
+    local slotType = equipment.Config.SlotType
+
+    if pickingUp then
+        if inventory[slotType] ~= nil then return false end
+        
+        inventory[slotType] = equipment
+    else
+        if inventory[slotType] == nil then return false end
+        
+        inventory[slotType] = nil
     end
 
-    self.PlayerInventories[player.UserId][item.Config.SlotType] = item
-    self.Client.ItemAdded:Fire(player, item.Instance)
-    return true
-end
+    -- print(inventory)
 
-function InventoryService:TakeItem(player: Player, item): boolean
-    self.PlayerInventories[player.UserId][item.Config.SlotType] = nil
-    self.Client.ItemRemoved:Fire(player, item.Instance)
     return true
-end
-
-function InventoryService:ClearInventory(player: Player)
-    for slot, item in self.PlayerInventories[player.UserId] do
-        self:TakeItem(player, item)
-    end
 end
 
 return InventoryService

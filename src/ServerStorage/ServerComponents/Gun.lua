@@ -33,7 +33,7 @@ local Gun = Component.new({
 
 
 function Gun:Construct()
-	self._cfg = EquipmentConfig[self.Instance.Name]
+	self.Config = EquipmentConfig[self.Instance.Name].TypeDependent
 	self._trove = Trove.new()
 
 	self.Aiming = false
@@ -109,8 +109,8 @@ function Gun:Start()
 		self:Reload()
 	end)
 
-	self.Ammo = self._cfg.MagazineCapacity
-	self.ReserveAmmo = self._cfg.MagazineCapacity * self._cfg.ReserveMagazines
+	self.Ammo = self.Config.MagazineCapacity
+	self.ReserveAmmo = self.Config.MagazineCapacity * self.Config.ReserveMagazines
 end
 
 function Gun:Stop()
@@ -170,8 +170,8 @@ function Gun:_registerHits(hits: {Instance})
 		-- if not cast then
 		-- 	print("erm (found nothing instead of hit)")
 		-- 	return
-		-- elseif cast.Distance - self._cfg.BulletMaxDistance > 50 then
-		-- 	print(string.format("erm... (%d vs. %d)", cast.Distance, self._cfg.BulletMaxDistance))
+		-- elseif cast.Distance - self.Config.BulletMaxDistance > 50 then
+		-- 	print(string.format("erm... (%d vs. %d)", cast.Distance, self.Config.BulletMaxDistance))
 		-- 	return
 		-- elseif cast.Instance ~= instance then
 		-- 	local distance = (cast.Position - instance.CFrame.Position).Magnitude
@@ -182,14 +182,14 @@ function Gun:_registerHits(hits: {Instance})
 		-- end
 
 		local character: Model? = instance.Parent
-		if instance.Parent == nil then return end
+		if character == nil then return end
 		if not character:IsA("Model") then return end
 
 		local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
 		if humanoid == nil then return end
 		if humanoid.Health <= 0 then return end
 
-		local damage = self._cfg.Damage
+		local damage = self.Config.Damage
 		local isHeadshot = instance.Name == "Head"
 
 		if isHeadshot then
@@ -263,9 +263,9 @@ end
 
 function Gun:Reload()
 	if self.Reloading or self.Firing then return end
-	if self.Ammo == self._cfg.MagazineCapacity or self.ReserveAmmo < 1 then return end
+	if self.Ammo == self.Config.MagazineCapacity or self.ReserveAmmo < 1 then return end
 
-	local roundsNeeded = (self._cfg.MagazineCapacity - self.Ammo)
+	local roundsNeeded = (self.Config.MagazineCapacity - self.Ammo)
 
 	self.Reloading = true
 	self.ReloadEvent:FireClient(self.Equipment.Owner)

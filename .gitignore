@@ -2,3 +2,5 @@ Packages/
 
 *.rbxl
 media/blender/
+
+sourcemap.json

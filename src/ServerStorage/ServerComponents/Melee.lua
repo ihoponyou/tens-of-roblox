@@ -25,7 +25,7 @@ local Melee = Component.new({
 })
 
 function Melee:Construct()
-	self._cfg = EquipmentConfig[self.Instance.Name]
+	self.Config = EquipmentConfig[self.Instance.Name].TypeDependent
 	self._trove = Trove.new()
 
 	local castParams = RaycastParams.new()
@@ -105,7 +105,7 @@ function Melee:Start()
 		if equipped then
 			self._equipTrove = self._trove:Extend()
 
-			for i=1, self._cfg.MaxCombo do
+			for i=1, self.Equipment.Config.TypeDependent.MaxCombo do
 				local attackAnimation = self.Equipment.AnimationManager:GetAnimation("Attack"..tostring(i))
 				if not attackAnimation then continue end
 
@@ -161,7 +161,7 @@ function Melee:Attack(player: Player, ...)
     self.Equipment.AnimationManager:PlayAnimation("Attack"..tostring(self._combo))
 
 	self._combo += 1
-	if self._combo > self._cfg.MaxCombo then
+	if self._combo > self.Config.MaxCombo then
 		-- if nothing is hit then endlag
 		self._combo = 1
 	end
@@ -174,12 +174,12 @@ function Melee:_onHumanoidCollided(raycastResult: RaycastResult, humanoid: Human
 	self._hitDebounce[humanoid] = true
 	if humanoid.Health <= 0 then return end
 
-	humanoid:TakeDamage(self._cfg.Damage)
+	humanoid:TakeDamage(self.Config.Damage)
 
 	local hitType = "Hit"
 	if humanoid.Health <= 0 then
 		hitType = "Kill"
-	elseif self._cfg.Damage < 15 then
+	elseif self.Config.Damage < 15 then
 		hitType = "Graze"
 	end
 

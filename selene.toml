@@ -1,4 +1,4 @@
 std = "roblox"
 
 [lints]
-multiple_statements = "allow"
+one_line_if = "allow"

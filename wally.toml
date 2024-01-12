@@ -25,3 +25,4 @@ ReactSpring = "chriscerie/react-spring@2.0.0"
 ReactRoblox = "jsdotlua/react-roblox@17.1.0"
 
 ClientCast = "indominiso/clientcast@1.0.7"
+Comm = "sleitnick/comm@1.0.1"

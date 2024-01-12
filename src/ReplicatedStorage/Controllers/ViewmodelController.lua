@@ -18,7 +18,9 @@ local ViewmodelController = Knit.CreateController({
 })
 
 function ViewmodelController:OnCharacterAdded(character: Model)
+    print("new")
     self._characterTrove = Trove.new()
+    self._characterTrove:AttachToInstance(character)
     local viewmodelModel = ReplicatedStorage.Viewmodel:Clone()
     viewmodelModel.Parent = Knit.Player
 
@@ -44,22 +46,28 @@ function ViewmodelController:OnCharacterAdded(character: Model)
         component:ToggleVisibility(CameraController.InFirstPerson)
         self._characterTrove:BindToRenderStep("HideViewmodelOpportunely", Enum.RenderPriority.Camera.Value, function(_)
             if not self.ShowViewmodel or component.HeldModel == nil then
-                if component.Visible then component:ToggleVisibility(false) end
+                if component.Visible then
+                    component:ToggleVisibility(false)
+                end
             elseif self.ShowViewmodel then
-                if not component.Visible then component:ToggleVisibility(true) end
+                if not component.Visible then
+                    component:ToggleVisibility(true)
+                end
             end
         end)
-        self._characterTrove:AttachToInstance(component.Instance)
     end):catch(warn)
 end
 
 function ViewmodelController:CleanUp()
+    print('cleaned')
     self.Viewmodel.Instance:Destroy()
     self.Viewmodel = nil
 end
 
 function ViewmodelController:KnitInit()
-    if Knit.Player.Character then self:OnCharacterAdded(Knit.Player.Character) end
+    if Knit.Player.Character then
+        self:OnCharacterAdded(Knit.Player.Character)
+    end
     Knit.Player.CharacterAdded:Connect(function(character)
         self:OnCharacterAdded(character)
     end)

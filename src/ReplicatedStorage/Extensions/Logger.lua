@@ -1,5 +1,8 @@
 local Logger = {}
 
+function Logger.ShouldConstruct(component)
+	return true
+end
 function Logger.ShouldExtend(component)
 	return component.Instance:GetAttribute("Log")
 end

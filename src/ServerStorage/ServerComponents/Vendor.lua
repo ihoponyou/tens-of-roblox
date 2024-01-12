@@ -26,6 +26,7 @@ function Vendor:Construct()
     self.OpenPrompt = Instance.new("ProximityPrompt")
     self.OpenPrompt.Parent = self.Instance
     self.OpenPrompt.ClickablePrompt = false
+    self.OpenPrompt.KeyboardKeyCode = Enum.KeyCode.B
     self._trove:Add(self.OpenPrompt)
     self._trove:Connect(self.OpenPrompt.Triggered, function(playerWhoTriggered: Player)
         self:GiveItem(playerWhoTriggered)

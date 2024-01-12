@@ -1,4 +1,3 @@
-
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,10 +6,14 @@ local Component = require(ReplicatedStorage.Packages.Component)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Comm = require(ReplicatedStorage.Packages.Comm)
+
+local InventoryService = Knit.GetService("InventoryService")
 
 local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local AnimationManager = require(ReplicatedStorage.Source.Modules.AnimationManager)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
+local ModelUtil = require(ReplicatedStorage.Source.Modules.ModelUtil)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
 local DEBUG = false
@@ -23,264 +26,261 @@ local Equipment = Component.new({
 	},
 })
 
-local InventoryService
-
-local function isValidSlotType(slot: string)
-    return type(slot) == "string" and (slot == "Primary" or slot == "Secondary" or slot == "Tertiary") 
-end
-
 function Equipment:Construct()
-    self._folder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name)
-
-    -- animations are required
-    Find.path(self._folder, "Animations/3P/Equip")
-    Find.path(self._folder, "Animations/3P/Idle")
-
     self._trove = Trove.new()
+    self._serverComm = Comm.ServerComm.new(self.Instance)
 
-    self.IsEquipped = false
-    self.Owner = nil
-    self.Config = EquipmentConfig[self.Instance.Name]
+	self.Config = EquipmentConfig[self.Instance.Name]
+	self.Folder = ReplicatedStorage.Equipment:FindFirstChild(self.Instance.Name)
+
+	-- equip & idle animations are required
+	Find.path(self.Folder, "Animations/3P/Equip")
+	Find.path(self.Folder, "Animations/3P/Idle")
+	
+    if not self.Config.Type then
+        error(self.Instance.Name..": nil equipment type")
+    end
     CollectionService:AddTag(self.Instance, self.Config.Type)
 
-    if not isValidSlotType(self.Config.SlotType) then error("Invalid slot type") end
+	if not self.Config.SlotType then
+		error(self.Instance.Name..": nil slot type")
+	end
+	local worldScale = self.Config.Scales.World
+	if not worldScale then
+		error(self.Instance.Name .. ": nil world scale")
+	end
 
-    local model = self.Instance:FindFirstChild("WorldModel")
-    if model then model:Destroy() end
-    self.WorldModel = self._trove:Clone(self._folder.WorldModel)
-    self.WorldModel.Parent = self.Instance
+	self.WorldModel = self._trove:Clone(self.Folder.WorldModel) :: Model
+	if not self.WorldModel.PrimaryPart then
+		error(self.Instance.Name .. ": nil WorldModel.PrimaryPart")
+	end
+	self.WorldModel.PrimaryPart.CanCollide = true
+	ModelUtil.SetModelCollisionGroup(self.WorldModel, "Equipment")
+	self.WorldModel:ScaleTo(worldScale)
+	self.WorldModel.Parent = self.Instance
 
-    for _, part: BasePart in self.WorldModel:GetDescendants() do
-        if not part:IsA("BasePart") then continue end
-        part.CollisionGroup = "Equipment"
-    end
+	self.IsEquipped = false
+	self.Equipped = Signal.new()
+	self.EquipRequest = self._serverComm:CreateSignal("EquipRequest")
+	self.EquipRequest:Connect(function(player, equipping)
+		if equipping then
+			self:Equip(player)
+		else
+			self:Unequip(player)
+		end
+	end)
 
-    if not self.WorldModel.PrimaryPart then
-        self.WorldModel.PrimaryPart = self.WorldModel:FindFirstChild("Handle") or self.WorldModel:GetChildren()[1] -- probably unsafe
-        warn(self.Instance.Name .. " model has nil PrimaryPart; set to " .. self.WorldModel.PrimaryPart.Name)
-    end
-    self.WorldModel.PrimaryPart.CanCollide = true
-    self.WorldModel.PrimaryPart.CollisionGroup = "Equipment"
+	self.IsPickedUp = false
+	self.PickedUp = Signal.new()
+	self.PickUpRequest = self._serverComm:CreateSignal("PickUpRequest")
+	self.PickUpRequest:Connect(function(player, pickingUp)
+		local success = InventoryService:PickUp(player, self, pickingUp)
+		if not success then
+			return
+		end
+		if pickingUp then
+			self:_onPickUp(player)
+		else
+			self:_onDrop(player)
+		end
+	end)
 
-    local worldScale = self.WorldModel:GetAttribute("WorldScale")
-    if not worldScale then
-        warn(self.Instance.Name .. " model does not have a set world scale")
-        worldScale = 1
-    end
-    self.WorldModel:ScaleTo(worldScale)
-
-    -- will only be active when there is an owner
-    self.AnimationManager = nil
-
-    self.PickUpRequest = self._trove:Add(Instance.new("RemoteFunction"))
-    self.PickUpRequest.Name = "PickUpRequest"
-    self.PickUpRequest.Parent = self.Instance
-    self.PickedUp = Signal.new()
-
-    self.EquipRequest = self._trove:Add(Instance.new("RemoteFunction"))
-    self.EquipRequest.Name = "EquipRequest"
-    self.EquipRequest.Parent = self.Instance
-    self.Equipped = Signal.new()
-
-    self.PickUpPrompt = self._trove:Add(Instance.new("ProximityPrompt"))
-    self.PickUpPrompt.Name = "PickUpPrompt"
-    self.PickUpPrompt.Parent = self.WorldModel
-    self.PickUpPrompt.ClickablePrompt = false
-    self.PickUpPrompt.Style = Enum.ProximityPromptStyle.Custom
-
-    self.UseEvent = self._trove:Add(Instance.new("RemoteEvent"))
-    self.UseEvent.Name = "UseEvent"
-    self.UseEvent.Parent = self.Instance
+	self.UseRequest = self._serverComm:CreateSignal("UseRequest")
+	self.UseRequest:Connect(function(player, ...)
+		self:_handleUse(player, ...)
+	end)
 end
 
 -- returns true if successful, otherwise false
-function Equipment:PickUp(player: Player): boolean
-    if self.Owner ~= nil then warn(player.Name .. " tried to pick up already picked up equipment") return false end
+function Equipment:_onPickUp(player: Player): boolean
+	if self.Owner ~= nil then
+		warn(player.Name .. " tried to pick up already picked up equipment")
+		return false
+	end
 
-    local giveSuccess = InventoryService:GiveItem(player, self)
-    if not giveSuccess then return false end
+	local character = player.Character
+	if not character then
+		error("Cannot rig equipment to owner; no character")
+	end
 
-    if DEBUG then print(player.Name .. " picked up " .. self.Instance.Name) end
+	local holsterLimb = character:FindFirstChild(self.Config.HolsterLimb)
+	if not holsterLimb then
+		error("Cannot rig equipment to character; character missing holster's limb")
+	end
 
-    local character = player.Character
-    if not character then error("Cannot rig equipment to owner; no character") end
+	local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
+	if not modelRootJoint then
+		error("Cannot rig equipment to character; model missing RootJoint")
+	end
 
-    local holsterLimb = character:FindFirstChild(self.WorldModel:GetAttribute("HolsterLimb"))
-    if not holsterLimb then error("Cannot rig equipment to character; character missing holster's limb") end
+	ModelUtil.SetModelCanCollide(self.WorldModel, false)
 
-    local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
-    if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end
+	-- rig equipment to character
+	self.WorldModel.Parent = character
+	modelRootJoint.Part0 = holsterLimb
+	modelRootJoint.C0 = modelRootJoint:GetAttribute("HolsterC0")
 
-    for _, part: BasePart in self.WorldModel:GetDescendants() do
-        if not part:IsA("BasePart") then continue end
-        part.CanCollide = false
-    end
+	self.Owner = player
+	self.Character = character
+	self.Instance:SetAttribute("OwnerID", player.UserId)
+	self.Instance.Parent = player:WaitForChild("Inventory")
 
-    -- rig equipment to character
-    self.WorldModel.Parent = character
-    modelRootJoint.Part0 = holsterLimb
-    modelRootJoint.C0 = modelRootJoint:GetAttribute("HolsterC0")
+    self._deathConn = self._trove:Connect(self.Owner.CharacterRemoving, function(_)
+		self:_onDeath()
+	end)
+    
+    -- print(player.Name .. " picked up " .. self.Instance.Name)
 
-    self.Owner = player
-    self._deathConnection = player.CharacterRemoving:Connect(function()
-        self:Drop(player)
-    end)
-    self.Character = character
-    self.Instance:SetAttribute("OwnerID", player.UserId)
-    self.Instance.Parent = player:WaitForChild("Inventory")
-
-    self.WorldModel.PrimaryPart.CanCollide = false
-
-    self.PickUpPrompt.Enabled = false
-    self.PickedUp:Fire(true)
-    return true
+	self.IsPickedUp = true
+	self.PickedUp:Fire(true)
+    self.PickUpRequest:Fire(self.Owner, true)
+	return true
 end
 
-function Equipment:Equip(player: Player): boolean?
-    local verbose = false
-    if player ~= self.Owner then
-        if verbose then
-            error("Non-owner requested equip")
-        else
-            return
-        end
-    end
-    if self.IsEquipped then
-        if verbose then
-            error("already equipped")
-        else
-            return
-        end
-    end
+function Equipment:Equip(player: Player)
+	if player ~= self.Owner then
+		error("Non-owner requested equip")
+		return
+	end
+	if self.IsEquipped then
+		error("already equipped")
+		return
+	end
 
-    local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
-    if not modelRootJoint then error("Cannot rig equipment to character; model missing RootJoint") end
+	local modelRootJoint = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
+	if not modelRootJoint then
+		error("Cannot rig equipment to character; model missing RootJoint")
+	end
 
-    local equipLimb = self.Character:FindFirstChild("Right Arm")
-    if not equipLimb then error("Cannot rig equipment to character; character missing limb to equip") end
+	local equipLimb = self.Character:FindFirstChild("Right Arm")
+	if not equipLimb then
+		error("Cannot rig equipment to character; character missing limb to equip")
+	end
 
-    -- rig equipment to character
-    modelRootJoint.C0 = modelRootJoint:GetAttribute("WorldEquippedC0")
-    modelRootJoint.Part0 = equipLimb
+	-- rig equipment to character
+	modelRootJoint.C0 = modelRootJoint:GetAttribute("WorldEquippedC0")
+	modelRootJoint.Part0 = equipLimb
 
-    self.AnimationManager = AnimationManager.new(Find.path(self.Character, "Humanoid/Animator"))
-    self.AnimationManager:LoadAnimations(Find.path(self._folder, "Animations/3P"):GetChildren())
-    self.AnimationManager:PlayAnimation("Idle", 0)
-    self.AnimationManager:PlayAnimation("Equip", 0)
+	self.AnimationManager = AnimationManager.new(Find.path(self.Character, "Humanoid/Animator"))
+	self.AnimationManager:LoadAnimations(Find.path(self.Folder, "Animations/3P"):GetChildren())
+	self.AnimationManager:PlayAnimation("Idle", 0)
+	self.AnimationManager:PlayAnimation("Equip", 0)
 
-    self.IsEquipped = true
-    self.Equipped:Fire(true)
-    return true -- request was successful
+	self.IsEquipped = true
+	self.Equipped:Fire(true)
+	self.EquipRequest:Fire(self.Owner, true)
+	return
 end
 
-function Equipment:Unequip(player: Player): boolean?
-    if self.Owner ~= player then error("Non-owner requested unequip") end
-    -- if not self.IsEquipped then error("not equipped") end
+function Equipment:Unequip(player: Player)
+	if self.Owner ~= player then
+		error("Non-owner requested unequip")
+        return
+	end
 
-    local holsterLimb = self.Character:FindFirstChild(self.WorldModel:GetAttribute("HolsterLimb"))
-    if not holsterLimb then error("Cannot rig equipment to character; character missing holster's limb") end
-
-    local modelRootJoint: Motor6D = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
-    if not modelRootJoint then error("Cannot unrig equipment from character; equipment missing RootJoint") end
-
-    self.AnimationManager:StopPlayingAnimations(0)
-    modelRootJoint.C0 = modelRootJoint:GetAttribute("HolsterC0")
-    modelRootJoint.Part0 = holsterLimb
-
-    self.IsEquipped = false
-    self.Equipped:Fire(false)
-    return true
-end
-
--- returns true if successful, otherwise false
-function Equipment:Drop(player: Player): boolean?
-    if self.Owner ~= player then error("Non-owner requested drop") end
-    if self.IsEquipped then self:Unequip(self.Owner) end
-
-    local takeSuccess = InventoryService:TakeItem(self.Owner, self)
-    if not takeSuccess then warn("InventoryService could not take " .. self.Instance.Name) return false end
-
-    if DEBUG then print(self.Owner.Name .. " dropped " .. self.Instance.Name) end
-
-    local oldOwner = self.Owner
-    self._deathConnection:Disconnect()
-    self.Owner = nil
-    self.Character = nil
-    self.Instance:SetAttribute("OwnerID", nil)
-    self.PickUpPrompt.Enabled = true
-
-    for _, part: BasePart in self.WorldModel:GetDescendants() do
-        if not part:IsA("BasePart") then continue end
-        part.CanCollide = true
+    if not self.IsEquipped then
+        error("already unequipped")
+        return
     end
 
-    local modelRoot: BasePart = self.WorldModel.PrimaryPart
-    local modelRootJoint: Motor6D = Find.path(modelRoot, "RootJoint")
-    modelRootJoint.Part0 = nil
+	local holsterLimb = self.Character:FindFirstChild(self.Config.HolsterLimb)
+	if not holsterLimb then
+		error("Cannot rig equipment to character; character missing holster's limb")
+	end
 
-    self.Instance.Parent = workspace
-    self.WorldModel.Parent = self.Instance
+	local modelRootJoint: Motor6D = self.WorldModel.PrimaryPart:FindFirstChild("RootJoint")
+	if not modelRootJoint then
+		error("Cannot unrig equipment from character; equipment missing RootJoint")
+	end
 
-    task.spawn(function()
-        modelRoot:SetNetworkOwner(oldOwner)
-        repeat
-            task.wait(5)
-        until modelRoot:FindFirstAncestorOfClass("Workspace") ~= nil and not modelRoot:CanSetNetworkOwnership()
-        modelRoot:SetNetworkOwnershipAuto()
-    end)
+	self.AnimationManager:StopPlayingAnimations(0)
+	modelRootJoint.C0 = modelRootJoint:GetAttribute("HolsterC0")
+	modelRootJoint.Part0 = holsterLimb
 
-    self.PickedUp:Fire(false)
-    return true
+	self.IsEquipped = false
+	self.Equipped:Fire(false)
+	self.EquipRequest:Fire(self.Owner, false)
+	return
 end
 
-function Equipment.Use(_: Player, _: any)
-    warn("equipment use not overriden")
+function Equipment:_onDeath()
+	if self.Owner.Character:GetPivot().Position.Y < workspace.FallenPartsDestroyHeight then
+		InventoryService:PickUp(self.Owner, self, false)
+		self.Instance:Destroy()
+	else
+		InventoryService:PickUp(self.Owner, self, false)
+		self:_onDrop(self.Owner)
+	end
+end
+
+function Equipment:_onDrop(player: Player)
+	if self.Owner ~= player then
+		error("Non-owner requested drop")
+        return
+	end
+
+	if self.IsEquipped then
+		self:Unequip(self.Owner)
+	end
+
+	-- print(self.Owner.Name .. " dropped " .. self.Instance.Name)
+
+	local oldOwner = self.Owner
+	self.Owner = nil
+	self.Character = nil
+	self.Instance:SetAttribute("OwnerID", nil)
+    
+    self._trove:Remove(self._deathConn)
+    self._deathConn:Disconnect()
+	self._deathConn = nil
+
+	self.Instance.Parent = workspace
+	self.WorldModel.Parent = self.Instance
+
+	ModelUtil.SetModelCanCollide(self.WorldModel, true)
+
+	local modelRoot: BasePart = self.WorldModel.PrimaryPart
+	local modelRootJoint: Motor6D = Find.path(modelRoot, "RootJoint")
+	modelRootJoint.Part0 = nil
+
+	-- task.spawn(function()
+	-- 	modelRoot:SetNetworkOwner(oldOwner)
+	-- 	repeat
+	-- 		task.wait(5)
+	-- 	until modelRoot:FindFirstAncestorOfClass("Workspace") ~= nil and not modelRoot:CanSetNetworkOwnership()
+	-- 	modelRoot:SetNetworkOwnershipAuto()
+	-- end)
+
+	self.IsPickedUp = false
+    self.PickUpRequest:Fire(oldOwner, false)
+	self.PickedUp:Fire(false)
+	return true
+end
+
+function Equipment.Use()
+	warn("equipment use not overriden")
 end
 
 function Equipment:_handleUse(player, ...: any)
-    local verbose = false
-    if self.Owner ~= player then
-        if verbose then warn("Non-owner attempted use") end
-        return
-    end
-    if not self.IsEquipped then
-        if verbose then warn("Cannot use unless equipped") end
-        return
-    end
+	if self.Owner ~= player then
+		warn("Non-owner attempted use")
+		return
+	end
+	if not self.IsEquipped then
+		warn("Cannot use unless equipped")
+		return
+	end
 
-    -- print(player, ...)
+	-- print(player, ...)
 
-    self.Use(player, ...)
+	self.Use(player, ...)
 
-    -- print(self.Instance.Name, "was used")
-end
-
-function Equipment:Start()
-    Knit.OnStart():andThen(function()
-        InventoryService = Knit.GetService("InventoryService")
-    end):catch(warn)
-
-    self.PickUpRequest.OnServerInvoke = function(player, pickingUp)
-        return if pickingUp then
-                self:PickUp(player)
-            else
-                self:Drop(player)
-    end
-
-    self.EquipRequest.OnServerInvoke = function(player, equipping)
-        return if equipping then
-                self:Equip(player)
-            else
-                self:Unequip(player)
-    end
-
-    self._trove:Connect(self.UseEvent.OnServerEvent, function(...: any)
-        self:_handleUse(...)
-    end)
+	-- print(self.Instance.Name, "was used")
 end
 
 function Equipment:Stop()
-    self._trove:Clean()
+    self.Owner = nil
+	self._trove:Clean()
 end
 
 return Equipment

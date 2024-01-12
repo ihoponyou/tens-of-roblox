@@ -5,7 +5,7 @@ export type Keybind = {
 }
 
 -- index is action name to be used in code
-local DefaultKeybinds: {Enum.KeyCode} = {
+local DefaultKeybinds: {[string]: Keybind} = {
     -- General
     -- Interact = {
     --     DisplayName = "Interact";
@@ -42,22 +42,22 @@ local DefaultKeybinds: {Enum.KeyCode} = {
         DisplayName = "Reload";
         Key = Enum.KeyCode.R;
     };
-    Drop = {
-        DisplayName = "Drop Item";
-        Key = Enum.KeyCode.G;
-    };
-    Primary = {
-        DisplayName = "Primary Slot";
-        Key = Enum.KeyCode.One;
-    };
-    Secondary = {
-        DisplayName = "Secondary Slot";
-        Key = Enum.KeyCode.Two;
-    };
-    Tertiary = {
-        DisplayName = "Tertiary Slot";
-        Key = Enum.KeyCode.Three;
-    };
+    -- Drop = {
+    --     DisplayName = "Drop Item";
+    --     Key = Enum.KeyCode.G;
+    -- };
+    -- Primary = {
+    --     DisplayName = "Primary Slot";
+    --     Key = Enum.KeyCode.One;
+    -- };
+    -- Secondary = {
+    --     DisplayName = "Secondary Slot";
+    --     Key = Enum.KeyCode.Two;
+    -- };
+    -- Tertiary = {
+    --     DisplayName = "Tertiary Slot";
+    --     Key = Enum.KeyCode.Three;
+    -- };
     ChangeCameraMode = {
         DisplayName = "Change Camera Mode";
         Key = Enum.KeyCode.V;

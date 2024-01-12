@@ -3,8 +3,6 @@ local ContextActionService = game:GetService("ContextActionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
 -- definition of common ancestor
@@ -41,11 +39,8 @@ local GunClient = Component.new({
 })
 
 function GunClient:Construct()
-	self._cfg = EquipmentConfig[self.Instance.Name]
-    self._folder = Find.path(ReplicatedStorage, "Equipment/"..self.Instance.Name)
-
+	self.Config = EquipmentConfig[self.Instance.Name].TypeDependent
 	self._trove = Trove.new()
-    self.CasingModel = Find.path(self._folder, "Casing")
 
 	self.ReloadEvent = self.Instance:WaitForChild("ReloadEvent")
 	self.UpdateCurrentAmmo = self.Instance:WaitForChild("UpdateCurrentAmmo")
@@ -55,10 +50,7 @@ function GunClient:Construct()
     self._triggerDown = false
 	self._firing = false
 	self._reloading = false
-	self._fireDelay = 1/(self._cfg.RoundsPerMinute/60)
 	self._lastShotFired = 0
-	self.CurrentAmmo = self._cfg.MagazineCapacity
-	self.ReserveAmmo = self._cfg.MagazineCapacity * self._cfg.ReserveMagazines
 
 	self._castParams = RaycastParams.new()
 	self._castParams.CollisionGroup = "Character"
@@ -74,17 +66,20 @@ function GunClient:Start()
         CameraController = Knit.GetController("CameraController")
     end):catch(warn)
 
-	EquipmentClient:WaitForInstance(self.Instance):andThen(function(component)
-		self.EquipmentClient = component
-	end):catch(warn):await()
+	self.Equipment = self:GetComponent(EquipmentClient)
+	
+	self._fireDelay = 1/(self.Config.RoundsPerMinute/60)
+    self.CasingModel = Find.path(self.Equipment.Folder, "Casing")
+	self.Magazine = self.Equipment.WorldModel:WaitForChild("Magazine")
+	
+	self.CurrentAmmo = self.Config.MagazineCapacity
+	self.ReserveAmmo = self.CurrentAmmo * self.Config.ReserveMagazines
 
-	self.Magazine = self.EquipmentClient.WorldModel:WaitForChild("Magazine")
-
-    -- self._trove:Connect(self.EquipmentClient.UseEvent.OnClientEvent, function(...: any)
+    -- self._trove:Connect(self.Equipment.UseEvent.OnClientEvent, function(...: any)
     --     self:_doRecoil(...)
     -- end)
 
-    self._trove:Connect(self.EquipmentClient.Equipped, function(equipped: boolean)
+    self._trove:Connect(self.Equipment.Equipped, function(equipped: boolean)
         if equipped then
             self:_onEquipped()
         else
@@ -130,14 +125,14 @@ function GunClient:_fire()
 		origin = head.Position
 		direction = (mouse.Hit.Position - origin).Unit
 	end
-	direction *= self._cfg.BulletMaxDistance
+	direction *= self.Config.BulletMaxDistance
 
 	local cast = workspace:Raycast(origin, direction, self._castParams)
 	local hits = if cast then { cast.Instance } else nil -- eventually add piercing
-	self.EquipmentClient:Use(hits)
+	self.Equipment:Use(hits)
 	self:_doRecoil()
 
-	if not self._cfg.FullyAutomatic then
+	if not self.Config.FullyAutomatic then
 		self._triggerDown = false
 	end
 
@@ -147,7 +142,7 @@ function GunClient:_fire()
 end
 
 function GunClient:HeartbeatUpdate()
-    if not self.EquipmentClient.IsEquipped then return end
+    if not self.Equipment.IsEquipped then return end
 	if not self._triggerDown then return end
 
 	self:_fire()
@@ -245,6 +240,7 @@ function GunClient:_onEquipped()
 	self._equipTrove:Add(function()
 		ContextActionService:UnbindAction("FireGun")
 		ContextActionService:UnbindAction("AimGun")
+		ContextActionService:UnbindAction("ReloadGun")
 		CameraController.OffsetManager:RemoveOffset("Recoil")
     	CameraController.OffsetManager:RemoveOffset("Aim")
 	end)
@@ -255,7 +251,7 @@ function GunClient:_onUnequipped()
 end
 
 function GunClient:_ejectCasing()
-    local ejectionPort = Find.path(self.EquipmentClient.WorldModel.PrimaryPart, "EjectionPort")
+    local ejectionPort = Find.path(self.Equipment.WorldModel.PrimaryPart, "EjectionPort")
 	local casingClone = self.CasingModel:Clone()
 	casingClone.Parent = workspace.GunDebris
 	casingClone.CFrame = ejectionPort.WorldCFrame * CFrame.Angles(0, math.pi/2, 0)
