@@ -4,7 +4,7 @@ export type SlotType = "Primary" | "Secondary"
 export type Equipment = {
 	SlotType: SlotType,
 	HolsterLimb: string,
-	ThirdPersonOnly: boolean,
+	AllowFirstPerson: boolean,
 	Viewport: {
 		ElementPosition: UDim2?,
 		ModelCFrame: CFrame?,
@@ -27,7 +27,7 @@ local EquipmentConfig: { [string]: Equipment } = {
 	["AK-47"] = {
 		SlotType = "Primary",
 		HolsterLimb = "Torso",
-		ThirdPersonOnly = false,
+		AllowFirstPerson = true,
 		Viewport = {
 			ElementPosition = UDim2.fromScale(1.05, 0),
 			ModelCFrame = CFrame.new(1, 0, -2),
@@ -47,7 +47,7 @@ local EquipmentConfig: { [string]: Equipment } = {
 	["ClassicSword"] = {
 		SlotType = "Secondary",
 		HolsterLimb = "Torso",
-		ThirdPersonOnly = true,
+		AllowFirstPerson = false,
 		Viewport = {
 			ElementPosition = nil,
 			ModelCFrame = CFrame.new(0.6, 0, -2) * fromOrientationDeg(0, -90, 90),
@@ -67,7 +67,7 @@ local EquipmentConfig: { [string]: Equipment } = {
 	["Dragonslayer"] = {
 		SlotType = "Primary",
 		HolsterLimb = "Torso",
-		ThirdPersonOnly = true,
+		AllowFirstPerson = false,
 		Viewport = {
 			ElementPosition = nil,
 			ModelCFrame = CFrame.new(2, 0, -2) * fromOrientationDeg(0, -90, 90),
@@ -77,7 +77,7 @@ local EquipmentConfig: { [string]: Equipment } = {
 			-- Viewmodel = -1,
 		},
 		RootJointC0 = {
-			Holstered = CFrame.new(1.5, 1.731, 0.623) * fromOrientationDeg(0, -90, 90),
+			Holstered = CFrame.new(1.5, 1.731, 0.623) * fromOrientationDeg(48.744, -90, -90),
 			Equipped = {
 				World = CFrame.new(0, -0.807, 0) * fromOrientationDeg(0, 180, 90),
 				-- Viewmodel = CFrame.new(0, -0.807, 0) * fromOrientationDeg(0, 180, 90)
@@ -87,7 +87,7 @@ local EquipmentConfig: { [string]: Equipment } = {
 	["Deagle"] = {
 		SlotType = "Secondary",
 		HolsterLimb = "Right Leg",
-		ThirdPersonOnly = false,
+		AllowFirstPerson = true,
 		Viewport = {
 			ElementPosition = UDim2.fromScale(2, 0.2),
 			ModelCFrame = CFrame.new(0, 0, -2) * fromOrientationDeg(0, 90, 0),
@@ -107,6 +107,7 @@ local EquipmentConfig: { [string]: Equipment } = {
 	ClassicKnife = {
 		SlotType = "Secondary",
 		HolsterLimb = "Torso",
+		AllowFirstPerson = true,
 		RootJointC0 = {
 			Holstered = CFrame.new(1.1, -1.35, -0.3) * fromOrientationDeg(-15, 180, 180),
 			Equipped = {
@@ -119,6 +120,21 @@ local EquipmentConfig: { [string]: Equipment } = {
 			-- ModelCFrame = CFrame.new(0.6, 0, -2) * CFrame.Angles(0, math.rad(-90), math.rad(90)),
 		},
 	};
+	Buster = {
+		SlotType = "Primary",
+		HolsterLimb = "Torso",
+		AllowFirstPerson = false,
+		RootJointC0 = {
+			Holstered = CFrame.new(0.216, -0.147, 0.542) ,
+			Equipped = {
+				World = CFrame.new(0, -0.8, -3.1) * fromOrientationDeg(0, 0, 90)
+			}
+		},
+		Viewport = {
+			-- ElementPosition = nil,
+			-- ModelCFrame = CFrame.new(0.6, 0, -2) * CFrame.Angles(0, math.rad(-90), math.rad(90)),
+		},
+	}
 }
 
 return EquipmentConfig

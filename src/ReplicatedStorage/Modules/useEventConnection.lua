@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-type
+
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

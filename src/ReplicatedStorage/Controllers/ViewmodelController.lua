@@ -2,7 +2,6 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
@@ -12,7 +11,6 @@ local ViewmodelController = Knit.CreateController({
     Name = "ViewmodelController",
 
     Viewmodel = nil,
-    ShowViewmodel = false
 })
 
 function ViewmodelController:KnitInit()
@@ -25,19 +23,6 @@ function ViewmodelController:KnitInit()
     Knit.Player.CharacterRemoving:Connect(function()
         self.Viewmodel.Instance:Destroy()
         self.Viewmodel = nil
-    end)
-
-    RunService.RenderStepped:Connect(function(_dt)
-        if self.Viewmodel == nil then return end
-        if self.ShowViewmodel then
-            if not self.Viewmodel.Visible then
-                self.Viewmodel:ToggleVisibility(true)
-            end
-        else
-            if self.Viewmodel.Visible then
-                self.Viewmodel:ToggleVisibility(false)
-            end
-        end
     end)
 end
 

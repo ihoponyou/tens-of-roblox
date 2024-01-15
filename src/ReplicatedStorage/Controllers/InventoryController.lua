@@ -6,7 +6,6 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local InventoryService
-local CameraController
 
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 
@@ -21,23 +20,19 @@ local InventoryController = Knit.CreateController({
 
 function InventoryController:_tryEquip(newSlot: string)
     local oldSlot = self.ActiveSlot
+    if newSlot == oldSlot then return end
     local currentItem = self.Inventory[oldSlot]
     if currentItem ~= nil then
         local equipment = EquipmentClient:FromInstance(currentItem)
         equipment:Unequip()
 
         self:SetActiveSlot(nil)
-        if newSlot == oldSlot then return end
     end
 
     local newItem = self.Inventory[newSlot]
     if not newItem then return end
     local equipment = EquipmentClient:FromInstance(newItem)
     equipment:Equip()
-
-    if equipment.Config.ThirdPersonOnly then
-        CameraController:SetAllowFirstPerson(false)
-    end
 
     self:SetActiveSlot(equipment.Config.SlotType)
 end
@@ -73,20 +68,13 @@ end
 
 function InventoryController:KnitStart()
     InventoryService = Knit.GetService("InventoryService")
-    CameraController = Knit.GetController("CameraController")
 
     InventoryService.InventoryChanged:Connect(function(...)
         self.Inventory = ...
     end)
-
-    self.ActiveSlotChanged:Connect(function()
-        if self.ActiveSlot == nil then
-            CameraController:SetAllowFirstPerson(true)
-        end
-    end)
 end
 
-function InventoryController:SetActiveSlot(slot: string)
+function InventoryController:SetActiveSlot(slot: string?)
     -- print(self.ActiveSlot, "->", slot)
     self.ActiveSlot = slot
     self.ActiveSlotChanged:Fire(slot)

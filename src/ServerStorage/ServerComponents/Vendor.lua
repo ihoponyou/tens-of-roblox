@@ -33,7 +33,7 @@ function Vendor:Construct()
     end)
 end
 
-function Vendor:GiveItem(player: Player)
+function Vendor:GiveItem(_player: Player)
     local item = Instance.new("Model")
     item.Name = EQUIPMENT_NAMES[RANDOM:NextInteger(1, #EQUIPMENT_NAMES)]
     item.Parent = workspace

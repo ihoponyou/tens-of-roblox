@@ -15,7 +15,7 @@ local Viewmodel = Component.new({
 function Viewmodel:Construct()
     self._trove = Trove.new()
 
-    self.Visible = true
+    self.Visible = false
     self.AnimationManager = self._trove:Construct(AnimationManager, self.Instance:WaitForChild("RigHumanoid"):WaitForChild("Animator"))
     self.Instance.Parent = workspace.CurrentCamera
 end

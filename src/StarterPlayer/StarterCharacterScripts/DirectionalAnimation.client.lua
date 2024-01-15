@@ -24,6 +24,10 @@ RANGE_OF_MOTION = math.rad(RANGE_OF_MOTION)
 RANGE_OF_MOTION_TORSO = math.rad(RANGE_OF_MOTION_TORSO)
 
 local function calculateC0(dt, humanoidRootPart, humanoid, torso)
+    local hipR = torso:FindFirstChild("Right Hip")
+    local hipL = torso:FindFirstChild("Left Hip")
+    if not (hipR or hipL) then return end
+
     local direction: Vector3 = humanoidRootPart.CFrame:VectorToObjectSpace(humanoidRootPart.AssemblyLinearVelocity)
     direction = Vector3.new(direction.X/humanoid.WalkSpeed, 0, direction.Z/humanoid.WalkSpeed)
 
@@ -44,8 +48,12 @@ local function calculateC0(dt, humanoidRootPart, humanoid, torso)
 
     local lerpTime = 1 - LERP_SPEED ^ dt
 
-    torso["Right Hip"].C0 = torso["Right Hip"].C0:Lerp(newHipR, lerpTime)
-    torso["Left Hip"].C0 = torso["Left Hip"].C0:Lerp(newHipL, lerpTime)
+    if hipR then
+        hipR.C0 = hipR.C0:Lerp(newHipR, lerpTime)    
+    end
+    if hipL then
+        hipL.C0 = hipL.C0:Lerp(newHipL, lerpTime)
+    end
     --humanoidRootPart.RootJoint.C0 = humanoidRootPart.RootJoint.C0:Lerp(newRootJoint, lerpTime)
     --torso.Neck.C0 = torso.Neck.C0:Lerp(newNeck, lerpTime)
 end

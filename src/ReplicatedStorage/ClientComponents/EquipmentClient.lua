@@ -45,16 +45,6 @@ function EquipmentClient:Start()
         CameraController = Knit.GetController("CameraController")
         ViewmodelController = Knit.GetController("ViewmodelController")
     end, warn):await()
-
-    CameraController.PointOfViewChanged:Connect(function(inFirstPerson: boolean)
-        if not self.IsPickedUp:Get() then return end
-        if not self.IsEquipped:Get() then return end
-        if inFirstPerson then
-            self:_rigToViewmodel()
-        else
-            self:_rigToCharacter()
-        end
-    end)
 end
 
 function EquipmentClient:_setupForLocalPlayer()
@@ -67,9 +57,23 @@ function EquipmentClient:_setupForLocalPlayer()
             self:_onUnequipped()
         end
     end))
+
+    CameraController:SetAllowFirstPerson(self.Config.AllowFirstPerson)
+
+    self._localPlayerTrove:Connect(CameraController.PointOfViewChanged, function(inFirstPerson: boolean)
+        if not self.IsEquipped:Get() then return end
+        ViewmodelController.Viewmodel:ToggleVisibility(inFirstPerson)
+        if inFirstPerson then
+            self:_rigToViewmodel()
+        else
+            self:_rigToCharacter(false)
+        end
+    end)
 end
 
 function EquipmentClient:_cleanUpForLocalPlayer()
+    CameraController:SetAllowFirstPerson(true)
+
     if self._localPlayerTrove then
         self._localPlayerTrove:Destroy()
     end
@@ -97,7 +101,6 @@ function EquipmentClient:RigTo(character: Model, limb: string, c0: CFrame?)
 end
 
 function EquipmentClient:_rigToCharacter(holstered: boolean)
-    ViewmodelController.ShowViewmodel = false
     if holstered then
         self:RigTo(Players.LocalPlayer.Character, self.Config.HolsterLimb, self.Config.RootJointC0.Holstered)
     else
@@ -106,7 +109,6 @@ function EquipmentClient:_rigToCharacter(holstered: boolean)
 end
 
 function EquipmentClient:_rigToViewmodel()
-    ViewmodelController.ShowViewmodel = true
     self:RigTo(ViewmodelController.Viewmodel.Instance, "Right Arm", self.Config.RootJointC0.Equipped.Viewmodel)
 end
 
@@ -127,14 +129,12 @@ function EquipmentClient:Equip()
 end
 
 function EquipmentClient:_onEquipped()
-    if self.Config.ThirdPersonOnly then
-        self:_rigToCharacter()
-    elseif CameraController.InFirstPerson then
-        self:_rigToViewmodel()
-    end
+    if not self.Config.AllowFirstPerson then return end
 
-    if not self.Config.ThirdPersonOnly then
-        self:_loadViewmodelAnimations()
+    self:_loadViewmodelAnimations()
+    if CameraController.InFirstPerson then
+        self:_rigToViewmodel()
+        ViewmodelController.Viewmodel:ToggleVisibility(true)
     end
 end
 
@@ -148,6 +148,7 @@ function EquipmentClient:_onUnequipped()
     if self.IsPickedUp:Get() then
         self:_rigToCharacter(true)
     end
+    ViewmodelController.Viewmodel:ToggleVisibility(false)
 end
 
 function EquipmentClient:Drop()
