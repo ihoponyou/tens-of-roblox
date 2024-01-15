@@ -74,10 +74,10 @@ local EquipmentConfig: { [string]: Equipment } = {
 		},
 		Scales = {
 			World = 0.59,
-			Viewmodel = -1,
+			-- Viewmodel = -1,
 		},
 		RootJointC0 = {
-			Holstered = CFrame.new(1.478, 1.546, 0.646) * fromOrientationDeg(48.714, -90.439, -90.315),
+			Holstered = CFrame.new(1.5, 1.731, 0.623) * fromOrientationDeg(0, -90, 90),
 			Equipped = {
 				World = CFrame.new(0, -0.807, 0) * fromOrientationDeg(0, 180, 90),
 				-- Viewmodel = CFrame.new(0, -0.807, 0) * fromOrientationDeg(0, 180, 90)

@@ -205,13 +205,13 @@ end
 function Equipment:Unequip(player: Player)
 	if self.Owner ~= player then return end
 
-	self:RigTo(self.Owner.Character, self.Config.HolsterLimb, self.Config.RootJointC0.Holstered)
-
 	if self.AnimationManager then
         self.AnimationManager:Destroy()
         self.AnimationManager = nil
         -- print("KILL")
     end
+
+	self:RigTo(self.Owner.Character, self.Config.HolsterLimb, self.Config.RootJointC0.Holstered)
 
 	self:_setEquipped(false)
 end

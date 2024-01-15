@@ -30,7 +30,7 @@ function MeleeClient:_setupForLocalPlayer()
     ContextActionService:BindAction(self.Instance.Name.."Attack", function(_, uis, _)
        if uis ~= Enum.UserInputState.Begin then return end
        self.AttackRequest:Fire()
-    end, false, Enum.KeyCode.F)
+    end, false, Enum.UserInputType.MouseButton1)
 end
 
 function MeleeClient:_cleanUpForLocalPlayer()
