@@ -18,7 +18,27 @@ local function iterateModel(model: Model, operation: (part: BasePart) -> nil)
 	end
 end
 
-function ModelUtil.ChangeModelTransparency(model: Model, transparency: number)
+function ModelUtil.SetPartProperty(model: Model, property: string, value: any)
+	validateModel(model)
+
+	local testPart = Instance.new("Part")
+	-- check if property exists
+	local success, result = pcall(function()
+		return typeof(testPart[property])
+	end)
+	if not success then error(result) end
+	-- check if given value matches property's type
+	if typeof(value) ~= result then error("type mismatch") end
+	-- check class?
+
+	iterateModel(model, function(part)
+		part[property] = value
+	end)
+
+	testPart:Destroy()
+end
+
+function ModelUtil.SetModelTransparency(model: Model, transparency: number)
 	if type(transparency) ~= "number" or transparency > 1 or transparency < 0 then
 		error("transpaency must be a number between 0 and 1")
 	end

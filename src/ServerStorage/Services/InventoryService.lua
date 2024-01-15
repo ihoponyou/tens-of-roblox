@@ -8,18 +8,20 @@ local InventoryService = Knit.CreateService({
     Name = "InventoryService",
     Client = {
         InventoryChanged = Knit.CreateSignal(),
-        ActiveSlotChanged = Knit.CreateSignal()
     },
 
-    PlayerInventories = {}
+    Inventories = {},
+    _folders = {}
 })
 
 function InventoryService:_onPlayerAdded(player: Player)
+    -- core backpack is destroyed on death
     local inventory = Instance.new("Folder")
     inventory.Name = "Inventory"
     inventory.Parent = player
 
-    self.PlayerInventories[player.UserId] = {}
+    self.Inventories[player.UserId] = {}
+    self._folders[player.UserId] = inventory
 end
 
 function InventoryService:KnitInit()
@@ -29,33 +31,50 @@ function InventoryService:KnitInit()
     Players.PlayerAdded:Connect(function(player) 
         self:_onPlayerAdded(player)
     end)
-    Players.PlayerRemoving:Connect(function(player: Player) 
-        self.PlayerInventories[player.UserId] = nil
+    Players.PlayerRemoving:Connect(function(player: Player)
+        self.Inventories[player.UserId] = nil
+        -- folder instance will be destroyed on its own
+        self._folders[player.UserId] = nil
     end)
 end
 
-function InventoryService:PickUp(player: Player, equipment, pickingUp: boolean): boolean
-    if pickingUp and equipment.Owner ~= nil then return false end
-
-    local inventory = self.PlayerInventories[player.UserId]
-    if not pickingUp and inventory == nil then
-        -- warn("player has no inventory")
-        return true
-    end
+function InventoryService:AddEquipment(player, equipment): boolean
+    local inventory = self.Inventories[player.UserId]
     local slotType = equipment.Config.SlotType
 
-    if pickingUp then
-        if inventory[slotType] ~= nil then return false end
-        
-        inventory[slotType] = equipment
-    else
-        if inventory[slotType] == nil then return false end
-        
-        inventory[slotType] = nil
+    if inventory[slotType] ~= nil then
+        warn("slot is occupied by "..inventory[slotType].Name)
+        return false
     end
 
-    -- print(inventory)
+    equipment.Instance.Parent = self._folders[player.UserId]
+    inventory[slotType] = equipment.Instance
 
+    self.Client.InventoryChanged:Fire(player, inventory)
+    return true
+end
+
+function InventoryService:RemoveEquipment(player, equipment): boolean
+    local inventory = self.Inventories[player.UserId]
+    if inventory == nil then
+        warn(player.UserId.." has no inventory table; may have left")
+        return false
+    end
+
+    local slotType = equipment.Config.SlotType
+
+    if inventory[slotType] == nil then
+        warn(equipment.Instance.Name.." not found for "..player.Name)
+        return false
+    end
+
+    -- equipment may have been destroyed
+    if equipment.Instance.Parent ~= nil then
+        equipment.Instance.Parent = workspace
+    end
+    inventory[slotType] = nil
+
+    self.Client.InventoryChanged:Fire(player, inventory)
     return true
 end
 

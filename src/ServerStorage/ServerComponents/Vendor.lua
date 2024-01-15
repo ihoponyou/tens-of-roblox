@@ -40,7 +40,8 @@ function Vendor:GiveItem(player: Player)
 
     CollectionService:AddTag(item, "Equipment")
 
-    item:WaitForChild("WorldModel"):PivotTo(self.Instance.PrimaryPart.CFrame)
+    local cframe: CFrame = self.Instance.PrimaryPart.CFrame
+    item:WaitForChild("WorldModel"):PivotTo(cframe + cframe.LookVector)
 end
 
 return Vendor

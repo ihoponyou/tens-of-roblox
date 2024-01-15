@@ -9,7 +9,7 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 
-local InventoryController
+local InventoryController, InventoryService
 
 local Inventory = require(ReplicatedStorage.Source.UIElements.Inventory)
 
@@ -20,6 +20,7 @@ export type SlotType = "Primary" | "Secondary" | "Tertiary" | "Melee"
 
 Knit.OnStart():andThen(function()
     InventoryController = Knit.GetController("InventoryController")
+    InventoryService = Knit.GetService("InventoryService")
 end):catch(warn):await()
 
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
@@ -34,7 +35,7 @@ local root = ReactRoblox.createRoot(container)
 
 root:render(ReactRoblox.createPortal({
     Inventory = React.createElement(Inventory, {
-        inventoryChanged = InventoryController.InventoryChanged,
+        inventoryChanged = InventoryService.InventoryChanged,
         activeSlotChanged = InventoryController.ActiveSlotChanged
     })
 }, PLAYER_GUI))

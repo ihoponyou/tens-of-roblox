@@ -8,4 +8,4 @@ Loader.LoadDescendants(ReplicatedStorage.Source.Controllers, Loader.MatchesName(
 Knit.Start():andThen(function()
     -- print("Knit started.")
     Loader.LoadChildren(ReplicatedStorage.Source.ClientComponents)
-end):catch(warn)
+end, warn)

@@ -3,31 +3,20 @@ local ContextActionService = game:GetService("ContextActionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 
--- definition of common ancestor
 local Packages = ReplicatedStorage.Packages
 
--- block of all imported packages
 local Component = require(Packages.Component)
 local Knit = require(Packages.Knit)
 local Spring = require(Packages.Spring)
 local Trove = require(Packages.Trove)
 
--- definitions derived from packages
 local InputController, ViewmodelController, CameraController
 
--- block for modules imported from same project
 local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
-local NumberLerp = require(ReplicatedStorage.Source.Modules.NumberLerp)
-
--- module level constants
-local ADS_SPEED = 0.4
-local ADS_IN_DURATION = ADS_SPEED
-local ADS_OUT_DURATION = ADS_SPEED * 0.75
 
 local RAND = Random.new(tick())
 
@@ -55,8 +44,6 @@ function GunClient:Construct()
 	self._castParams = RaycastParams.new()
 	self._castParams.CollisionGroup = "Character"
 	self._castParams.FilterType = Enum.RaycastFilterType.Exclude
-
-    self.AimPercent = self._trove:Add(Instance.new("NumberValue"))
 end
 
 function GunClient:Start()
@@ -67,11 +54,11 @@ function GunClient:Start()
     end):catch(warn)
 
 	self.Equipment = self:GetComponent(EquipmentClient)
-	
+
 	self._fireDelay = 1/(self.Config.RoundsPerMinute/60)
     self.CasingModel = Find.path(self.Equipment.Folder, "Casing")
 	self.Magazine = self.Equipment.WorldModel:WaitForChild("Magazine")
-	
+
 	self.CurrentAmmo = self.Config.MagazineCapacity
 	self.ReserveAmmo = self.CurrentAmmo * self.Config.ReserveMagazines
 
@@ -129,7 +116,7 @@ function GunClient:_fire()
 
 	local cast = workspace:Raycast(origin, direction, self._castParams)
 	local hits = if cast then { cast.Instance } else nil -- eventually add piercing
-	self.Equipment:Use(hits)
+	self.Equipment.UseRequest:Fire(hits)
 	self:_doRecoil()
 
 	if not self.Config.FullyAutomatic then
@@ -141,7 +128,7 @@ function GunClient:_fire()
 	end)
 end
 
-function GunClient:HeartbeatUpdate()
+function GunClient:SteppedUpdate()
     if not self.Equipment.IsEquipped then return end
 	if not self._triggerDown then return end
 
@@ -156,55 +143,18 @@ function GunClient:_updateOffsets()
 		math.rad(recoilOffset.X * 3),
 		0)
 	CameraController.OffsetManager:SetOffsetValue("Recoil", cameraRecoil)
-	CameraController.OffsetManager:SetOffsetAlpha("Recoil", NumberLerp(1, 0.75, self.AimPercent.Value))
 
 	local viewmodel = ViewmodelController.Viewmodel
 	local viewmodelRecoil =
 		CFrame.new(0, -recoilOffset.Y/10, recoilOffset.Y/5) *
 		CFrame.Angles(recoilOffset.Y/25, recoilOffset.X/25, 0)
 	viewmodel.OffsetManager:SetOffsetValue("Recoil", viewmodelRecoil)
-	viewmodel.OffsetManager:SetOffsetAlpha("Recoil", NumberLerp(1, 0.25, self.AimPercent.Value))
-	viewmodel.OffsetManager:SetOffsetValue("Aim", self._folder.Offsets.Aiming.Value) -- for calibrating/debugging
-	viewmodel.OffsetManager:SetOffsetAlpha("Aim", self.AimPercent.Value)
-
-	viewmodel.SwayScale = NumberLerp(1, 0.4, self.AimPercent.Value)
-	viewmodel.ViewbobScale = NumberLerp(1, 0.1, self.AimPercent.Value)
-	viewmodel.PullScale = NumberLerp(1, 0.1, self.AimPercent.Value)
-end
-
-function GunClient:Aim(bool: boolean)
-	-- print("aiming:", self.Aiming)
-	if self.Aiming == bool then return end
-	self.Aiming = bool
-	-- self.AimEvent:FireServer(self.Aiming)
-
-	ReplicatedStorage.UIEvents.CrosshairEnabled:Fire(not self.Aiming)
-
-	local tweenInfo = TweenInfo.new(if self.Aiming then ADS_IN_DURATION else ADS_OUT_DURATION, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-	local properties = { Value = if self.Aiming then 1 else 0 }
-
-	TweenService:Create(self.AimPercent, tweenInfo, properties):Play()
-end
-
-function GunClient:_handleAimInput(_, userInputState: Enum.UserInputState, _)
-    if userInputState == Enum.UserInputState.Cancel then return Enum.ContextActionResult.Pass end
-
-	self:Aim(userInputState == Enum.UserInputState.Begin)
-
-	return Enum.ContextActionResult.Sink
-end
-
-function GunClient:_handleFireInput(_, userInputState: Enum.UserInputState, _)
-	self._triggerDown = userInputState == Enum.UserInputState.Begin
-
-	return Enum.ContextActionResult.Sink
 end
 
 function GunClient:_handleReloadInput(_, userInputState: Enum.UserInputState, _)
 	if userInputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
 
 	if not self._reloading then
-		self:Aim(false)
 		self.ReloadEvent:FireServer()
 	end
 
@@ -221,33 +171,20 @@ function GunClient:_onEquipped()
 
     CameraController.OffsetManager:AddOffset("Recoil", CFrame.new(), 1)
     ViewmodelController.Viewmodel.OffsetManager:AddOffset("Recoil", CFrame.new(), 1)
-    ViewmodelController.Viewmodel.OffsetManager:AddOffset("Aim", CFrame.new(), 0)
 
-    ContextActionService:BindActionAtPriority("AimGun", function(...)
-        self:_handleAimInput(...)
-    end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("AltUse"))
-    ContextActionService:BindActionAtPriority("FireGun", function(...)
-        self:_handleFireInput(...)
-    end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Use"))
-	ContextActionService:BindActionAtPriority("ReloadGun", function(...)
-        self:_handleReloadInput(...)
-    end, true, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Reload"))
-
-    self._equipTrove:BindToRenderStep("UpdateAimAndRecoilOffsets", Enum.RenderPriority.Camera.Value, function(_)
+    self._equipTrove:BindToRenderStep("UpdateGunOffsets", Enum.RenderPriority.Camera.Value, function(_)
         self:_updateOffsets()
     end)
 
-	self._equipTrove:Add(function()
-		ContextActionService:UnbindAction("FireGun")
-		ContextActionService:UnbindAction("AimGun")
-		ContextActionService:UnbindAction("ReloadGun")
-		CameraController.OffsetManager:RemoveOffset("Recoil")
-    	CameraController.OffsetManager:RemoveOffset("Aim")
-	end)
+	ContextActionService:BindActionAtPriority("fire"..self.Instance.Name, function(_, uis, _)
+		self._triggerDown = uis == Enum.UserInputState.Begin
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.ContextActionPriority.High.Value, InputController:GetKeybind("Use"))
 end
 
 function GunClient:_onUnequipped()
-    self._equipTrove:Clean()
+	ContextActionService:UnbindAction("fire"..self.Instance.Name)
+    self._equipTrove:Destroy()
 end
 
 function GunClient:_ejectCasing()

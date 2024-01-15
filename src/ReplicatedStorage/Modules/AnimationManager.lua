@@ -1,12 +1,11 @@
 
+-- export type TrackCheck = (animationTrack: AnimationTrack) -> boolean
+
 local AnimationManager = {}
 AnimationManager.__index = AnimationManager
 
-function isValidOwnerType(owner: Instance?)
-    return typeof(owner) == "Instance" and owner.ClassName == "Animator"
-end
 function AnimationManager.new(animator: Animator)
-    if not isValidOwnerType(animator) then error("Invalid animator") end
+    if not (animator == "Instance" or animator.ClassName == "Animator") then error("Invalid animator") end
     local self = setmetatable({}, AnimationManager)
 
     local anims: {AnimationTrack} = {}
@@ -39,7 +38,7 @@ function AnimationManager:GetAnimation(animationName: string): AnimationTrack
 
 	local animationTrack = self._animations[animationName]
 
-	if animationTrack == nil then warn("No loaded animation with name \""..animationName.."\"") end
+	if animationTrack == nil then error("No loaded animation with name \""..animationName.."\"") end
 
 	return animationTrack
 end

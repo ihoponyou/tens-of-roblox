@@ -1,124 +1,70 @@
 
--- basically copy pasted from sleitnicks knit api cameracontroller
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
-local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local OffsetManager = require(ReplicatedStorage.Source.Modules.OffsetManager)
-local PlayerModule = require(Knit.Player.PlayerScripts:WaitForChild("PlayerModule"))
+local CameraController = Knit.CreateController({
+    Name = "CameraController",
 
-local CameraController = Knit.CreateController {
-	Name = "CameraController";
+    InFirstPerson = true,
+    PointOfViewChanged = Signal.new(),
 
-	Distance = 20;
-	Sensitivity = 1;
-	FieldOfView = 90;
-	Locked = false;
-	RenderName = "CustomCamRender";
-	Priority = Enum.RenderPriority.Camera.Value;
+    AllowFirstPerson = true,
+    AllowFirstPersonChanged = Signal.new(),
 
-	OffsetManager = OffsetManager.new();
-	_lastOffset = CFrame.new();
+    InCutscene = false,
 
-	LockedChanged = Signal.new();
-
-	-- shift lock doesnt show initially if player starts in third person
-	InFirstPerson = true;
-	AllowFirstPerson = true;
-	FirstPersonChanged = Signal.new();
-
-	ShiftLocked = false;
-	ForceShiftLock = false;
-}
+    _playerModule = nil,
+})
 
 function CameraController:KnitInit()
-	self._trove = Trove.new()
+    self._playerModule = require(Knit.Player.PlayerScripts:WaitForChild("PlayerModule"))
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+        if gameProcessedEvent then return end
+
+        if input.KeyCode == Enum.KeyCode.V then
+            self:TogglePointOfView()
+        end
+    end)
+
+    self.AllowFirstPersonChanged:Connect(function()
+        if self.InFirstPerson and not self.AllowFirstPerson then
+            self:TogglePointOfView(false)
+        end
+    end)
 end
 
 function CameraController:KnitStart()
-	self._trove:Connect(RunService.RenderStepped, function(_)
-		self:OnRenderStepped()
-	end)
-
-	workspace.CurrentCamera.FieldOfView = self.FieldOfView
-
-	self:TogglePOV(self.InFirstPerson)
+    self:TogglePointOfView(self.InFirstPerson)
 end
 
-function CameraController:Destroy()
-	self._trove:Destroy()
-end
+function CameraController:TogglePointOfView(firstPerson: boolean?)
+    local enterFirstPerson = if firstPerson == nil then not self.InFirstPerson else firstPerson
 
-function CameraController:OnCharacterAdded(character: Model)
-	self.Character = character
-end
+    if not self.AllowFirstPerson and enterFirstPerson then return end
 
-function CameraController:TogglePOV(enterFirstPerson: boolean?)
-	local inFirstPerson = if enterFirstPerson == nil then not self.InFirstPerson else enterFirstPerson
-	if inFirstPerson and not self.AllowFirstPerson then return end
-	local localPlayer = Knit.Player
+    -- print(self.InFirstPerson, "->", enterFirstPerson)
 
-	if inFirstPerson then
-		localPlayer.CameraMinZoomDistance = 0.5
-		localPlayer.CameraMaxZoomDistance = 0.5
+    self.InFirstPerson = enterFirstPerson
+
+    if enterFirstPerson then
+		Knit.Player.CameraMinZoomDistance = 0.5
+		Knit.Player.CameraMaxZoomDistance = 0.5
 	else
-		localPlayer.CameraMaxZoomDistance = 8
-		localPlayer.CameraMinZoomDistance = 4
+		Knit.Player.CameraMaxZoomDistance = 12
+		Knit.Player.CameraMinZoomDistance = 4
 	end
 
-	self.InFirstPerson = inFirstPerson
-	self.FirstPersonChanged:Fire(inFirstPerson)
+    self._playerModule:ToggleShiftLock(not enterFirstPerson)
+    self.PointOfViewChanged:Fire(self.InFirstPerson)
 end
 
-function CameraController:OnRenderStepped(_)
-	if not self.AllowFirstPerson and self.InFirstPerson then
-		self:TogglePOV(false)
-	end
-	if self.ForceShiftLock and not self.ShiftLocked then
-		self:ToggleShiftLock(true)
-	end
-
-	local camera = workspace.CurrentCamera
-	local combinedOffset = self.OffsetManager:GetCombinedOffset()
-
-	camera.CFrame = camera.CFrame * combinedOffset * self._lastOffset:Inverse()
-
-	self._lastOffset = combinedOffset
-end
-
-function CameraController:LockTo(part)
-	if self.Locked then return end
-
-	local cam = workspace.CurrentCamera
-	self.Locked = true
-	cam.CameraType = Enum.CameraType.Watch
-
-	RunService:BindToRenderStep(self.RenderName, self.Priority, function()
-		cam.CFrame = part.CFrame * CFrame.new(0, 0, self.Distance)
-	end)
-
-	self.LockedChanged:Fire(true)
-end
-
-function CameraController:Unlock()
-	if not self.Locked then return end
-
-	local cam = workspace.CurrentCamera
-	self.Locked = false
-	cam.CameraType = Enum.CameraType.Custom
-
-	RunService:UnbindFromRenderStep(self.RenderName)
-
-	self.LockedChanged:Fire(false)
-end
-
-function CameraController:ToggleShiftLock(lock: boolean)
-	self.ShiftLocked = lock
-	PlayerModule:ToggleShiftLock(lock)
+function CameraController:SetAllowFirstPerson(bool: boolean)
+    self.AllowFirstPerson = bool
+    self.AllowFirstPersonChanged:Fire(bool)
 end
 
 return CameraController

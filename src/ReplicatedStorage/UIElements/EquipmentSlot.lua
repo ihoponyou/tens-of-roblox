@@ -45,7 +45,6 @@ local function EquipmentSlot(props)
     local gunComponent = GunClient:FromInstance(props.equipmentInstance)
     local hasAmmo = gunComponent ~= nil
 
-    -- print(props.equipmentInstance.Name, "gun?", hasAmmo)
     return React.createElement("Frame", {
         AnchorPoint = Vector2.new(1, 0.5);
         BackgroundColor3 = Color3.new(0, 0, 0);
@@ -64,7 +63,7 @@ local function EquipmentSlot(props)
                 prefab = worldModel;
                 position = viewportPosition
             });
-            if not hasAmmo then nil else React.createElement(AmmoLabels, {
+            AmmoLabels = if not hasAmmo then nil else React.createElement(AmmoLabels, {
                 initialCurrent = gunComponent.CurrentAmmo;
                 updateCurrent = gunComponent.UpdateCurrentAmmo;
                 initialReserve = gunComponent.ReserveAmmo;

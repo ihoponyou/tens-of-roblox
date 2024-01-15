@@ -4,6 +4,17 @@ export type Offset = {
     Alpha: number; -- between 0 and 1; essentially the "scale"
 }
 
+export type OffsetManager = {
+    new: () -> OffsetManager,
+    AddOffset: (self: OffsetManager) -> nil,
+    AddOffsets: (self: OffsetManager, offsets: {[string]: Offset}) -> nil,
+    SetOffsetValue: (self: OffsetManager, name: string, newOffset: CFrame) -> nil,
+    SetOffsetAlpha: (self: OffsetManager, name: string, newAlpha: number) -> nil,
+    RemoveOffset: (self: OffsetManager, name: string) -> nil,
+    GetCombinedOffset: (self: OffsetManager) -> CFrame,
+    Destroy: (self: OffsetManager) -> nil
+}
+
 local OffsetManager = {}
 OffsetManager.__index = OffsetManager
 
@@ -29,7 +40,7 @@ function OffsetManager:AddOffset(name: string, offset: CFrame, alpha: number)
 	}
 end
 
-function OffsetManager:AddOffsets(offsets: {Offset})
+function OffsetManager:AddOffsets(offsets: {[string]: Offset})
     for name, offset in offsets do
         self:AddOffset(name, offset.Value, offset.Alpha)
     end
@@ -70,7 +81,7 @@ end
 function OffsetManager:GetCombinedOffset(): CFrame
 	local combinedOffset = CFrame.new()
 
-	for k, v in self.Offsets do
+	for _, v in self.Offsets do
 		combinedOffset = combinedOffset:Lerp((combinedOffset * v.Value), v.Alpha)
 	end
 

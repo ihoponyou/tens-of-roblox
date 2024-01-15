@@ -1,87 +1,70 @@
 
--- roblox
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Trove = require(ReplicatedStorage.Packages.Trove)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
-local CameraController
-
-local ViewmodelClient = require(ReplicatedStorage.Source.ClientComponents.ViewmodelClient)
+local Viewmodel = require(ReplicatedStorage.Source.ClientComponents.Viewmodel)
 
 local ViewmodelController = Knit.CreateController({
-    Name = "ViewmodelController";
-    Viewmodel = nil; -- the component reference, not the model itself
-    ShowViewmodel = false; -- whether or not the viewmodel should be shown when applicable
+    Name = "ViewmodelController",
+
+    Viewmodel = nil,
+    ShowViewmodel = false
 })
 
-function ViewmodelController:OnCharacterAdded(character: Model)
-    print("new")
-    self._characterTrove = Trove.new()
-    self._characterTrove:AttachToInstance(character)
-    local viewmodelModel = ReplicatedStorage.Viewmodel:Clone()
-    viewmodelModel.Parent = Knit.Player
+function ViewmodelController:KnitInit()
+    self:CreateViewmodel()
 
-    -- apply local player's avatar to viewmodel
-    viewmodelModel.RigHumanoid:ApplyDescription(
-        if Knit.Player.UserId < 0 then
-            ReplicatedStorage.Character.GuestDescription
+    Knit.Player.CharacterAdded:Connect(function()
+        self:CreateViewmodel()
+    end)
+
+    Knit.Player.CharacterRemoving:Connect(function()
+        self.Viewmodel.Instance:Destroy()
+        self.Viewmodel = nil
+    end)
+
+    RunService.RenderStepped:Connect(function(_dt)
+        if self.Viewmodel == nil then return end
+        if self.ShowViewmodel then
+            if not self.Viewmodel.Visible then
+                self.Viewmodel:ToggleVisibility(true)
+            end
         else
-            Players:GetHumanoidDescriptionFromUserId(Knit.Player.UserId)
-    )
+            if self.Viewmodel.Visible then
+                self.Viewmodel:ToggleVisibility(false)
+            end
+        end
+    end)
+end
 
-    -- remove accessories
-    for _,v in viewmodelModel:GetDescendants() do
-        if not (v:IsA("Accessory")) then continue end
+function ViewmodelController:CreateViewmodel()
+    if self.Viewmodel then return end
+
+    local newViewmodel = ReplicatedStorage.Viewmodel:Clone()
+    newViewmodel.Parent = workspace.CurrentCamera
+    local appearance = if Knit.Player.UserId > 0 then Players:GetHumanoidDescriptionFromUserId(Knit.Player.UserId) else ReplicatedStorage.test
+    newViewmodel.RigHumanoid:ApplyDescriptionReset(appearance)
+
+    for _, v in newViewmodel:GetDescendants() do
+        if not v:IsA("Accessory") then continue end
         v:Destroy()
     end
 
-    -- components are always loaded after knit starts
-    ViewmodelClient:WaitForInstance(viewmodelModel):andThen(function(component)
+    CollectionService:AddTag(newViewmodel, "Viewmodel")
+
+    local success, component = Viewmodel:WaitForInstance(newViewmodel):andThen(function(_component)
+        return _component
+    end, warn):await()
+
+    if success then
         self.Viewmodel = component
-        -- local head = character:WaitForChild("Head")
-
-        component:ToggleVisibility(CameraController.InFirstPerson)
-        self._characterTrove:BindToRenderStep("HideViewmodelOpportunely", Enum.RenderPriority.Camera.Value, function(_)
-            if not self.ShowViewmodel or component.HeldModel == nil then
-                if component.Visible then
-                    component:ToggleVisibility(false)
-                end
-            elseif self.ShowViewmodel then
-                if not component.Visible then
-                    component:ToggleVisibility(true)
-                end
-            end
-        end)
-    end):catch(warn)
-end
-
-function ViewmodelController:CleanUp()
-    print('cleaned')
-    self.Viewmodel.Instance:Destroy()
-    self.Viewmodel = nil
-end
-
-function ViewmodelController:KnitInit()
-    if Knit.Player.Character then
-        self:OnCharacterAdded(Knit.Player.Character)
+    else
+        error("didnt work")
     end
-    Knit.Player.CharacterAdded:Connect(function(character)
-        self:OnCharacterAdded(character)
-    end)
-    Knit.Player.CharacterRemoving:Connect(function(_)
-        self:CleanUp()
-    end)
-end
-
-function ViewmodelController:KnitStart()
-    CameraController = Knit.GetController("CameraController")
-
-    CameraController.FirstPersonChanged:Connect(function(inFirstPerson: boolean)
-        self.ShowViewmodel = inFirstPerson
-    end)
 end
 
 return ViewmodelController

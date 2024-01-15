@@ -14,14 +14,14 @@ type Props = {
 local Inventory: React.ReactElement<Props, ScreenGui> = function(props: Props)
     local inventory: { [string]: Instance }, setInventoriesState = React.useState({})
     useEventConnection(props.inventoryChanged, function(value: string)
-        setInventoriesState(function(oldValue)
+        setInventoriesState(function(_oldValue)
             return table.clone(value)
         end)
     end, { props.inventoryChanged })
 
     local equippedSlot: string, setEquippedSlot = React.useState("")
     useEventConnection(props.activeSlotChanged, function(activeSlot: string)
-        setEquippedSlot(function(oldSlot)
+        setEquippedSlot(function(_oldSlot)
             return activeSlot
         end)
     end, { props.activeSlotChanged })
