@@ -20,7 +20,7 @@ export type Equipment = {
 }
 
 local function fromOrientationDeg(x: number, y: number, z: number): CFrame
-	return CFrame.Angles(math.rad(x), math.rad(y), math.rad(z))
+	return CFrame.fromOrientation(math.rad(x), math.rad(y), math.rad(z))
 end
 
 local EquipmentConfig: { [string]: Equipment } = {
@@ -125,7 +125,7 @@ local EquipmentConfig: { [string]: Equipment } = {
 		HolsterLimb = "Torso",
 		AllowFirstPerson = false,
 		RootJointC0 = {
-			Holstered = CFrame.new(0.216, -0.147, 0.542) ,
+			Holstered = CFrame.new(0.216, -0.147, 0.542) * fromOrientationDeg(-40, 90, -90),
 			Equipped = {
 				World = CFrame.new(0, -0.8, -3.1) * fromOrientationDeg(0, 0, 90)
 			}
