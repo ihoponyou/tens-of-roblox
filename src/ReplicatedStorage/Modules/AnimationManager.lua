@@ -16,6 +16,7 @@ function AnimationManager.new(animator: Animator)
 end
 
 function AnimationManager:LoadAnimations(anims: {Animation})
+	self:StopPlayingAnimations(0)
 	-- empty current animation dict
 	self._animations = {}
 

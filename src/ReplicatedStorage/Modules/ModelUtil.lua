@@ -22,22 +22,26 @@ function ModelUtil.SetPartProperty(model: Model, property: string, value: any)
 	validateModel(model)
 
 	local testPart = Instance.new("Part")
+
 	-- check if property exists
 	local success, result = pcall(function()
 		return typeof(testPart[property])
 	end)
+	testPart:Destroy()
+
 	if not success then error(result) end
+
 	-- check if given value matches property's type
 	if typeof(value) ~= result then error("type mismatch") end
-	-- check class?
+
+	-- TODO: check class?
 
 	iterateModel(model, function(part)
 		part[property] = value
 	end)
-
-	testPart:Destroy()
 end
 
+-- use setpartproperty instead
 function ModelUtil.SetModelTransparency(model: Model, transparency: number)
 	if type(transparency) ~= "number" or transparency > 1 or transparency < 0 then
 		error("transpaency must be a number between 0 and 1")
@@ -49,6 +53,7 @@ function ModelUtil.SetModelTransparency(model: Model, transparency: number)
 	end)
 end
 
+-- use setpartproperty instead
 function ModelUtil.SetModelCanCollide(model: Model, canCollide: boolean)
 	if type(canCollide) ~= "boolean" then
 		error("canCollide must be a boolean")
@@ -84,6 +89,7 @@ function ModelUtil.SetModelNetworkOwnershipAuto(model: Model)
 	end)
 end
 
+-- use setpartproperty instead
 function ModelUtil.SetModelCollisionGroup(model: Model, collisionGroup: string)
     if type(collisionGroup) ~= "string" then error("collisionGroup must be a string") end
     validateModel(model)

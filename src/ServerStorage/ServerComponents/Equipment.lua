@@ -31,6 +31,7 @@ function Equipment:Construct()
     self.Folder = ReplicatedStorage.Equipment[self.Instance.Name]
 
 	self.WorldModel = self._trove:Clone(ReplicatedStorage.Equipment[self.Instance.Name].WorldModel)
+	ModelUtil.SetPartProperty(self.WorldModel, "CanCollide", true)
 	self.WorldModel.Parent = self.Instance
 	-- destroy component if worldmodel is destroyed or drop if character is destroyed
 	self._trove:Connect(self.WorldModel.AncestryChanged, function(child, parent)

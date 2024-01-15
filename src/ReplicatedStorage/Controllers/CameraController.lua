@@ -8,6 +8,8 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local CameraController = Knit.CreateController({
     Name = "CameraController",
 
+    FieldOfView = 103,
+
     InFirstPerson = true,
     PointOfViewChanged = Signal.new(),
 
@@ -21,6 +23,8 @@ local CameraController = Knit.CreateController({
 
 function CameraController:KnitInit()
     self._playerModule = require(Knit.Player.PlayerScripts:WaitForChild("PlayerModule"))
+
+    workspace.CurrentCamera.FieldOfView = self.FieldOfView
 
     UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         if gameProcessedEvent then return end
