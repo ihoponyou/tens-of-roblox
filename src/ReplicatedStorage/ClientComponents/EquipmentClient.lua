@@ -58,8 +58,6 @@ function EquipmentClient:_setupForLocalPlayer()
         end
     end))
 
-    CameraController:SetAllowFirstPerson(self.Config.AllowFirstPerson)
-
     self._localPlayerTrove:Connect(CameraController.PointOfViewChanged, function(inFirstPerson: boolean)
         if not self.IsEquipped:Get() then return end
         ViewmodelController.Viewmodel:ToggleVisibility(inFirstPerson)
@@ -102,14 +100,14 @@ end
 
 function EquipmentClient:_rigToCharacter(holstered: boolean)
     if holstered then
-        self:RigTo(Players.LocalPlayer.Character, self.Config.HolsterLimb, self.Config.RootJointC0.Holstered)
+        self:RigTo(Players.LocalPlayer.Character, self.Config.HolsterLimb, self.Config.RootJoint.C0.Holstered)
     else
-        self:RigTo(Players.LocalPlayer.Character, "Right Arm", self.Config.RootJointC0.Equipped.World)
+        self:RigTo(Players.LocalPlayer.Character, "Right Arm", self.Config.RootJoint.C0.Equipped.World)
     end
 end
 
 function EquipmentClient:_rigToViewmodel()
-    self:RigTo(ViewmodelController.Viewmodel.Instance, "Right Arm", self.Config.RootJointC0.Equipped.Viewmodel)
+    self:RigTo(ViewmodelController.Viewmodel.Instance, "Right Arm", self.Config.RootJoint.C0.Equipped.Viewmodel)
 end
 
 function EquipmentClient:_loadViewmodelAnimations()
@@ -129,6 +127,8 @@ function EquipmentClient:Equip()
 end
 
 function EquipmentClient:_onEquipped()
+    CameraController:SetAllowFirstPerson(self.Config.AllowFirstPerson)
+
     if not self.Config.AllowFirstPerson then return end
 
     self:_loadViewmodelAnimations()
@@ -149,6 +149,7 @@ function EquipmentClient:_onUnequipped()
         self:_rigToCharacter(true)
     end
     ViewmodelController.Viewmodel:ToggleVisibility(false)
+    CameraController:SetAllowFirstPerson(true)
 end
 
 function EquipmentClient:Drop()

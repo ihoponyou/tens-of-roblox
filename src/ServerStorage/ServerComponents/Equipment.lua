@@ -1,6 +1,7 @@
 
 -- allows an item to be picked up, dropped, equipped, and unequipped
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Component = require(ReplicatedStorage.Packages.Component)
@@ -30,8 +31,13 @@ function Equipment:Construct()
 	self.Config = EquipmentConfig[self.Instance.Name]
     self.Folder = ReplicatedStorage.Equipment[self.Instance.Name]
 
+	for _, tag in self.Config.Components do
+		CollectionService:AddTag(self.Instance, tag)
+	end
+
 	self.WorldModel = self._trove:Clone(ReplicatedStorage.Equipment[self.Instance.Name].WorldModel)
 	ModelUtil.SetPartProperty(self.WorldModel, "CanCollide", true)
+	self:_newRootJoint()
 	self.WorldModel.Parent = self.Instance
 	-- destroy component if worldmodel is destroyed or drop if character is destroyed
 	self._trove:Connect(self.WorldModel.AncestryChanged, function(child, parent)
@@ -103,6 +109,7 @@ function Equipment:_newRootJoint(): Motor6D
 	rootJoint.Name = "RootJoint"
 	rootJoint.Parent = self.WorldModel.PrimaryPart
 	rootJoint.Part1 = self.WorldModel.PrimaryPart
+	rootJoint.C1 = self.Config.RootJoint.C1 or CFrame.new()
 	return rootJoint
 end
 
@@ -156,7 +163,7 @@ function Equipment:PickUp(player: Player)
 	end)
 
 	ModelUtil.SetPartProperty(self.WorldModel, "CanCollide", false)
-	self:RigTo(player.Character, self.Config.HolsterLimb, self.Config.RootJointC0.Holstered)
+	self:RigTo(player.Character, self.Config.HolsterLimb, self.Config.RootJoint.C0.Holstered)
 
 	self.PickUpPrompt.Enabled = false
 	self.IsPickedUp:Set(true)
@@ -191,7 +198,7 @@ end
 function Equipment:Equip(player: Player)
 	if self.Owner ~= player then return end
 
-	self:RigTo(self.Owner.Character, "Right Arm", self.Config.RootJointC0.Equipped.World)
+	self:RigTo(self.Owner.Character, "Right Arm", self.Config.RootJoint.C0.Equipped.World)
 
 	local animator = self.Owner.Character:WaitForChild("Humanoid"):WaitForChild("Animator")
     self.AnimationManager = AnimationManager.new(animator)
@@ -211,7 +218,7 @@ function Equipment:Unequip(player: Player)
         -- print("KILL")
     end
 
-	self:RigTo(self.Owner.Character, self.Config.HolsterLimb, self.Config.RootJointC0.Holstered)
+	self:RigTo(self.Owner.Character, self.Config.HolsterLimb, self.Config.RootJoint.C0.Holstered)
 
 	self:_setEquipped(false)
 end

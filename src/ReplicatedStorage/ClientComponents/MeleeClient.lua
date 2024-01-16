@@ -8,6 +8,7 @@ local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
+local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
 
 local MeleeClient = Component.new({
@@ -24,11 +25,16 @@ function MeleeClient:Construct()
     self.AttackRequest = self._clientComm:GetSignal("AttackRequest")
 end
 
+function MeleeClient:Start()
+    self.Equipment = self:GetComponent(EquipmentClient)
+end
+
 function MeleeClient:_setupForLocalPlayer()
     self._localPlayerTrove = self._trove:Extend()
 
     ContextActionService:BindAction(self.Instance.Name.."Attack", function(_, uis, _)
        if uis ~= Enum.UserInputState.Begin then return end
+       if not self.Equipment.IsEquipped:Get() then return end
        self.AttackRequest:Fire()
     end, false, Enum.UserInputType.MouseButton1)
 end

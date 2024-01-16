@@ -5,7 +5,7 @@ local React = require(ReplicatedStorage.Packages.React)
 
 local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
-local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
+-- local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
 local AmmoCounter = require(ReplicatedStorage.Source.UIElements.AmmoCounter)
 local ViewportFrame = require(ReplicatedStorage.Source.UIElements.ViewportFrame)
 
@@ -40,9 +40,8 @@ local function EquipmentSlot(props)
 
     local viewportSettings = EquipmentConfig[props.equipmentInstance.Name].Viewport
     worldModel:PivotTo(viewportSettings.ModelCFrame or CFrame.new())
-    local viewportPosition = viewportSettings.ElementPosition or UDim2.fromScale(1, 0.5)
 
-    local gunComponent = GunClient:FromInstance(props.equipmentInstance)
+    local gunComponent = nil --GunClient:FromInstance(props.equipmentInstance)
     local hasAmmo = gunComponent ~= nil
 
     return React.createElement("Frame", {
@@ -61,7 +60,8 @@ local function EquipmentSlot(props)
             });
             Portrait = React.createElement(ViewportFrame, {
                 prefab = worldModel;
-                position = viewportPosition
+                position = viewportSettings.ElementPosition;
+                size = viewportSettings.ElementSize;
             });
             AmmoLabels = if not hasAmmo then nil else React.createElement(AmmoLabels, {
                 initialCurrent = gunComponent.CurrentAmmo;

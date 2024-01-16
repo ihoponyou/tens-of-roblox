@@ -25,8 +25,8 @@ local Viewport: React.ReactElement<Props, "ViewportFrame"> = function(props: Pro
         LightColor = Color3.new(1, 1, 1);
         AnchorPoint = Vector2.new(1, 0.5);
         BackgroundTransparency = 1;
-        Position = props.position;
-        Size = UDim2.fromScale(4, 2);
+        Position = props.position or UDim2.fromScale(1, 0.5);
+        Size = props.size or UDim2.fromScale(4, 2);
         SizeConstraint = Enum.SizeConstraint.RelativeYY;
         ref = viewportRef.current;
     })
