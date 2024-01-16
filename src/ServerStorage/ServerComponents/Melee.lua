@@ -12,6 +12,7 @@ local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 local MeleeCaster = require(ServerStorage.Source.ServerComponents.MeleeCaster)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local MeleeStats = require(ServerStorage.Source.MeleeStats)
+local HitboxManager = require(ReplicatedStorage.Source.Modules.HitboxManager)
 
 local COMBO_RESET_DELAY = 0.5
 
@@ -53,10 +54,19 @@ function Melee:Start()
         self._canAttack = false
 
         if isEquipped then
+            self._equipTrove = self._trove:Extend()
+
             self._readyThread = task.delay(self.Stats.DeployTime, function()
                 self._canAttack = true
                 self._readyThread = nil
             end)
+
+            for i=0, self.Stats.MaxCombo do
+                local animationName = "Attack"..tostring(i+1)
+
+                local attackTrack = self.Equipment.AnimationManager:GetAnimation(animationName)
+                self:_setupAttackAnimation(attackTrack, self._equipTrove)
+            end
 
             if self.Stats.UsesClientCast then
                 local newParams = RaycastParams.new()
@@ -65,6 +75,8 @@ function Melee:Start()
                 self.Caster:EditRaycastParams(newParams)
             end
         else
+            self._equipTrove:Destroy()
+
             if self._readyThread then
                 task.cancel(self._readyThread)
                 self._readyThread = nil
@@ -73,34 +85,9 @@ function Melee:Start()
     end)
 
     if self.Stats.UsesClientCast then
-        -- self.Equipment.WorldModel:SetAttribute("Log", true)
-        -- self.Equipment.WorldModel:SetAttribute("DebugCasts", true)
-        self.Equipment.WorldModel:AddTag("MeleeCaster")
-
-        MeleeCaster:WaitForInstance(self.Equipment.WorldModel):andThen(function(component)
-            self.Caster = component
-
-            self.Caster.OnHumanoidCollided = function(_caster, _raycastResult: RaycastResult, humanoid: Humanoid)
-                if self._hitDebounce[humanoid] then return end
-                if humanoid.Health <= 0 then return end
-                local damage = self.Stats.Damage
-
-                humanoid:TakeDamage(damage)
-
-                local hitType = "Hit"
-                if humanoid.Health <= 0 then
-                    hitType = "Kill"
-                -- elseif isHeadshot then
-                -- 	hitType = "Headshot"
-                elseif damage < 15 then
-                    hitType = "Graze"
-                end
-
-                ReplicatedStorage.UIEvents.HitRegistered:FireClient(self.Equipment.Owner, hitType)
-
-                self._hitDebounce[humanoid] = true
-            end
-        end, warn)
+        self:_setupClientCast()
+    else
+        self.HitboxManager = self._trove:Construct(HitboxManager)
     end
 end
 
@@ -108,17 +95,42 @@ function Melee:Stop()
 	self._trove:Destroy()
 end
 
-function Melee:Attack(player)
-    if player ~= self.Equipment.Owner then return end
-    if not self._canAttack then return end
+function Melee:_setupClientCast()
+    -- self.Equipment.WorldModel:SetAttribute("Log", true)
+    -- self.Equipment.WorldModel:SetAttribute("DebugCasts", true)
+    self.Equipment.WorldModel:AddTag("MeleeCaster")
 
-    self._canAttack = false
+    MeleeCaster:WaitForInstance(self.Equipment.WorldModel):andThen(function(component)
+        self.Caster = component
 
-    self.AttackRequest:Fire(self.Equipment.Owner, self._combo)
-    local attackAnimation: AnimationTrack? = self.Equipment.AnimationManager:GetAnimation("Attack"..tostring(self._combo+1))
+        self.Caster.OnHumanoidCollided = function(_caster, _raycastResult: RaycastResult, humanoid: Humanoid)
+            if self._hitDebounce[humanoid] then return end
+            if humanoid.Health <= 0 then return end
+            local damage = self.Stats.Damage
 
-    local attackStarted = attackAnimation:GetMarkerReachedSignal("start"):Connect(function()
-        -- print("sha")
+            humanoid:TakeDamage(damage)
+
+            local hitType = "Hit"
+            if humanoid.Health <= 0 then
+                hitType = "Kill"
+            -- elseif isHeadshot then
+            -- 	hitType = "Headshot"
+            elseif damage < 15 then
+                hitType = "Graze"
+            end
+
+            ReplicatedStorage.UIEvents.HitRegistered:FireClient(self.Equipment.Owner, hitType)
+
+            self._hitDebounce[humanoid] = true
+        end
+    end, warn)
+end
+
+function Melee:_setupAttackAnimation(animationTrack: AnimationTrack, trove)
+    if trove == nil then error("need a trove") end
+
+	trove:Connect(animationTrack:GetMarkerReachedSignal("start"), function()
+		-- print("sha")
         if self.Stats.UsesClientCast then
             self.Caster:StartCast()
         end
@@ -129,10 +141,10 @@ function Melee:Attack(player)
             task.cancel(self._comboResetThread)
             self._comboResetThread = nil
         end
-    end)
+	end)
 
-    local attackEnded = attackAnimation:GetMarkerReachedSignal("end"):Connect(function()
-        -- print("wing")
+	trove:Connect(animationTrack:GetMarkerReachedSignal("end"), function()
+		-- print("wing")
         if self.Stats.UsesClientCast then
             self.Caster:StopCast()
         end
@@ -151,14 +163,17 @@ function Melee:Attack(player)
 
             self._canAttack = true
         end
-    end)
+	end)
+end
 
-    attackAnimation.Ended:Once(function()
-        attackStarted:Disconnect()
-        attackEnded:Disconnect()
-    end)
+function Melee:Attack(player)
+    if player ~= self.Equipment.Owner then return end
+    if not self._canAttack then return end
 
-    attackAnimation:Play()
+    self._canAttack = false
+
+    self.AttackRequest:Fire(self.Equipment.Owner, self._combo)
+    self.Equipment.AnimationManager:PlayAnimation("Attack"..tostring(self._combo+1))
 end
 
 return Melee

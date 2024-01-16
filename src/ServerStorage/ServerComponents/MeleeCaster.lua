@@ -7,7 +7,7 @@ local ClientCast = require(ReplicatedStorage.Packages.ClientCast)
 
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
-local DAMAGE_POINTS_PER_STUD = 2
+local STUDS_BETWEEN_DAMAGE_POINTS = 1
 
 local MeleeCaster = Component.new {
 	Tag = "MeleeCaster";
@@ -19,15 +19,14 @@ local MeleeCaster = Component.new {
 function MeleeCaster:Construct()
 	self._trove = Trove.new()
 
-    self._caster = self._trove:Construct(ClientCast, self.Instance, RaycastParams.new())
-    self._caster:SetRecursive(true)
+    self._caster = self._trove:Construct(ClientCast, self.Instance.PrimaryPart, RaycastParams.new())
 
     -- create damage points for client cast
     local tip: Attachment? = self.Instance.PrimaryPart:FindFirstChild("Tip")
     local pommel: Attachment? = self.Instance.PrimaryPart:FindFirstChild("Pommel")
     if tip and pommel then
         local bladeDirection: Vector3 = tip.Position - pommel.Position
-        local points = math.round(bladeDirection.Magnitude/DAMAGE_POINTS_PER_STUD)
+        local points = math.round(bladeDirection.Magnitude/STUDS_BETWEEN_DAMAGE_POINTS)
         for i=0, points do
             local dmgPoint = Instance.new("Attachment")
             dmgPoint.Name = "DmgPoint"
