@@ -43,8 +43,8 @@ local function calculateC0(dt, humanoidRootPart, humanoid, torso)
 
     local newHipR = BASE_C0.HipR * CFrame.new(-newXZ, 0, 0) * CFrame.Angles(0, -newX, 0)
     local newHipL = BASE_C0.HipL * CFrame.new(-newXZ, 0, 0) * CFrame.Angles(0, -newX, 0)
-    local newRootJoint = BASE_C0.RootJoint * CFrame.Angles(0, 0, -newTorso)
-    local newNeck = BASE_C0.Neck * CFrame.Angles(0, 0, newTorso)
+    -- local newRootJoint = BASE_C0.RootJoint * CFrame.Angles(0, 0, -newTorso)
+    -- local newNeck = BASE_C0.Neck * CFrame.Angles(0, 0, newTorso)
 
     local lerpTime = 1 - LERP_SPEED ^ dt
 

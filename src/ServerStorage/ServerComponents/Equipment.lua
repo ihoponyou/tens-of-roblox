@@ -39,6 +39,7 @@ function Equipment:Construct()
 	ModelUtil.SetPartProperty(self.WorldModel, "CanCollide", true)
 	self:_newRootJoint()
 	self.WorldModel.Parent = self.Instance
+
 	-- destroy component if worldmodel is destroyed or drop if character is destroyed
 	self._trove:Connect(self.WorldModel.AncestryChanged, function(child, parent)
 		-- only consider when things are destroyed

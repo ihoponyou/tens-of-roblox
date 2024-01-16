@@ -6,7 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
+local Knit = require(ReplicatedStorage.Packages.Knit)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+
+local ViewmodelController
 
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
@@ -26,7 +29,18 @@ function MeleeClient:Construct()
 end
 
 function MeleeClient:Start()
+    Knit.OnStart():andThen(function()
+        ViewmodelController = Knit.GetController("ViewmodelController")
+    end, warn):await()
+
     self.Equipment = self:GetComponent(EquipmentClient)
+
+    self._trove:Connect(self.AttackRequest, function(combo)
+        if self.Equipment.Config.AllowFirstPerson then
+            -- print(combo)
+            ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Attack"..tostring(combo+1))
+        end
+    end)
 end
 
 function MeleeClient:_setupForLocalPlayer()

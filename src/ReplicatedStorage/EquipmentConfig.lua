@@ -134,17 +134,17 @@ local EquipmentConfig: { [string]: Equipment } = {
 	},
 	["Classic Knife"] = {
 		SlotType = "Secondary",
-		HolsterLimb = "Torso",
+		HolsterLimb = "Right Leg",
 		AllowFirstPerson = true,
 		RootJoint = {
 			C0 = {
-				Holstered = CFrame.new(1.1, -1.35, -0.3) * fromOrientationDeg(-15, 180, 180),
+				Holstered = CFrame.new(0.6, 1.634, -0.5) * fromOrientationDeg(15, 180, 180),
 				Equipped = {
-					World = CFrame.new(0, -0.7, 1.01) * fromOrientationDeg(90, 0, 0),
-					Viewmodel = CFrame.new(0, -1.2, 1.01) * fromOrientationDeg(90, 0, 0)
+					World = CFrame.new(0, -0.7, 0) * fromOrientationDeg(-90, 0, 0),
+					Viewmodel = CFrame.new(0, -1.1, 0) * fromOrientationDeg(-90, 0, 0)
 				}
 			},
-			C1 = nil,
+			C1 = CFrame.new(0, -1, 0),
 		},
 		Viewport = {
 			ElementPosition = UDim2.fromScale(1.5, 0.5),

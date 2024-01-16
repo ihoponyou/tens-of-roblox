@@ -8,7 +8,7 @@ local HIT_REGISTERED = ReplicatedStorage.UIEvents.HitRegistered
 local START_SIZE = UDim2.fromScale(0.07, 0.07)
 local END_SIZE = UDim2.fromScale(0.05, 0.05)
 local START_TRANSPARENCY = 0
-local END_TRANSPARENCY = 0.4
+-- local END_TRANSPARENCY = 0.4
 local MARKER_TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 local root = Instance.new("ScreenGui")
@@ -43,7 +43,7 @@ local function createMarkerTween(instance: ImageLabel): Tween
         Size = END_SIZE,
         -- ImageTransparency = END_TRANSPARENCY
     })
-    tween.Completed:Connect(function(playbackState)
+    tween.Completed:Connect(function(_playbackState)
         instance.Visible = false
     end)
     return tween
