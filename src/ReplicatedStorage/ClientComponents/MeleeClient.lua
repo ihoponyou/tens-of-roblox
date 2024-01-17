@@ -36,7 +36,7 @@ function MeleeClient:Start()
     self.Equipment = self:GetComponent(EquipmentClient)
 
     self._trove:Connect(self.AttackRequest, function(combo)
-        if self.Equipment.Config.AllowFirstPerson then
+        if self.Equipment.AllowFirstPerson then
             -- print(combo)
             ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Attack"..tostring(combo+1))
         end

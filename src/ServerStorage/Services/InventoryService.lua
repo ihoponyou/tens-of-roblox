@@ -40,7 +40,7 @@ end
 
 function InventoryService:AddEquipment(player, equipment): boolean
     local inventory = self.Inventories[player.UserId]
-    local slotType = equipment.Config.SlotType
+    local slotType = equipment.SlotType
 
     if inventory[slotType] ~= nil then
         warn("slot is occupied by "..inventory[slotType].Name)
@@ -61,7 +61,7 @@ function InventoryService:RemoveEquipment(player, equipment): boolean
         return false
     end
 
-    local slotType = equipment.Config.SlotType
+    local slotType = equipment.SlotType
 
     if inventory[slotType] == nil then
         warn(equipment.Instance.Name.." not found for "..player.Name)

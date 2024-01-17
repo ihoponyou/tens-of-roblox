@@ -12,8 +12,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 local MeleeCaster = require(ServerStorage.Source.ServerComponents.MeleeCaster)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
-local MeleeStats = require(ServerStorage.Source.MeleeStats)
-local HitboxManager = require(ReplicatedStorage.Source.Modules.HitboxManager)
+local MeleeConfig = require(ServerStorage.Source.MeleeConfig)
 
 local COMBO_RESET_DELAY = 0.5
 
@@ -26,10 +25,9 @@ function Melee:Construct()
 	self._serverComm = self._trove:Construct(Comm.ServerComm, self.Instance, "Melee")
 
     -- directly adopt fields in config
-    for k, v in MeleeStats[self.Instance.Name] do
+    for k, v in MeleeConfig[self.Instance.Name] do
         self[k] = v
     end
-
 
     self._canAttack = false
     self._combo = 0
@@ -50,7 +48,7 @@ function Melee:Start()
 
         Find.path(animations, "3P/"..animationName)
 
-        if self.Equipment.Config.AllowFirstPerson then
+        if self.Equipment.AllowFirstPerson then
             Find.path(animations, "1P/"..animationName)
         end
     end

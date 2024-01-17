@@ -34,7 +34,7 @@ function InventoryController:_tryEquip(newSlot: string)
     local equipment = EquipmentClient:FromInstance(newItem)
     equipment:Equip()
 
-    self:SetActiveSlot(equipment.Config.SlotType)
+    self:SetActiveSlot(equipment.SlotType)
 end
 
 function InventoryController:_tryDrop()

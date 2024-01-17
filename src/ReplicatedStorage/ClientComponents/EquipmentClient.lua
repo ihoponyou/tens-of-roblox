@@ -28,7 +28,10 @@ function EquipmentClient:Construct()
     self._trove = Trove.new()
     self._clientComm = self._trove:Construct(Comm.ClientComm, self.Instance, true, "Equipment")
 
-    self.Config = EquipmentConfig[self.Instance.Name]
+    for k, v in EquipmentConfig[self.Instance.Name] do
+        self[k] = v
+    end
+
     self.Folder = ReplicatedStorage.Equipment[self.Instance.Name]
 
     self.WorldModel = self.Instance:WaitForChild("WorldModel")
@@ -101,14 +104,14 @@ end
 
 function EquipmentClient:_rigToCharacter(holstered: boolean)
     if holstered then
-        self:RigTo(Players.LocalPlayer.Character, self.Config.HolsterLimb, self.Config.RootJoint.C0.Holstered)
+        self:RigTo(Players.LocalPlayer.Character, self.HolsterLimb, self.RootJoint.C0.Holstered)
     else
-        self:RigTo(Players.LocalPlayer.Character, "Right Arm", self.Config.RootJoint.C0.Equipped.World)
+        self:RigTo(Players.LocalPlayer.Character, "Right Arm", self.RootJoint.C0.Equipped.World)
     end
 end
 
 function EquipmentClient:_rigToViewmodel()
-    self:RigTo(ViewmodelController.Viewmodel.Instance, "Right Arm", self.Config.RootJoint.C0.Equipped.Viewmodel)
+    self:RigTo(ViewmodelController.Viewmodel.Instance, "Right Arm", self.RootJoint.C0.Equipped.Viewmodel)
 end
 
 function EquipmentClient:_loadViewmodelAnimations()
@@ -128,11 +131,11 @@ function EquipmentClient:Equip()
 end
 
 function EquipmentClient:_onEquipped()
-    CameraController:SetAllowFirstPerson(self.Config.AllowFirstPerson)
+    CameraController:SetAllowFirstPerson(self.AllowFirstPerson)
 
     UserInputService.MouseIconEnabled = false
 
-    if not self.Config.AllowFirstPerson then return end
+    if not self.AllowFirstPerson then return end
 
     self:_loadViewmodelAnimations()
     if CameraController.InFirstPerson then
