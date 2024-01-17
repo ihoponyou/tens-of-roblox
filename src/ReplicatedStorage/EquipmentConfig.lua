@@ -123,10 +123,10 @@ local EquipmentConfig: { [string]: Equipment } = {
 				Holstered = CFrame.new(0.6, 0.5, 0) * fromOrientationDeg(-80, 0, 0),
 				Equipped = {
 					World = CFrame.new(0, -1.043, -0.435) * fromOrientationDeg(-90, 0, 0),
-					Viewmodel = CFrame.new(0, -1.5, -0.35) * fromOrientationDeg(-90, 0, 0)
+					Viewmodel = CFrame.new(0, -1.113, -0.218) * fromOrientationDeg(-90, 0, 0)
 				}
 			},
-			C1 = nil
+			C1 = CFrame.new(0, -0.132, 0.437)
 		},
 		Components = {
 			"Gun"

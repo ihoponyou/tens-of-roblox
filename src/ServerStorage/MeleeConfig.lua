@@ -11,7 +11,7 @@ export type StatBlock = {
 
 local BACKSTAB_THRESHOLD = math.sin(0)
 
-local MeleeStats: {[string]: StatBlock} = {
+local MeleeConfig: {[string]: StatBlock} = {
     ["Dragonslayer"] = {
         Damage = 100;
         DeployTime = 2;
@@ -51,4 +51,4 @@ local MeleeStats: {[string]: StatBlock} = {
     }
 }
 
-return MeleeStats
+return MeleeConfig
