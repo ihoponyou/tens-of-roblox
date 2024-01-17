@@ -3,6 +3,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
@@ -129,6 +130,8 @@ end
 function EquipmentClient:_onEquipped()
     CameraController:SetAllowFirstPerson(self.Config.AllowFirstPerson)
 
+    UserInputService.MouseIconEnabled = false
+
     if not self.Config.AllowFirstPerson then return end
 
     self:_loadViewmodelAnimations()
@@ -148,8 +151,11 @@ function EquipmentClient:_onUnequipped()
     if self.IsPickedUp:Get() then
         self:_rigToCharacter(true)
     end
+
     ViewmodelController.Viewmodel:ToggleVisibility(false)
     CameraController:SetAllowFirstPerson(true)
+
+    UserInputService.MouseIconEnabled = true
 end
 
 function EquipmentClient:Drop()

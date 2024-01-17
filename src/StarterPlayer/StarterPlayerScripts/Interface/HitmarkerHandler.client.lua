@@ -34,8 +34,12 @@ local markers: {Marker} = {
     };
     Kill = {
         Instance = ReplicatedStorage.Kill:Clone();
-        Priority = 2;
+        Priority = 3;
     };
+    Headshot = {
+        Instance = ReplicatedStorage.Headshot:Clone();
+        Priority = 2;
+    }
 }
 
 local function createMarkerTween(instance: ImageLabel): Tween
