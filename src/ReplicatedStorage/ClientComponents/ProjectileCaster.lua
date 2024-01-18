@@ -10,6 +10,7 @@ local PartCache = require(ReplicatedStorage.Packages.PartCache)
 
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
+local MAX_PIERCES = 3
 local RICOCHET_ANGLE = 5
 local _RICOCHET_DOT = math.cos(math.rad(90+RICOCHET_ANGLE))
 
@@ -80,7 +81,11 @@ end
 
 -- returns whether or not bullet should pierce
 function ProjectileCaster._canRayPierce(cast, raycastResult: RaycastResult, segmentVelocity: Vector3) -- (from FastCast Example Gun)
-	local MAX_PIERCES = 3
+
+	-- ignore accessories
+	if raycastResult.Instance:FindFirstAncestorOfClass("Accessory") then
+		return true
+	end
 
 	local hits = cast.UserData.Hits
 	if hits == nil then
@@ -120,11 +125,11 @@ function ProjectileCaster._canRayPierce(cast, raycastResult: RaycastResult, segm
 end
 
 -- override this
-function ProjectileCaster:OnRayHit(_raycastResult: RaycastResult)
+function ProjectileCaster.OnRayHit(_raycastResult: RaycastResult)
 end
 
 function ProjectileCaster:_onRayHit(_cast, raycastResult: RaycastResult, _segmentVelocity: Vector3, _cosmeticBulletObject: BasePart)  -- (adapted from FastCast Example Gun)
-    self:OnRayHit(raycastResult)
+    self.OnRayHit(raycastResult)
 end
 
 function ProjectileCaster:_onRayPierced(cast, raycastResult: RaycastResult, _segmentVelocity: Vector3, _cosmeticBulletObject: BasePart)

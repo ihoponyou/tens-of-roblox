@@ -26,6 +26,9 @@ local GunClient = Component.new({
 })
 
 function GunClient:Construct()
+    self._canFire = true
+    self._triggerDown = false
+
     self._trove = Trove.new()
     self._clientComm = self._trove:Construct(Comm.ClientComm, self.Instance, true, "Gun")
 
@@ -34,9 +37,12 @@ function GunClient:Construct()
     end
 
     self.FireEvent = self._clientComm:GetSignal("FireEvent")
-    self.FireEvent:Connect(function()
-        self:DoEffects()
+    self.FireEvent:Connect(function(origin, direction)
+        -- server telling us to replicate a shot
+        self:Shoot(origin, direction, true)
     end)
+
+    self.HitEvent = self._clientComm:GetSignal("HitEvent")
 end
 
 function GunClient:Start()
@@ -47,30 +53,40 @@ function GunClient:Start()
     self.Equipment = self:GetComponent(EquipmentClient)
     self.ProjectileCaster = self:GetComponent(ProjectileCaster)
 
-    self.FireSound = self.Equipment.Folder:FindFirstChild("FireSound") :: Sound?
-    if self.FireSound == nil then
-        warn(self.Instance.Name, "missing a fire sound")
+    self.ProjectileCaster.OnRayHit = function(raycastResult: RaycastResult)
+        self.HitEvent:Fire(raycastResult.Instance)
     end
+
+    self.FireSound = self.Equipment.Folder:FindFirstChild("FireSound") :: Sound?
+    if self.FireSound == nil then warn(self.Instance.Name, "missing a fire sound") end
 
     local worldModel: Model = self.Equipment.WorldModel
     self.FirePoint = worldModel.PrimaryPart:FindFirstChild("FirePoint") :: Attachment?
-    if self.FirePoint == nil then
-        error(self.Instance.Name.." missing a fire point")
-    end
+    if self.FirePoint == nil then error(self.Instance.Name.." missing a fire point") end
     self._fireball = self.FirePoint.fireball :: ParticleEmitter
     self._gas = self.FirePoint.gas :: ParticleEmitter
     self._smoke = self.FirePoint.smoke :: ParticleEmitter
     self._flash = self.FirePoint.flash :: PointLight
 
     self.EjectionPort = worldModel.PrimaryPart:FindFirstChild("EjectionPort") :: Attachment?
-    if self.FirePoint == nil then
-        warn(self.Instance.Name.." missing an ejection port")
-    end
+    if self.FirePoint == nil then warn(self.Instance.Name.." missing an ejection port") end
 
     self.Casing = self.Equipment.Folder:FindFirstChild("Casing") :: BasePart?
-    if self.Casing == nil then
-        warn(self.Instance.Name.." missing a casing model")
-    end
+    if self.Casing == nil then warn(self.Instance.Name.." missing a casing model") end
+end
+
+function GunClient:Stop()
+    self._trove:Destroy()
+end
+
+function GunClient:SteppedUpdate()
+    if not self._triggerDown then return end
+    if not self._canFire then return end
+
+    if not self.Equipment.IsEquipped:Get() then return end
+
+    local cf = workspace.CurrentCamera.CFrame
+    self:Shoot(cf.Position, cf.LookVector)
 end
 
 function GunClient:_setupForLocalPlayer()
@@ -94,15 +110,29 @@ function GunClient:_cleanUpForLocalPlayer()
 end
 
 function GunClient:_onEquipped()
-    ContextActionService:BindAction(self.Instance.Name.."Shoot", function(_, uis, _)
-        if uis ~= Enum.UserInputState.Begin then return end
-        if not self.Equipment.IsEquipped:Get() then return end
-        self:Shoot()
-    end, false, Enum.UserInputType.MouseButton1)
+    self._canFire = false
+
+    ContextActionService:BindAction(self.Instance.Name.."Shoot",
+        function(_, uis, _)
+            self._triggerDown = uis == Enum.UserInputState.Begin
+        end,
+        false, Enum.UserInputType.MouseButton1)
+
+    self._readyThread = task.delay(self.DeployTime, function()
+        self._canFire = true
+        self._readyThread = nil
+    end)
 end
 
 function GunClient:_onUnequipped()
+    self._canFire = false
+
     ContextActionService:UnbindAction(self.Instance.Name.."Shoot")
+
+    if self._readyThread then
+        task.cancel(self._readyThread)
+        self._readyThread = nil
+    end
 end
 
 function GunClient:PlayFireSound()
@@ -155,23 +185,30 @@ function GunClient:EjectCasing()
     Debris:AddItem(casingClone, 3)
 end
 
-function GunClient:DoEffects()
+function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolean?)
     self:PlayFireSound()
     self:DoMuzzleFlash()
     self:EjectCasing()
-end
 
-function GunClient:Shoot()
-    self.FireEvent:Fire()
+    self.ProjectileCaster:Cast(origin, direction)
+
+    if replicated then return end
+
+    self._canFire = false
+
+    if not self.FullAuto then
+        self._triggerDown = false
+    end
+
+    self.FireEvent:Fire(origin, direction)
 
     if self.Equipment.AllowFirstPerson then
         ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")
     end
 
-    self:DoEffects()
-
-    local cf = workspace.CurrentCamera.CFrame
-    self.ProjectileCaster:Cast(cf.Position, cf.LookVector)
+    task.delay(60/self.RoundsPerMinute, function()
+        self._canFire = true
+    end)
 end
 
 return GunClient
