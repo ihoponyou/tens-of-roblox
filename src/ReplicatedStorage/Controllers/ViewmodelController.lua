@@ -31,7 +31,10 @@ function ViewmodelController:CreateViewmodel()
 
     local newViewmodel = ReplicatedStorage.Viewmodel:Clone()
     newViewmodel.Parent = workspace.CurrentCamera
-    local appearance = if Knit.Player.UserId > 0 then Players:GetHumanoidDescriptionFromUserId(Knit.Player.UserId) else ReplicatedStorage.test
+
+    local appearance = if Knit.Player.UserId > 0
+        then Players:GetHumanoidDescriptionFromUserId(Knit.Player.UserId)
+        else ReplicatedStorage.Character.GuestDescription
     newViewmodel.RigHumanoid:ApplyDescriptionReset(appearance)
 
     for _, v in newViewmodel:GetDescendants() do

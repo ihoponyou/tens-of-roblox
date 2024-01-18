@@ -15,6 +15,7 @@ local CameraController, ViewmodelController
 local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
+local ModelUtil = require(ReplicatedStorage.Source.Modules.ModelUtil)
 
 local EquipmentClient = Component.new({
     Tag = "Equipment";
@@ -103,6 +104,7 @@ function EquipmentClient:RigTo(character: Model, limb: string, c0: CFrame?)
 end
 
 function EquipmentClient:_rigToCharacter(holstered: boolean)
+    ModelUtil.SetPartProperty(self.WorldModel, "CastShadow", true)
     if holstered then
         self:RigTo(Players.LocalPlayer.Character, self.HolsterLimb, self.RootJoint.C0.Holstered)
     else
@@ -111,6 +113,7 @@ function EquipmentClient:_rigToCharacter(holstered: boolean)
 end
 
 function EquipmentClient:_rigToViewmodel()
+    ModelUtil.SetPartProperty(self.WorldModel, "CastShadow", false)
     self:RigTo(ViewmodelController.Viewmodel.Instance, "Right Arm", self.RootJoint.C0.Equipped.Viewmodel)
 end
 

@@ -120,9 +120,9 @@ local EquipmentConfig: { [string]: Equipment } = {
 		},
 		RootJoint = {
 			C0 = {
-				Holstered = CFrame.new(0.6, 0.5, 0) * fromOrientationDeg(-80, 0, 0),
+				Holstered = CFrame.new(0.6, 0.8, 0.2) * fromOrientationDeg(-80, 0, 0),
 				Equipped = {
-					World = CFrame.new(0, -1.043, -0.435) * fromOrientationDeg(-90, 0, 0),
+					World = CFrame.new(0, -0.6, -0.3) * fromOrientationDeg(-90, 0, 0),
 					Viewmodel = CFrame.new(0, -1.113, -0.218) * fromOrientationDeg(-90, 0, 0)
 				}
 			},

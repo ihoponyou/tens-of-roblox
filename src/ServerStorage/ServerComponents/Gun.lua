@@ -1,6 +1,7 @@
 
 -- allows for attacking like a gun
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -10,7 +11,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local Equipment = require(ServerStorage.Source.ServerComponents.Equipment)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
-local GunConfig = require(ServerStorage.Source.GunConfig)
+local GunConfig = require(ReplicatedStorage.Source.GunConfig)
 
 local Gun = Component.new({
 	Tag = "Gun",
@@ -25,6 +26,17 @@ function Gun:Construct()
         self[k] = v
     end
 
+    -- for projectile caster
+    for k, v in self.Ballistics do
+        self.Instance:SetAttribute(k, v)
+    end
+
+    self.FireEvent = self._serverComm:CreateSignal("FireEvent")
+    self._trove:Connect(self.FireEvent, function(...)
+        self:Fire(...)
+    end)
+
+    CollectionService:AddTag(self.Instance, "ProjectileCaster")
 end
 
 function Gun:Start()
@@ -60,6 +72,12 @@ function Gun:_dealDamage(humanoid: Humanoid)
     end
 
     ReplicatedStorage.UIEvents.HitRegistered:FireClient(self.Equipment.Owner, hitType)
+end
+
+function Gun:Fire()
+    if not self.Equipment.IsEquipped:Get() then return end
+    self.Equipment.AnimationManager:PlayAnimation("Fire")
+    self.FireEvent:FireExcept(self.Equipment.Owner)
 end
 
 return Gun

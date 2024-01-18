@@ -31,12 +31,19 @@ function Vendor:Construct()
     self._trove:Connect(self.OpenPrompt.Triggered, function(playerWhoTriggered: Player)
         self:GiveItem(playerWhoTriggered)
     end)
+
+    self._nextItemIdx = 1
 end
 
 function Vendor:GiveItem(_player: Player)
     local item = Instance.new("Model")
-    item.Name = EQUIPMENT_NAMES[RANDOM:NextInteger(1, #EQUIPMENT_NAMES)]
+    item.Name = EQUIPMENT_NAMES[self._nextItemIdx]
     item.Parent = workspace
+
+    self._nextItemIdx += 1
+    if self._nextItemIdx > #EQUIPMENT_NAMES then
+        self._nextItemIdx = 1
+    end
 
     CollectionService:AddTag(item, "Equipment")
 
