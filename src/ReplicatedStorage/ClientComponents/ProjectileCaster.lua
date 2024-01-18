@@ -104,7 +104,7 @@ function ProjectileCaster._canRayPierce(cast, raycastResult: RaycastResult, segm
     -- print(dot, ":", math.deg(math.acos(dot)))
     -- -1 > dot > 0
 	if dot > _RICOCHET_DOT then
-        print("ricochet")
+        -- print("ricochet")
         local newNormal = reflect(normal, segmentVelocity.Unit)
         cast:SetVelocity(newNormal * segmentVelocity.Magnitude)
         return true

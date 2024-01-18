@@ -10,6 +10,7 @@ local END_SIZE = UDim2.fromScale(0.05, 0.05)
 local START_TRANSPARENCY = 0
 -- local END_TRANSPARENCY = 0.4
 local MARKER_TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local SOUND = SoundService:WaitForChild("HitmarkerSound")
 
 local root = Instance.new("ScreenGui")
 root.Name = "Hitmarkers"
@@ -72,6 +73,6 @@ local function spawnHitmarker(marker: Marker)
 end
 
 HIT_REGISTERED.OnClientEvent:Connect(function(hitType: string)
-    SoundService:PlayLocalSound(SoundService:WaitForChild("HitmarkerSound")) 
+    SoundService:PlayLocalSound(SOUND)
     spawnHitmarker(markers[hitType])
 end)

@@ -118,7 +118,7 @@ function Gun:RegisterHit(player: Player, instance: Instance)
     if not self.Equipment.IsPickedUp:Get() then return end
     if self.Equipment.Owner ~= player then return end
 
-    print("hit", instance.Name)
+    -- print("hit", instance.Name)
 
     local parent = instance.Parent
     if not parent then return end

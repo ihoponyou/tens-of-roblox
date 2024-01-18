@@ -185,6 +185,10 @@ function GunClient:EjectCasing()
     Debris:AddItem(casingClone, 3)
 end
 
+function GunClient:DoCameraRecoil()
+    
+end
+
 function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolean?)
     self:PlayFireSound()
     self:DoMuzzleFlash()
@@ -195,6 +199,8 @@ function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolea
     if replicated then return end
 
     self._canFire = false
+
+    self:DoCameraRecoil()
 
     if not self.FullAuto then
         self._triggerDown = false
