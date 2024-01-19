@@ -10,6 +10,7 @@ local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Spring = require(ReplicatedStorage.Packages.Spring)
 
 local ViewmodelController
 
@@ -27,6 +28,7 @@ local GunClient = Component.new({
 
 function GunClient:Construct()
     self._canFire = true
+    self._firing = false
     self._triggerDown = false
 
     self._trove = Trove.new()
@@ -43,6 +45,8 @@ function GunClient:Construct()
     end)
 
     self.HitEvent = self._clientComm:GetSignal("HitEvent")
+
+    self.RecoilSpring = Spring.new(Vector3.zero)
 end
 
 function GunClient:Start()
@@ -82,7 +86,6 @@ end
 function GunClient:SteppedUpdate()
     if not self._triggerDown then return end
     if not self._canFire then return end
-
     if not self.Equipment.IsEquipped:Get() then return end
 
     local cf = workspace.CurrentCamera.CFrame
@@ -130,8 +133,14 @@ function GunClient:_onUnequipped()
     ContextActionService:UnbindAction(self.Instance.Name.."Shoot")
 
     if self._readyThread then
+        -- print("cancel")
         task.cancel(self._readyThread)
         self._readyThread = nil
+    end
+
+    if self._fireRateThread then
+        task.cancel(self._fireRateThread)
+        self._fireRateThread = nil
     end
 end
 
@@ -186,7 +195,9 @@ function GunClient:EjectCasing()
 end
 
 function GunClient:DoCameraRecoil()
-    
+    self.RecoilSpring:Impulse(Vector3.yAxis)
+
+    print(self.RecoilSpring.Position)
 end
 
 function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolean?)
@@ -212,7 +223,7 @@ function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolea
         ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")
     end
 
-    task.delay(60/self.RoundsPerMinute, function()
+    self._fireRateThread = task.delay(60/self.RoundsPerMinute, function()
         self._canFire = true
     end)
 end
