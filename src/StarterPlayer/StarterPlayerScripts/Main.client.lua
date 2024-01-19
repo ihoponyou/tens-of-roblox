@@ -3,6 +3,22 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Loader = require(ReplicatedStorage.Packages.Loader)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
+--[[
+    @class ClientMain
+]]
+
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
+
+local packages = ReplicatedFirst:WaitForChild("_SoftShutdownClientPackages")
+
+local SoftShutdownServiceClient = require(packages.SoftShutdownServiceClient)
+local serviceBag = require(packages.ServiceBag).new()
+
+serviceBag:GetService(SoftShutdownServiceClient)
+
+serviceBag:Init()
+serviceBag:Start()
+
 Loader.LoadDescendants(ReplicatedStorage.Source.Controllers, Loader.MatchesName("Controller$"))
 
 Knit.Start():andThen(function()

@@ -1,0 +1,15 @@
+{
+  "name": "tens-of-roblox",
+  "version": "1.0.0",
+  "description": "package for tens of roblox. kill them",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@quenty/loader": "^7.3.0",
+    "@quenty/spring": "^7.2.0"
+  }
+}

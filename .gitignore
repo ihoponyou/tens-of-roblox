@@ -1,4 +1,5 @@
 Packages/
+node_modules/
 
 *.rbxl
 media/blender/

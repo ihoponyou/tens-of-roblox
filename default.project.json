@@ -17,6 +17,9 @@
       "$className": "ServerScriptService",
       "Source": {
         "$path": "src/ServerScriptService"
+      },
+      "node_modules": {
+        "$path": "node_modules"
       }
     },
 
