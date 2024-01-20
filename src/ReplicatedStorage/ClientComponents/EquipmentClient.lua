@@ -42,7 +42,13 @@ function EquipmentClient:Construct()
 
     self.IsEquipped = self._clientComm:GetProperty("IsEquipped")
     self.EquipRequest = self._clientComm:GetSignal("EquipRequest")
+    self._trove:Connect(self.EquipRequest, function()
+        self:_onEquipped()
+    end)
     self.UnequipRequest = self._clientComm:GetSignal("UnequipRequest")
+    self._trove:Connect(self.UnequipRequest, function()
+        self:_onUnequipped()
+    end)
 end
 
 function EquipmentClient:Start()
@@ -55,13 +61,13 @@ end
 function EquipmentClient:_setupForLocalPlayer()
     self._localPlayerTrove = self._trove:Extend()
 
-    self._localPlayerTrove:Add(self.IsEquipped:Observe(function(value)
-        if value then
-            self:_onEquipped()
-        else
-            self:_onUnequipped()
-        end
-    end))
+    -- self._localPlayerTrove:Add(self.IsEquipped:Observe(function(value)
+    --     if value then
+    --         self:_onEquipped()
+    --     else
+    --         self:_onUnequipped()
+    --     end
+    -- end))
 
     self._localPlayerTrove:Connect(CameraController.PointOfViewChanged, function(inFirstPerson: boolean)
         if not self.IsEquipped:Get() then return end

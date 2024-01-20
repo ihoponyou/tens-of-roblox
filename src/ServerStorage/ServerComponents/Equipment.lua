@@ -142,6 +142,11 @@ end
 
 function Equipment:_setEquipped(isEquipped: boolean)
 	self.IsEquipped:Set(isEquipped)
+	if isEquipped then
+		self.EquipRequest:Fire(self.Owner)
+	else
+		self.UnequipRequest:Fire(self.Owner)
+	end
 	self.Equipped:Fire(isEquipped)
 end
 
