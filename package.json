@@ -9,7 +9,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@quenty/camera": "^11.0.0",
     "@quenty/loader": "^7.3.0",
+    "@quenty/servicebag": "^8.0.0",
     "@quenty/spring": "^7.2.0"
   }
 }

@@ -18,7 +18,7 @@
       "Source": {
         "$path": "src/ServerScriptService"
       },
-      "node_modules": {
+      "integration": {
         "$path": "node_modules"
       }
     },

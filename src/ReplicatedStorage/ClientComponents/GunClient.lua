@@ -5,6 +5,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
@@ -46,7 +47,16 @@ function GunClient:Construct()
 
     self.HitEvent = self._clientComm:GetSignal("HitEvent")
 
-    self.RecoilSpring = Spring.new(Vector3.zero)
+    self.CameraSpring = Spring.new(Vector3.zero)
+    -- TODO: make these depend on gun handling
+    self.CameraSpring.Speed = self.SpringScales.Camera.Speed
+    self.CameraSpring.Damper = self.SpringScales.Camera.Damper
+
+    self.ViewmodelSpring = Spring.new(Vector3.zero)
+    self.ViewmodelSpring.Speed = self.SpringScales.Animation.Speed
+    self.ViewmodelSpring.Damper = self.SpringScales.Animation.Damper
+
+    self._lastOffset = CFrame.new()
 end
 
 function GunClient:Start()
@@ -83,15 +93,6 @@ function GunClient:Stop()
     self._trove:Destroy()
 end
 
-function GunClient:SteppedUpdate()
-    if not self._triggerDown then return end
-    if not self._canFire then return end
-    if not self.Equipment.IsEquipped:Get() then return end
-
-    local cf = workspace.CurrentCamera.CFrame
-    self:Shoot(cf.Position, cf.LookVector)
-end
-
 function GunClient:_setupForLocalPlayer()
     self._localPlayerTrove = self._trove:Extend()
 
@@ -112,6 +113,45 @@ function GunClient:_cleanUpForLocalPlayer()
     end
 end
 
+function GunClient:HandleTriggerInput()
+    if not self._triggerDown then return end
+    if not self._canFire then return end
+    if not self.Equipment.IsEquipped:Get() then return end
+
+    local cf = workspace.CurrentCamera.CFrame
+    self:Shoot(cf.Position, cf.LookVector)
+end
+
+function GunClient:UpdateRecoilOffsets()
+    local recoilSpringPosition = self.CameraSpring.Position
+    local cameraScales = self.SpringScales.Camera
+    local cameraOffset = CFrame.fromOrientation(
+        recoilSpringPosition.Y * cameraScales.Rotation.X,
+        recoilSpringPosition.X * cameraScales.Rotation.Y,
+        0
+    )
+
+    workspace.CurrentCamera.CFrame *= (cameraOffset * self._lastOffset:Inverse())
+
+    local animationSpringPosition = self.ViewmodelSpring.Position
+    local animationScales = self.SpringScales.Animation
+    local viewmodelPosition = Vector3.new(
+        animationSpringPosition.X * animationScales.Position.X,
+        animationSpringPosition.Y * animationScales.Position.Y,
+        animationSpringPosition.Y * animationScales.Position.Z
+    )
+    local viewmodelOrientation = {
+        animationSpringPosition.Y * animationScales.Rotation.X,
+        animationSpringPosition.X * animationScales.Rotation.Y,
+        0 * animationScales.Rotation.Z
+    }
+    local viewmodelOffset = CFrame.new(viewmodelPosition) * CFrame.fromOrientation(table.unpack(viewmodelOrientation))
+
+    ViewmodelController.Viewmodel.OffsetManager:SetOffsetValue(self.Instance.Name.."Recoil", viewmodelOffset)
+
+    self._lastOffset = cameraOffset
+end
+
 function GunClient:_onEquipped()
     self._canFire = false
 
@@ -125,6 +165,11 @@ function GunClient:_onEquipped()
         self._canFire = true
         self._readyThread = nil
     end)
+
+    ViewmodelController.Viewmodel.OffsetManager:AddOffset(self.Instance.Name.."Recoil", CFrame.new(), 1)
+
+    RunService:BindToRenderStep(self.Instance.Name.."Recoil", Enum.RenderPriority.Last.Value, function(_dt) self:UpdateRecoilOffsets() end)
+    RunService:BindToRenderStep(self.Instance.Name.."TriggerInput", Enum.RenderPriority.Input.Value, function(_dt) self:HandleTriggerInput() end)
 end
 
 function GunClient:_onUnequipped()
@@ -142,6 +187,12 @@ function GunClient:_onUnequipped()
         task.cancel(self._fireRateThread)
         self._fireRateThread = nil
     end
+
+    RunService:UnbindFromRenderStep(self.Instance.Name.."Recoil")
+    RunService:UnbindFromRenderStep(self.Instance.Name.."TriggerInput")
+    -- prevent camera from resetting to "center" when re equipped
+    self._lastOffset = CFrame.new()
+    ViewmodelController.Viewmodel.OffsetManager:RemoveOffset(self.Instance.Name.."Recoil")
 end
 
 function GunClient:PlayFireSound()
@@ -195,9 +246,9 @@ function GunClient:EjectCasing()
 end
 
 function GunClient:DoCameraRecoil()
-    self.RecoilSpring:Impulse(Vector3.yAxis)
-
-    print(self.RecoilSpring.Position)
+    local recoil = Vector3.new(self.HorizontalRecoil * math.random(-1, 1), self.VerticalRecoil, 0)
+    self.CameraSpring:Impulse(recoil)
+    self.ViewmodelSpring:Impulse(recoil)
 end
 
 function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolean?)
