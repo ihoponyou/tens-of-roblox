@@ -28,7 +28,7 @@ local GunClient = Component.new({
 })
 
 function GunClient:Construct()
-    self._canFire = true
+    self._canFire = false
     self._firing = false
     self._triggerDown = false
 
@@ -39,6 +39,10 @@ function GunClient:Construct()
         self[k] = v
     end
 
+    -- time between shots
+    self._fireDelay = 60/self.RoundsPerMinute
+    -- self._delayAccumulator = 0
+
     self.FireEvent = self._clientComm:GetSignal("FireEvent")
     self.FireEvent:Connect(function(origin, direction)
         -- server telling us to replicate a shot
@@ -48,6 +52,8 @@ function GunClient:Construct()
     self.HitEvent = self._clientComm:GetSignal("HitEvent")
 
     self:_resetSprings()
+
+    self._lastFired = 0
 end
 
 function GunClient:Start()
@@ -116,10 +122,14 @@ function GunClient:_resetSprings()
     self._lastOffset = CFrame.new()
 end
 
-function GunClient:HandleTriggerInput()
+function GunClient:HandleTriggerInput(deltaTime: number)
     if not self._triggerDown then return end
     if not self._canFire then return end
     if not self.Equipment.IsEquipped:Get() then return end
+
+    if not self.FullAuto then
+        self._triggerDown = false
+    end
 
     local cf = workspace.CurrentCamera.CFrame
     self:Shoot(cf.Position, cf.LookVector)
@@ -131,8 +141,7 @@ function GunClient:UpdateRecoilOffsets()
     local cameraOffset = CFrame.fromOrientation(
         recoilSpringPosition.Y * cameraScales.Rotation.X,
         recoilSpringPosition.X * cameraScales.Rotation.Y,
-        0
-    )
+        0)
 
     workspace.CurrentCamera.CFrame *= (cameraOffset * self._lastOffset:Inverse())
 
@@ -141,13 +150,11 @@ function GunClient:UpdateRecoilOffsets()
     local viewmodelPosition = Vector3.new(
         animationSpringPosition.X * animationScales.Position.X,
         animationSpringPosition.Y * animationScales.Position.Y,
-        animationSpringPosition.Y * animationScales.Position.Z
-    )
+        animationSpringPosition.Y * animationScales.Position.Z)
     local viewmodelOrientation = {
         animationSpringPosition.Y * animationScales.Rotation.X,
         animationSpringPosition.X * animationScales.Rotation.Y,
-        0 * animationScales.Rotation.Z
-    }
+        0 * animationScales.Rotation.Z}
     local viewmodelOffset = CFrame.new(viewmodelPosition) * CFrame.fromOrientation(table.unpack(viewmodelOrientation))
 
     ViewmodelController.Viewmodel.OffsetManager:SetOffsetValue(self.Instance.Name.."Recoil", viewmodelOffset)
@@ -174,7 +181,7 @@ function GunClient:_onEquipped()
     ViewmodelController.Viewmodel.OffsetManager:AddOffset(self.Instance.Name.."Recoil", CFrame.new(), 1)
 
     RunService:BindToRenderStep(self.Instance.Name.."Recoil", Enum.RenderPriority.Last.Value, function(_dt) self:UpdateRecoilOffsets() end)
-    RunService:BindToRenderStep(self.Instance.Name.."TriggerInput", Enum.RenderPriority.Input.Value, function(_dt) self:HandleTriggerInput() end)
+    RunService:BindToRenderStep(self.Instance.Name.."TriggerInput", Enum.RenderPriority.Input.Value, function(dt) self:HandleTriggerInput(dt) end)
 end
 
 function GunClient:_onUnequipped()
@@ -270,17 +277,13 @@ function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolea
 
     self:DoCameraRecoil()
 
-    if not self.FullAuto then
-        self._triggerDown = false
-    end
-
     self.FireEvent:Fire(origin, direction)
 
     if self.Equipment.AllowFirstPerson then
         ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Fire")
     end
 
-    self._fireRateThread = task.delay(60/self.RoundsPerMinute, function()
+    self._fireRateThread = task.delay(self._fireDelay, function()
         self._canFire = true
     end)
 end

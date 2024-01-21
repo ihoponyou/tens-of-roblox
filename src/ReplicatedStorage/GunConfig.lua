@@ -101,6 +101,37 @@ local GunConfig = {
             }
         };
     },
+    ["Minigun"] = {
+        Damage = 10;
+        DeployTime = 1.5;
+        HeadshotMultiplier = 1;
+        BulletsPerShot = 1;
+        MinSpreadAngle = 5;
+        MaxSpreadAngle = 5;
+        FullAuto = true;
+        RoundsPerMinute = 2000;
+        VerticalRecoil = 5;
+        HorizontalRecoil = 5;
+        Ballistics = {
+            BulletSpeed = 1000;
+            BulletMaxDistance = 1000;
+            BulletGravity = Vector3.yAxis * -workspace.Gravity;
+            CanPierce = true;
+        };
+        SpringScales = {
+            Animation = {
+                Speed = 15;
+                Damper = 0.9;
+                Position = Vector3.new(1, 1, 2);
+                Rotation = Vector3.new(1, 1, 0);
+            },
+            Camera = {
+                Speed = 10;
+                Damper = 1;
+                Rotation = Vector3.new(0.1, 0.05, 0);
+            }
+        };
+    },
 }
 
 return GunConfig

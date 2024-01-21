@@ -208,7 +208,7 @@ end
 function Equipment:Equip(player: Player)
 	if self.Owner ~= player then return end
 
-	self:RigTo(self.Owner.Character, "Right Arm", self.RootJoint.C0.Equipped.World)
+	self:RigTo(self.Owner.Character, self.EquipLimb or "Right Arm", self.RootJoint.C0.Equipped.World)
 
 	local animator = self.Owner.Character:WaitForChild("Humanoid"):WaitForChild("Animator")
     self.AnimationManager = AnimationManager.new(animator)

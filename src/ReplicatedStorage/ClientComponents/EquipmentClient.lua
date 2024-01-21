@@ -114,13 +114,13 @@ function EquipmentClient:_rigToCharacter(holstered: boolean)
     if holstered then
         self:RigTo(Players.LocalPlayer.Character, self.HolsterLimb, self.RootJoint.C0.Holstered)
     else
-        self:RigTo(Players.LocalPlayer.Character, "Right Arm", self.RootJoint.C0.Equipped.World)
+        self:RigTo(Players.LocalPlayer.Character, self.EquipLimb or "Right Arm", self.RootJoint.C0.Equipped.World)
     end
 end
 
 function EquipmentClient:_rigToViewmodel()
     ModelUtil.SetPartProperty(self.WorldModel, "CastShadow", false)
-    self:RigTo(ViewmodelController.Viewmodel.Instance, "Right Arm", self.RootJoint.C0.Equipped.Viewmodel)
+    self:RigTo(ViewmodelController.Viewmodel.Instance, self.EquipLimb or "Right Arm", self.RootJoint.C0.Equipped.Viewmodel)
 end
 
 function EquipmentClient:_loadViewmodelAnimations()
