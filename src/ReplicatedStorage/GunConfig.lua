@@ -29,8 +29,8 @@ local GunConfig = {
             Animation = {
                 Speed = 15;
                 Damper = 0.7;
-                Position = Vector3.new(0.1, -0.7, 1.3);
-                Rotation = Vector3.new(0.4, 0.1, 0);
+                Position = Vector3.new(0.1, -0.3, 1.3);
+                Rotation = Vector3.new(0.2, 0.1, 0);
             },
             Camera = {
                 Speed = 10;
@@ -69,7 +69,38 @@ local GunConfig = {
                 Rotation = Vector3.new(0.2, 0.4, 1);
             }
         };
-    }
+    },
+    ["Tommy"] = {
+        Damage = 20;
+        DeployTime = 0.7;
+        HeadshotMultiplier = 2;
+        BulletsPerShot = 1;
+        MinSpreadAngle = 0;
+        MaxSpreadAngle = 0;
+        FullAuto = true;
+        RoundsPerMinute = 800;
+        VerticalRecoil = 10;
+        HorizontalRecoil = 10;
+        Ballistics = {
+            BulletSpeed = 1000;
+            BulletMaxDistance = 1000;
+            BulletGravity = Vector3.yAxis * -workspace.Gravity;
+            CanPierce = true;
+        };
+        SpringScales = {
+            Animation = {
+                Speed = 15;
+                Damper = 0.7;
+                Position = Vector3.new(0.1, -0.3, 1.3);
+                Rotation = Vector3.new(0.2, 0.1, 0);
+            },
+            Camera = {
+                Speed = 10;
+                Damper = 1;
+                Rotation = Vector3.new(0.2, 0.05, 0);
+            }
+        };
+    },
 }
 
 return GunConfig
