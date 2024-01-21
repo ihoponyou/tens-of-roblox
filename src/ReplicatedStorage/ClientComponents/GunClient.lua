@@ -47,16 +47,7 @@ function GunClient:Construct()
 
     self.HitEvent = self._clientComm:GetSignal("HitEvent")
 
-    self.CameraSpring = Spring.new(Vector3.zero)
-    -- TODO: make these depend on gun handling
-    self.CameraSpring.Speed = self.SpringScales.Camera.Speed
-    self.CameraSpring.Damper = self.SpringScales.Camera.Damper
-
-    self.ViewmodelSpring = Spring.new(Vector3.zero)
-    self.ViewmodelSpring.Speed = self.SpringScales.Animation.Speed
-    self.ViewmodelSpring.Damper = self.SpringScales.Animation.Damper
-
-    self._lastOffset = CFrame.new()
+    self:_resetSprings()
 end
 
 function GunClient:Start()
@@ -83,10 +74,10 @@ function GunClient:Start()
     self._flash = self.FirePoint.flash :: PointLight
 
     self.EjectionPort = worldModel.PrimaryPart:FindFirstChild("EjectionPort") :: Attachment?
-    if self.FirePoint == nil then warn(self.Instance.Name.." missing an ejection port") end
+    if self.FirePoint == nil then error(self.Instance.Name.." missing an ejection port") end
 
     self.Casing = self.Equipment.Folder:FindFirstChild("Casing") :: BasePart?
-    if self.Casing == nil then warn(self.Instance.Name.." missing a casing model") end
+    if self.Casing == nil then error(self.Instance.Name.." missing a casing model") end
 end
 
 function GunClient:Stop()
@@ -111,6 +102,18 @@ function GunClient:_cleanUpForLocalPlayer()
     if self._localPlayerTrove then
         self._localPlayerTrove:Destroy()
     end
+end
+
+function GunClient:_resetSprings()
+    self.CameraSpring = Spring.new(Vector3.zero)
+    self.CameraSpring.Speed = self.SpringScales.Camera.Speed
+    self.CameraSpring.Damper = self.SpringScales.Camera.Damper
+
+    self.ViewmodelSpring = Spring.new(Vector3.zero)
+    self.ViewmodelSpring.Speed = self.SpringScales.Animation.Speed
+    self.ViewmodelSpring.Damper = self.SpringScales.Animation.Damper
+
+    self._lastOffset = CFrame.new()
 end
 
 function GunClient:HandleTriggerInput()
@@ -154,6 +157,8 @@ end
 
 function GunClient:_onEquipped()
     self._canFire = false
+
+    self:_resetSprings()
 
     ContextActionService:BindAction(self.Instance.Name.."Shoot",
         function(_, uis, _)
@@ -224,6 +229,7 @@ function GunClient:EjectCasing()
 	casingClone.Parent = workspace.GunDebris
 	casingClone.CFrame = self.EjectionPort.WorldCFrame * CFrame.Angles(0, math.pi/2, 0)
 	casingClone.CollisionGroup = "GunDebris"
+    casingClone.CanCollide = true
 
     -- TODO: add a sound when it hits the ground
 
