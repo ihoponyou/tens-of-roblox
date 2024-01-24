@@ -3,6 +3,9 @@
 
 local AnimationManager = {}
 AnimationManager.__index = AnimationManager
+AnimationManager.__tostring = function(self)
+	return tostring(self._animations)
+end
 
 function AnimationManager.new(animator: Animator)
     if not (animator == "Instance" or animator.ClassName == "Animator") then error("Invalid animator") end

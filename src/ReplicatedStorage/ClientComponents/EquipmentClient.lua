@@ -9,6 +9,7 @@ local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local CameraController, ViewmodelController
 
@@ -42,12 +43,15 @@ function EquipmentClient:Construct()
 
     self.IsEquipped = self._clientComm:GetProperty("IsEquipped")
     self.EquipRequest = self._clientComm:GetSignal("EquipRequest")
+    self.ClientEquipped = Signal.new()
     self._trove:Connect(self.EquipRequest, function()
         self:_onEquipped()
+        self.ClientEquipped:Fire(true)
     end)
     self.UnequipRequest = self._clientComm:GetSignal("UnequipRequest")
     self._trove:Connect(self.UnequipRequest, function()
         self:_onUnequipped()
+        self.ClientEquipped:Fire(false)
     end)
 end
 
@@ -60,14 +64,6 @@ end
 
 function EquipmentClient:_setupForLocalPlayer()
     self._localPlayerTrove = self._trove:Extend()
-
-    -- self._localPlayerTrove:Add(self.IsEquipped:Observe(function(value)
-    --     if value then
-    --         self:_onEquipped()
-    --     else
-    --         self:_onUnequipped()
-    --     end
-    -- end))
 
     self._localPlayerTrove:Connect(CameraController.PointOfViewChanged, function(inFirstPerson: boolean)
         if not self.IsEquipped:Get() then return end
@@ -126,7 +122,9 @@ end
 function EquipmentClient:_loadViewmodelAnimations()
     local viewmodel = ViewmodelController.Viewmodel
     local animationManager = viewmodel.AnimationManager
+
     animationManager:LoadAnimations(self.Folder.Animations["1P"]:GetChildren())
+
     animationManager:PlayAnimation("Idle", 0)
     animationManager:PlayAnimation("Equip", 0)
 end
@@ -147,6 +145,7 @@ function EquipmentClient:_onEquipped()
     if not self.AllowFirstPerson then return end
 
     self:_loadViewmodelAnimations()
+
     if CameraController.InFirstPerson then
         self:_rigToViewmodel()
         ViewmodelController.Viewmodel:ToggleVisibility(true)

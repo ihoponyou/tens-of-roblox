@@ -20,10 +20,17 @@ local AMMO_STYLES = {
     }
 }
 
-local function AmmoCounter(props)
+export type Props = {
+    initial: number,
+    update: RBXScriptSignal, -- actually a Comm.ClientComm.ClientRemoteSignal but whatever
+    counterType: "Current" | "Reserve"
+}
+
+local function AmmoCounter(props: Props)
     local ammo: number, setAmmo = React.useState(props.initial)
-    useEventConnection(props.update.OnClientEvent, function(newAmmo: number)
+    useEventConnection(props.update, function(newAmmo: number)
         setAmmo(function(oldAmmo)
+            -- print(oldAmmo, "->", newAmmo)
             return newAmmo
         end)
     end)

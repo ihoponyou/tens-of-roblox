@@ -2,6 +2,7 @@
 -- allows for attacking like a gun
 
 local CollectionService = game:GetService("CollectionService")
+local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -19,6 +20,7 @@ local Gun = Component.new({
 
 function Gun:Construct()
     self._canFire = false
+    self._canReload = false
 
 	self._trove = Trove.new()
 	self._serverComm = self._trove:Construct(Comm.ServerComm, self.Instance, "Gun")
@@ -32,6 +34,17 @@ function Gun:Construct()
     for k, v in self.Ballistics do
         self.Instance:SetAttribute(k, v)
     end
+
+    self.CurrentAmmo = self.MagazineCapacity
+    self.UpdateCurrentAmmo = self._serverComm:CreateSignal("UpdateCurrentAmmo")
+
+    self.ReserveAmmo = self.MagazineCapacity * self.ReserveMagazines
+    self.UpdateReserveAmmo = self._serverComm:CreateSignal("UpdateReserveAmmo")
+
+    self.ReloadEvent = self._serverComm:CreateSignal("ReloadEvent")
+    self._trove:Connect(self.ReloadEvent, function(...)
+        self:Reload(...)
+    end)
 
     self.FireEvent = self._serverComm:CreateSignal("FireEvent")
     self._trove:Connect(self.FireEvent, function(...)
@@ -49,18 +62,30 @@ end
 function Gun:Start()
     self.Equipment = self:GetComponent(Equipment)
 
+    self.Magazine = self.Equipment.WorldModel:FindFirstChild("Magazine")
+
     -- ensure animations exist
     Find.path(self.Equipment.Folder, "Animations/3P/Fire")
 
+    self._trove:Connect(self.Equipment.PickedUp, function(isPickedUp: boolean)
+        if isPickedUp then
+            self.UpdateCurrentAmmo:Fire(self.Equipment.Owner, self.CurrentAmmo)
+            self.UpdateReserveAmmo:Fire(self.Equipment.Owner, self.ReserveAmmo)
+        end
+    end)
+
     self._trove:Connect(self.Equipment.Equipped, function(isEquipped: boolean)
         self._canFire = false
+        self._canReload = true
 
         if isEquipped then
+            self:_setupAnimationEvents()
             self._readyThread = task.delay(self.DeployTime, function()
                 self._canFire = true
                 self._readyThread = nil
             end)
         else
+            self:_cleanupAnimationEvents()
             if self._readyThread then
                 task.cancel(self._readyThread)
                 self._readyThread = nil
@@ -71,6 +96,53 @@ end
 
 function Gun:Stop()
 	self._trove:Destroy()
+end
+
+function Gun:_setupAnimationEvents()
+    local animationManager = self.Equipment.AnimationManager
+
+    local reloadTrack: AnimationTrack = animationManager:GetAnimation("Reload")
+    self._animTrove = self._trove:Extend()
+
+    self._animTrove:Connect(reloadTrack:GetMarkerReachedSignal("out"), function()
+        self.Magazine.Transparency = 1
+    end)
+    self._animTrove:Connect(reloadTrack:GetMarkerReachedSignal("in"), function()
+        self:RefillMagazine(self.MagazineCapacity - self.CurrentAmmo)
+        self._canReload = true
+        self.Magazine.Transparency = 0
+    end)
+    self._animTrove:Connect(reloadTrack.Stopped, function()
+        -- could be weird if reload is faster than deploy
+        self._canFire = true
+    end)
+end
+
+function Gun:_cleanupAnimationEvents()
+    self._animTrove:Destroy()
+    self._animTrove = nil
+end
+
+function Gun:SetCurrentAmmo(amount: number)
+    self.CurrentAmmo = amount
+    self.UpdateCurrentAmmo:Fire(self.Equipment.Owner, amount)
+end
+
+function Gun:SetReserveAmmo(amount: number)
+    self.ReserveAmmo = amount
+    self.UpdateReserveAmmo:Fire(self.Equipment.Owner, amount)
+end
+
+function Gun:RefillMagazine(roundsNeeded: number)
+    local roundsGiven = 0
+	if self.ReserveAmmo < roundsNeeded then
+		-- dump the rest of the ammo into the mag
+		roundsGiven = self.ReserveAmmo
+	else
+		roundsGiven = roundsNeeded
+	end
+	self:SetCurrentAmmo(self.CurrentAmmo + roundsGiven)
+    self:SetReserveAmmo(self.ReserveAmmo - roundsGiven)
 end
 
 -- allows for special damage calculation e.g. backstab
@@ -109,6 +181,9 @@ function Gun:Fire(player: Player, origin: Vector3, direction: Vector3)
     end
     if self.Equipment.Owner ~= player then return end
     if not self._canFire then return end
+    if self.CurrentAmmo == 0 then return end
+
+    self:SetCurrentAmmo(self.CurrentAmmo - 1)
 
     self.Equipment.AnimationManager:PlayAnimation("Fire")
     self.FireEvent:FireExcept(self.Equipment.Owner, origin, direction)
@@ -126,6 +201,21 @@ function Gun:RegisterHit(player: Player, instance: Instance)
     if not humanoid then return end
 
     self:_dealDamage(humanoid, instance)
+end
+
+function Gun:Reload(player: Player)
+    if self.Equipment.Owner ~= player then return end
+    if not self.Equipment.IsPickedUp:Get() then return end
+    if not self.Equipment.IsEquipped:Get() then return end
+    if not self._canReload then return end
+    if self.CurrentAmmo == self.MagazineCapacity or self.ReserveAmmo < 1 then return end
+
+    self._canReload = false
+    self._canFire = true
+
+    print("reloading")
+    self.ReloadEvent:Fire(self.Equipment.Owner)
+    self.Equipment.AnimationManager:PlayAnimation("Reload")
 end
 
 return Gun

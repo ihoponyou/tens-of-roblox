@@ -198,28 +198,28 @@ local EquipmentConfig: { [string]: Equipment } = {
 			"Gun"
 		}
 	};
-	["Minigun"] = {
-		SlotType = "Primary",
-		HolsterLimb = "Torso",
-		EquipLimb = "Left Arm",
-		AllowFirstPerson = false,
-		RootJoint = {
-			C0 = {
-				Holstered = CFrame.new(1, 0, 1) * fromOrientationDeg(0, -180, 8),
-				Equipped = {
-					World = CFrame.new(-0.22, -0.76, 0)
-				},
-			};
-			C1 = CFrame.new(-0.22, 0.64, 0)
-		},
-		Viewport = {
-			-- ElementPosition = nil,
-			ModelCFrame = CFrame.new(0, 0, -2) * fromOrientationDeg(0, 90, 90),
-		},
-		Components = {
-			"Gun"
-		}
-	}
+	-- ["Minigun"] = {
+	-- 	SlotType = "Primary",
+	-- 	HolsterLimb = "Torso",
+	-- 	EquipLimb = "Left Arm",
+	-- 	AllowFirstPerson = false,
+	-- 	RootJoint = {
+	-- 		C0 = {
+	-- 			Holstered = CFrame.new(1, 0, 1) * fromOrientationDeg(0, -180, 8),
+	-- 			Equipped = {
+	-- 				World = CFrame.new(-0.22, -0.76, 0)
+	-- 			},
+	-- 		};
+	-- 		C1 = CFrame.new(-0.22, 0.64, 0)
+	-- 	},
+	-- 	Viewport = {
+	-- 		-- ElementPosition = nil,
+	-- 		ModelCFrame = CFrame.new(0, 0, -2) * fromOrientationDeg(0, 90, 90),
+	-- 	},
+	-- 	Components = {
+	-- 		"Gun"
+	-- 	}
+	-- }
 }
 
 return EquipmentConfig

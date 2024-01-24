@@ -19,6 +19,7 @@ local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.Equipm
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
 local GunConfig = require(ReplicatedStorage.Source.GunConfig)
 local ProjectileCaster = require(ReplicatedStorage.Source.ClientComponents.ProjectileCaster)
+local Find = require(ReplicatedStorage.Source.Modules.Find)
 
 local GunClient = Component.new({
     Tag = "Gun";
@@ -28,6 +29,8 @@ local GunClient = Component.new({
 })
 
 function GunClient:Construct()
+    -- self.Instance:SetAttribute("Log", true)
+
     self._canFire = false
     self._firing = false
     self._triggerDown = false
@@ -43,6 +46,23 @@ function GunClient:Construct()
     self._fireDelay = 60/self.RoundsPerMinute
     -- self._delayAccumulator = 0
 
+    self.CurrentAmmo = 0
+    self.UpdateCurrentAmmo = self._clientComm:GetSignal("UpdateCurrentAmmo")
+    self._trove:Connect(self.UpdateCurrentAmmo, function(newAmount: number)
+        self.CurrentAmmo = newAmount
+    end)
+
+    self.ReserveAmmo = 0
+    self.UpdateReserveAmmo = self._clientComm:GetSignal("UpdateReserveAmmo")
+    self._trove:Connect(self.UpdateReserveAmmo, function(newAmount: number)
+        self.ReserveAmmo = newAmount
+    end)
+
+    self.ReloadEvent = self._clientComm:GetSignal("ReloadEvent")
+    self.ReloadEvent:Connect(function()
+        ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Reload")
+    end)
+
     self.FireEvent = self._clientComm:GetSignal("FireEvent")
     self.FireEvent:Connect(function(origin, direction)
         -- server telling us to replicate a shot
@@ -52,8 +72,6 @@ function GunClient:Construct()
     self.HitEvent = self._clientComm:GetSignal("HitEvent")
 
     self:_resetSprings()
-
-    self._lastFired = 0
 end
 
 function GunClient:Start()
@@ -62,28 +80,27 @@ function GunClient:Start()
     end, warn):await()
 
     self.Equipment = self:GetComponent(EquipmentClient)
-    self.ProjectileCaster = self:GetComponent(ProjectileCaster)
 
-    self.ProjectileCaster.OnRayHit = function(raycastResult: RaycastResult)
-        self.HitEvent:Fire(raycastResult.Instance)
-    end
+    self.Magazine = Find.path(self.Equipment.WorldModel, "Magazine") :: BasePart
 
-    self.FireSound = self.Equipment.Folder:FindFirstChild("FireSound") :: Sound?
-    if self.FireSound == nil then warn(self.Instance.Name, "missing a fire sound") end
+    self.FireSound = Find.path(self.Equipment.Folder, "FireSound") :: Sound
 
     local worldModel: Model = self.Equipment.WorldModel
-    self.FirePoint = worldModel.PrimaryPart:FindFirstChild("FirePoint") :: Attachment?
-    if self.FirePoint == nil then error(self.Instance.Name.." missing a fire point") end
+    self.FirePoint = Find.path(worldModel.PrimaryPart, "FirePoint") :: Attachment
     self._fireball = self.FirePoint.fireball :: ParticleEmitter
     self._gas = self.FirePoint.gas :: ParticleEmitter
     self._smoke = self.FirePoint.smoke :: ParticleEmitter
     self._flash = self.FirePoint.flash :: PointLight
 
-    self.EjectionPort = worldModel.PrimaryPart:FindFirstChild("EjectionPort") :: Attachment?
-    if self.FirePoint == nil then error(self.Instance.Name.." missing an ejection port") end
+    self.EjectionPort = Find.path(worldModel.PrimaryPart, "EjectionPort") :: Attachment
 
-    self.Casing = self.Equipment.Folder:FindFirstChild("Casing") :: BasePart?
-    if self.Casing == nil then error(self.Instance.Name.." missing a casing model") end
+    self.Casing = Find.path(self.Equipment.Folder, "Casing") :: BasePart
+
+    self.ProjectileCaster = self:GetComponent(ProjectileCaster)
+
+    self.ProjectileCaster.OnRayHit = function(raycastResult: RaycastResult)
+        self.HitEvent:Fire(raycastResult.Instance)
+    end
 end
 
 function GunClient:Stop()
@@ -93,13 +110,13 @@ end
 function GunClient:_setupForLocalPlayer()
     self._localPlayerTrove = self._trove:Extend()
 
-    self._localPlayerTrove:Add(self.Equipment.IsEquipped:Observe(function(isEquipped: boolean)
+    self._localPlayerTrove:Connect(self.Equipment.ClientEquipped, function(isEquipped: boolean)
         if isEquipped then
             self:_onEquipped()
         else
             self:_onUnequipped()
         end
-    end))
+    end)
 
     self.ProjectileCaster:UpdateFilter({ Players.LocalPlayer.Character })
 end
@@ -125,6 +142,7 @@ end
 function GunClient:HandleTriggerInput(deltaTime: number)
     if not self._triggerDown then return end
     if not self._canFire then return end
+    if self.CurrentAmmo == 0 then return end
     if not self.Equipment.IsEquipped:Get() then return end
 
     if not self.FullAuto then
@@ -162,10 +180,40 @@ function GunClient:UpdateRecoilOffsets()
     self._lastOffset = cameraOffset
 end
 
+function GunClient:_setupAnimationEvents()
+    local animationManager = ViewmodelController.Viewmodel.AnimationManager
+
+    local reloadTrack: AnimationTrack = animationManager:GetAnimation("Reload")
+    self._magOutConn = self._trove:Connect(reloadTrack:GetMarkerReachedSignal("out"), function()
+        local magazineClone = self.Magazine:Clone()
+        magazineClone.Parent = workspace.GunDebris
+        magazineClone.CFrame = self.Magazine.CFrame
+        magazineClone.AssemblyLinearVelocity = Vector3.zero -- TODO: inherit character velocity?
+        magazineClone.CollisionGroup = "GunDebris"
+        magazineClone.CanCollide = true
+        magazineClone.Transparency = 0
+        -- magazineClone.Anchored = true
+
+        Debris:AddItem(magazineClone, 5)
+    end)
+end
+
+function GunClient:_cleanupAnimationEvents()
+    self._trove:Remove(self._magOutConn)
+    self._magOutConn = nil
+end
+
 function GunClient:_onEquipped()
     self._canFire = false
 
     self:_resetSprings()
+
+    self:_setupAnimationEvents()
+
+    ViewmodelController.Viewmodel.OffsetManager:AddOffset(self.Instance.Name.."Recoil", CFrame.new(), 1)
+
+    RunService:BindToRenderStep(self.Instance.Name.."Recoil", Enum.RenderPriority.Last.Value, function(_dt) self:UpdateRecoilOffsets() end)
+    RunService:BindToRenderStep(self.Instance.Name.."TriggerInput", Enum.RenderPriority.Input.Value, function(dt) self:HandleTriggerInput(dt) end)
 
     ContextActionService:BindAction(self.Instance.Name.."Shoot",
         function(_, uis, _)
@@ -173,21 +221,26 @@ function GunClient:_onEquipped()
         end,
         false, Enum.UserInputType.MouseButton1)
 
+    ContextActionService:BindAction(self.Instance.Name.."Reload",
+        function(_, uis, _)
+            if uis ~= Enum.UserInputState.Begin then return end
+            self.ReloadEvent:Fire()
+        end,
+        false, Enum.KeyCode.R)
+
     self._readyThread = task.delay(self.DeployTime, function()
         self._canFire = true
         self._readyThread = nil
     end)
-
-    ViewmodelController.Viewmodel.OffsetManager:AddOffset(self.Instance.Name.."Recoil", CFrame.new(), 1)
-
-    RunService:BindToRenderStep(self.Instance.Name.."Recoil", Enum.RenderPriority.Last.Value, function(_dt) self:UpdateRecoilOffsets() end)
-    RunService:BindToRenderStep(self.Instance.Name.."TriggerInput", Enum.RenderPriority.Input.Value, function(dt) self:HandleTriggerInput(dt) end)
 end
 
 function GunClient:_onUnequipped()
     self._canFire = false
 
     ContextActionService:UnbindAction(self.Instance.Name.."Shoot")
+    ContextActionService:UnbindAction(self.Instance.Name.."Reload")
+
+    self:_cleanupAnimationEvents()
 
     if self._readyThread then
         -- print("cancel")
@@ -202,6 +255,7 @@ function GunClient:_onUnequipped()
 
     RunService:UnbindFromRenderStep(self.Instance.Name.."Recoil")
     RunService:UnbindFromRenderStep(self.Instance.Name.."TriggerInput")
+
     -- prevent camera from resetting to "center" when re equipped
     self._lastOffset = CFrame.new()
     ViewmodelController.Viewmodel.OffsetManager:RemoveOffset(self.Instance.Name.."Recoil")
@@ -255,7 +309,17 @@ function GunClient:EjectCasing()
 	-- task.wait(.1)
 	-- casingClone.Anchored = true
 
-    Debris:AddItem(casingClone, 3)
+    Debris:AddItem(casingClone, 5)
+end
+
+function GunClient:DropMagazine()
+    local magazineClone = self.Magazine:Clone()
+    magazineClone.Parent = workspace.GunDebris
+    magazineClone.CFrame = self.Magazine.CFrame
+    magazineClone.CollisionGroup = "GunDebris"
+    magazineClone.CanCollide = true
+
+    Debris:AddItem(magazineClone, 3)
 end
 
 function GunClient:DoCameraRecoil()

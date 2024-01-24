@@ -5,7 +5,7 @@ local React = require(ReplicatedStorage.Packages.React)
 
 local EquipmentConfig = require(ReplicatedStorage.Source.EquipmentConfig)
 local Find = require(ReplicatedStorage.Source.Modules.Find)
--- local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
+local GunClient = require(ReplicatedStorage.Source.ClientComponents.GunClient)
 local AmmoCounter = require(ReplicatedStorage.Source.UIElements.AmmoCounter)
 local ViewportFrame = require(ReplicatedStorage.Source.UIElements.ViewportFrame)
 
@@ -41,7 +41,8 @@ local function EquipmentSlot(props)
     local viewportSettings = EquipmentConfig[props.equipmentInstance.Name].Viewport
     worldModel:PivotTo(viewportSettings.ModelCFrame or CFrame.new())
 
-    local gunComponent = nil --GunClient:FromInstance(props.equipmentInstance)
+    local gunComponent = GunClient:FromInstance(props.equipmentInstance)
+    -- print(gunComponent)
     local hasAmmo = gunComponent ~= nil
 
     return React.createElement("Frame", {

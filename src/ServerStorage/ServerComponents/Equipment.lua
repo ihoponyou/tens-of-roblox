@@ -63,6 +63,7 @@ function Equipment:Construct()
 
 	-- PICK UP / DROP ----------------------------------------------------
 	self.IsPickedUp = self._serverComm:CreateProperty("IsPickedUp", false)
+	self.PickedUp = Signal.new()
 
 	self.PickUpPrompt = self._trove:Construct(Instance, "ProximityPrompt") :: ProximityPrompt
 	self.PickUpPrompt.ClickablePrompt = false
@@ -177,6 +178,7 @@ function Equipment:PickUp(player: Player)
 
 	self.PickUpPrompt.Enabled = false
 	self.IsPickedUp:Set(true)
+	self.PickedUp:Fire(true)
 end
 
 function Equipment:Drop(player: Player)
@@ -201,6 +203,7 @@ function Equipment:Drop(player: Player)
 
 	self.PickUpPrompt.Enabled = true
 	self.IsPickedUp:Set(false)
+	self.PickedUp:Fire(false)
 end
 
 -- EQUIP / UNEQUIP ----------------------------------------------------
