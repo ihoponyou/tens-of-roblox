@@ -60,7 +60,9 @@ function GunClient:Construct()
 
     self.ReloadEvent = self._clientComm:GetSignal("ReloadEvent")
     self.ReloadEvent:Connect(function()
-        ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Reload")
+        if self.AllowFirstPerson then
+            ViewmodelController.Viewmodel.AnimationManager:PlayAnimation("Reload")
+        end
     end)
 
     self.FireEvent = self._clientComm:GetSignal("FireEvent")
@@ -81,7 +83,7 @@ function GunClient:Start()
 
     self.Equipment = self:GetComponent(EquipmentClient)
 
-    self.Magazine = Find.path(self.Equipment.WorldModel, "Magazine") :: BasePart
+    self.Magazine = self.Equipment.WorldModel:FindFirstChild("Magazine") :: BasePart?
 
     self.FireSound = Find.path(self.Equipment.Folder, "FireSound") :: Sound
 
@@ -184,6 +186,8 @@ function GunClient:_setupAnimationEvents()
     local animationManager = ViewmodelController.Viewmodel.AnimationManager
 
     local reloadTrack: AnimationTrack = animationManager:GetAnimation("Reload")
+
+    if self.Magazine == nil then return end
     self._magOutConn = self._trove:Connect(reloadTrack:GetMarkerReachedSignal("out"), function()
         local magazineClone = self.Magazine:Clone()
         magazineClone.Parent = workspace.GunDebris
@@ -208,7 +212,9 @@ function GunClient:_onEquipped()
 
     self:_resetSprings()
 
-    self:_setupAnimationEvents()
+    if self.AllowFirstPerson then
+        self:_setupAnimationEvents() 
+    end
 
     ViewmodelController.Viewmodel.OffsetManager:AddOffset(self.Instance.Name.."Recoil", CFrame.new(), 1)
 

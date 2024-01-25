@@ -19,9 +19,6 @@ local Gun = Component.new({
 })
 
 function Gun:Construct()
-    self._canFire = false
-    self._canReload = false
-
 	self._trove = Trove.new()
 	self._serverComm = self._trove:Construct(Comm.ServerComm, self.Instance, "Gun")
 
@@ -34,6 +31,9 @@ function Gun:Construct()
     for k, v in self.Ballistics do
         self.Instance:SetAttribute(k, v)
     end
+
+    self.CanFire = self._serverComm:CreateProperty("CanFire", false)
+    self.CanReload = self._serverComm:CreateProperty("CanReload", false)
 
     self.CurrentAmmo = self.MagazineCapacity
     self.UpdateCurrentAmmo = self._serverComm:CreateSignal("UpdateCurrentAmmo")
@@ -75,13 +75,13 @@ function Gun:Start()
     end)
 
     self._trove:Connect(self.Equipment.Equipped, function(isEquipped: boolean)
-        self._canFire = false
-        self._canReload = true
+        self.CanFire:Set(false)
+        self.CanReload:Set(true)
 
         if isEquipped then
             self:_setupAnimationEvents()
             self._readyThread = task.delay(self.DeployTime, function()
-                self._canFire = true
+                self.CanFire:Set(true)
                 self._readyThread = nil
             end)
         else
@@ -105,16 +105,18 @@ function Gun:_setupAnimationEvents()
     self._animTrove = self._trove:Extend()
 
     self._animTrove:Connect(reloadTrack:GetMarkerReachedSignal("out"), function()
+        if self.Magazine == nil then return end
         self.Magazine.Transparency = 1
     end)
     self._animTrove:Connect(reloadTrack:GetMarkerReachedSignal("in"), function()
         self:RefillMagazine(self.MagazineCapacity - self.CurrentAmmo)
-        self._canReload = true
+        self.CanReload:Set(true)
+        if self.Magazine == nil then return end
         self.Magazine.Transparency = 0
     end)
     self._animTrove:Connect(reloadTrack.Stopped, function()
         -- could be weird if reload is faster than deploy
-        self._canFire = true
+        self.CanFire:Set(true)
     end)
 end
 
@@ -180,7 +182,7 @@ function Gun:Fire(player: Player, origin: Vector3, direction: Vector3)
         return
     end
     if self.Equipment.Owner ~= player then return end
-    if not self._canFire then return end
+    if not self.CanFire:Get() then return end
     if self.CurrentAmmo == 0 then return end
 
     self:SetCurrentAmmo(self.CurrentAmmo - 1)
@@ -207,13 +209,13 @@ function Gun:Reload(player: Player)
     if self.Equipment.Owner ~= player then return end
     if not self.Equipment.IsPickedUp:Get() then return end
     if not self.Equipment.IsEquipped:Get() then return end
-    if not self._canReload then return end
+    if not self.CanReload:Get() then return end
     if self.CurrentAmmo == self.MagazineCapacity or self.ReserveAmmo < 1 then return end
 
-    self._canReload = false
-    self._canFire = true
+    self.CanReload:Set(false)
+    self.CanFire:Set(false)
 
-    print("reloading")
+    -- print("reloading")
     self.ReloadEvent:Fire(self.Equipment.Owner)
     self.Equipment.AnimationManager:PlayAnimation("Reload")
 end

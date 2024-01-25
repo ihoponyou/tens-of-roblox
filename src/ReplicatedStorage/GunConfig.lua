@@ -140,6 +140,39 @@ local GunConfig = {
             }
         };
     },
+    ["Shotgun"] = {
+        Damage = 10;
+        DeployTime = 0.75;
+        HeadshotMultiplier = 1;
+        BulletsPerShot = 10;
+        MinSpreadAngle = 5;
+        MaxSpreadAngle = 5;
+        FullAuto = false;
+        RoundsPerMinute = 150;
+        VerticalRecoil = 15;
+        HorizontalRecoil = 5;
+        MagazineCapacity = 8;
+        ReserveMagazines = 5;
+        Ballistics = {
+            BulletSpeed = 1000;
+            BulletMaxDistance = 1000;
+            BulletGravity = Vector3.yAxis * -workspace.Gravity;
+            CanPierce = false;
+        };
+        SpringScales = {
+            Animation = {
+                Speed = 15;
+                Damper = 0.9;
+                Position = Vector3.new(1, 1, 2);
+                Rotation = Vector3.new(1, 1, 0);
+            },
+            Camera = {
+                Speed = 10;
+                Damper = 1;
+                Rotation = Vector3.new(0.1, 0.05, 0);
+            }
+        };
+    },
 }
 
 return GunConfig
