@@ -19,7 +19,7 @@ local Knockable = Component.new({
 
 local KNOCK_THRESHOLD = 0
 local RECOVER_THRESHOLD = 0.10
-local BLEED_OUT_TIME = 5
+local BLEED_OUT_TIME = 60
 
 function Knockable:Construct()
     self.IsKnocked = false
@@ -30,38 +30,6 @@ function Knockable:Construct()
 
 	self.Humanoid = self.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
     self.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-end
-
-function Knockable:SetKnocked(isKnocked: boolean)
-    self.IsKnocked = isKnocked
-    self.Instance:SetAttribute("Ragdolled", isKnocked)
-    self.Instance:SetAttribute("Knocked", isKnocked)
-    self.Humanoid:UnequipTools() -- TODO: replace this
-
-    if isKnocked then
-        -- TODO: reviving
-
-        self._bleedOutThread = task.delay(BLEED_OUT_TIME, function()
-            self._bleedOutThread = nil
-
-            if self.Respawnable ~= nil then
-                self.Respawnable:Respawn()
-            else
-                local player = Players:GetPlayerFromCharacter(self.Instance)
-                if player then
-                    player:LoadCharacter()
-                else
-                    self.Instance:Destroy()
-                end
-            end
-        end)
-    else
-        if self._bleedOutThread then
-            task.cancel(self._bleedOutThread)
-        end
-    end
-
-    self.Knocked:Fire(isKnocked)
 end
 
 function Knockable:Start()
@@ -77,6 +45,46 @@ function Knockable:Start()
 
         self:SetKnocked(true)
     end)
+end
+
+function Knockable:Stop()
+    self._trove:Destroy()
+end
+
+function Knockable:SetKnocked(isKnocked: boolean)
+    self.IsKnocked = isKnocked
+    self.Instance:SetAttribute("Ragdolled", isKnocked)
+    self.Instance:SetAttribute("Knocked", isKnocked)
+    self.Humanoid:UnequipTools() -- TODO: replace this
+
+    if isKnocked then
+        -- TODO: reviving
+
+        self._bleedOutThread = task.delay(BLEED_OUT_TIME, function()
+            self._bleedOutThread = nil
+
+            self:BleedOut()
+        end)
+    else
+        if self._bleedOutThread then
+            task.cancel(self._bleedOutThread)
+        end
+    end
+
+    self.Knocked:Fire(isKnocked)
+end
+
+function Knockable:BleedOut()
+    if self.Respawnable ~= nil then
+        self.Respawnable:Respawn()
+    else
+        local player = Players:GetPlayerFromCharacter(self.Instance)
+        if player then
+            player:LoadCharacter()
+        else
+            self.Instance:Destroy()
+        end
+    end
 end
 
 return Knockable

@@ -21,9 +21,6 @@ local NonplayerCharacterClient = Component.new({
 })
 
 function NonplayerCharacterClient:Construct()
-    -- CollectionService:AddTag(self.Instance, "Ragdoll")
-	-- CollectionService:AddTag(self.Instance, "Knockable")
-
 	self._trove = Trove.new()
 
 	self._path = PathfindingService:CreatePath({
@@ -36,9 +33,17 @@ function NonplayerCharacterClient:Construct()
         }
     })
 
-	-- self._habitat = self.Instance:WaitForChild("Habitat").Value
+	local model = self._trove:Clone(ReplicatedStorage.Character.CharacterModel)
+	model:PivotTo(self.Instance:GetPivot())
+	for _,v in model:GetChildren() do
+		v.Parent = self.Instance
+	end
+	model:Destroy()
 
-	self.Humanoid = self.Instance:WaitForChild("Humanoid")
+	self.Instance.PrimaryPart = self.Instance.HumanoidRootPart
+
+	self.Humanoid = Instance.new("Humanoid")
+	self.Humanoid.Parent = self.Instance
 
 	self.Animator = Instance.new("Animator")
 	self.Animator.Parent = self.Humanoid

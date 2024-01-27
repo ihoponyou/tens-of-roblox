@@ -19,6 +19,8 @@ local Habitat = Component.new({
 	},
 })
 
+local VISUALIZE_SPAWNS = false
+
 function Habitat:Construct()
 	self._trove = Trove.new()
 
@@ -26,7 +28,8 @@ function Habitat:Construct()
     self._populus = {}
 
     for i=1, self.Population do
-        local npc = self._trove:Clone(ReplicatedStorage.Character.CharacterModel)
+        local npc = Instance.new("Model")
+
         npc.Name = i
 
         CollectionService:AddTag(npc, "NonplayerCharacter")
@@ -37,11 +40,13 @@ end
 
 function Habitat:Start()
     for _, npc: Model in self._populus do
+        npc.Parent = self.Instance
+
         local spawnPosition = self:GetValidSpawnPosition() + Vector3.yAxis * 3
         npc:PivotTo(CFrame.new(spawnPosition))
-        npc.Parent = self.Instance
         npc:SetAttribute("SpawnLocation", spawnPosition)
-        -- npc.PrimaryPart.Anchored = true
+
+        task.wait()
     end
 end
 
@@ -51,16 +56,15 @@ end
 
 -- returns a position that sits on a solid surface in the habitat
 function Habitat:GetValidSpawnPosition(): Vector3
-    local visualize = false
     local floorCast: RaycastResult?
     repeat
         local origin = VectorMath.GetPositionInPart(self.Instance)
-        floorCast = if visualize
-            then RaycastUtil.RaycastWithVisual(origin, Vector3.yAxis * -50)
-            else workspace:Raycast(origin, Vector3.yAxis * -50)
+        floorCast = if VISUALIZE_SPAWNS
+            then RaycastUtil.RaycastWithVisual(origin, Vector3.yAxis * -100)
+            else workspace:Raycast(origin, Vector3.yAxis * -100)
     until floorCast ~= nil
 
-    if visualize then
+    if VISUALIZE_SPAWNS then
         local visual = Instance.new("Part")
         visual.BrickColor = BrickColor.Yellow()
         visual.Anchored = true

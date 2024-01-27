@@ -18,6 +18,8 @@ local Gun = Component.new({
 	Tag = "Gun",
 })
 
+local impulseEvent: RemoteEvent = ReplicatedStorage.ReplicateImpulse
+
 function Gun:Construct()
 	self._trove = Trove.new()
 	self._serverComm = self._trove:Construct(Comm.ServerComm, self.Instance, "Gun")
@@ -176,6 +178,28 @@ function Gun:_dealDamage(humanoid: Humanoid, hit: Instance)
     ReplicatedStorage.UIEvents.HitRegistered:FireClient(self.Equipment.Owner, hitType)
 end
 
+-- TODO: take this outside of gun component    
+function Gun:_knockback(part: BasePart, direction: Vector3)
+    local success, result: Player? = pcall(function()
+        part:GetNetworkOwner()
+    end)
+
+    -- cannot call network ownership api; probably anchored
+    if not success then
+        -- warn(result)
+        return
+    end
+
+    local knockbackForce = 100
+
+    local impulse = direction.Unit * knockbackForce
+    if result == nil then
+        part:ApplyImpulse(impulse)
+    else
+        impulseEvent:FireClient(result, part, impulse)
+    end
+end
+
 function Gun:Fire(player: Player, origin: Vector3, direction: Vector3)
     if typeof(origin) ~= "Vector3" or typeof(direction) ~= "Vector3" then
         warn(player.Name, "is WEIRD!!!")
@@ -191,7 +215,7 @@ function Gun:Fire(player: Player, origin: Vector3, direction: Vector3)
     self.FireEvent:FireExcept(self.Equipment.Owner, origin, direction)
 end
 
-function Gun:RegisterHit(player: Player, instance: Instance)
+function Gun:RegisterHit(player: Player, instance: Instance, velocity: Vector3)
     if not self.Equipment.IsPickedUp:Get() then return end
     if self.Equipment.Owner ~= player then return end
 
@@ -203,6 +227,7 @@ function Gun:RegisterHit(player: Player, instance: Instance)
     if not humanoid then return end
 
     self:_dealDamage(humanoid, instance)
+    self:_knockback(instance, velocity)
 end
 
 function Gun:Reload(player: Player)

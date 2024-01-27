@@ -52,6 +52,7 @@ function Ragdoll:Construct()
 		if not motor:IsA("Motor6D") then continue end
 		if motor.Name == "RootJoint" then continue end
 		local socketType = motor.Name:match("Hip") or motor.Name:match("Shoulder") or motor.Name:match("Neck")
+		if socketType == nil then error(motor.Name, " does not contain \"Hip\", \"Shoulder\", or \"Neck\"") end
 		local jointName = motor.Name:gsub(" ", "")
 
 		local attachment0 = Instance.new("Attachment")

@@ -14,6 +14,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Spring = require(ReplicatedStorage.Packages.Spring)
 
 local ViewmodelController
+local CameraController
 
 local EquipmentClient = require(ReplicatedStorage.Source.ClientComponents.EquipmentClient)
 local LocalPlayerExclusive = require(ReplicatedStorage.Source.Extensions.LocalPlayerExclusive)
@@ -28,10 +29,12 @@ local GunClient = Component.new({
     };
 })
 
+local RAND = Random.new()
+local TAU = math.pi * 2
+
 function GunClient:Construct()
     -- self.Instance:SetAttribute("Log", true)
 
-    self._canFire = false
     self._firing = false
     self._triggerDown = false
 
@@ -45,6 +48,9 @@ function GunClient:Construct()
     -- time between shots
     self._fireDelay = 60/self.RoundsPerMinute
     -- self._delayAccumulator = 0
+
+    self._canFire = false
+    self.CanFire = self._clientComm:GetProperty("CanFire")
 
     self.CurrentAmmo = 0
     self.UpdateCurrentAmmo = self._clientComm:GetSignal("UpdateCurrentAmmo")
@@ -79,6 +85,7 @@ end
 function GunClient:Start()
     Knit.OnStart():andThen(function()
         ViewmodelController = Knit.GetController("ViewmodelController")
+	CameraController = Knit.GetController("CameraController")
     end, warn):await()
 
     self.Equipment = self:GetComponent(EquipmentClient)
@@ -100,8 +107,8 @@ function GunClient:Start()
 
     self.ProjectileCaster = self:GetComponent(ProjectileCaster)
 
-    self.ProjectileCaster.OnRayHit = function(raycastResult: RaycastResult)
-        self.HitEvent:Fire(raycastResult.Instance)
+    self.ProjectileCaster.OnRayHit = function(raycastResult: RaycastResult, segmentVelocity: Vector3)
+        self.HitEvent:Fire(raycastResult.Instance, segmentVelocity)
     end
 end
 
@@ -146,13 +153,33 @@ function GunClient:HandleTriggerInput(deltaTime: number)
     if not self._canFire then return end
     if self.CurrentAmmo == 0 then return end
     if not self.Equipment.IsEquipped:Get() then return end
+    if not self.CanFire:Get() then return end
 
     if not self.FullAuto then
         self._triggerDown = false
     end
 
-    local cf = workspace.CurrentCamera.CFrame
-    self:Shoot(cf.Position, cf.LookVector)
+    local origin, direction
+    local cameraCFrame = workspace.CurrentCamera.CFrame
+    if CameraController.InFirstPerson then
+        origin = cameraCFrame.Position
+        direction = cameraCFrame.LookVector
+    else
+        origin = self.FirePoint.WorldPosition
+
+        local castParams = RaycastParams.new()
+        castParams.FilterDescendantsInstances = { self.Equipment.WorldModel.Parent }
+        castParams.FilterType = Enum.RaycastFilterType.Exclude
+        local forwardCast = workspace:Raycast(cameraCFrame.Position, cameraCFrame.LookVector * 1000, castParams)
+
+        if forwardCast ~= nil then
+            direction = forwardCast.Position - origin
+        else
+            direction = cameraCFrame.LookVector
+        end
+    end
+
+    self:Shoot(origin, direction)
 end
 
 function GunClient:UpdateRecoilOffsets()
@@ -339,10 +366,14 @@ function GunClient:Shoot(origin: Vector3, direction: Vector3, replicated: boolea
     self:DoMuzzleFlash()
     self:EjectCasing()
 
-    self.ProjectileCaster:Cast(origin, direction)
+    for _=1, self.BulletsPerShot do
+        local directionalCF = CFrame.new(Vector3.new(), direction)
+        local bulletDirection = (directionalCF * CFrame.fromOrientation(0, 0, RAND:NextNumber(0, TAU)) * CFrame.fromOrientation(math.rad(RAND:NextNumber(self.MinSpreadAngle, self.MaxSpreadAngle)), 0, 0)).LookVector
+
+        self.ProjectileCaster:Cast(origin, bulletDirection)
+    end
 
     if replicated then return end
-
     self._canFire = false
 
     self:DoCameraRecoil()

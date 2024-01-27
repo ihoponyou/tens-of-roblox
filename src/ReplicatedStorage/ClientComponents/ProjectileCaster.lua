@@ -6,7 +6,7 @@ local Component = require(ReplicatedStorage.Packages.Component)
 local FastCast = require(ReplicatedStorage.Packages.FastCastRedux)
 local PartCache = require(ReplicatedStorage.Packages.PartCache)
 
--- FastCast.VisualizeCasts = true
+FastCast.VisualizeCasts = false
 
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
@@ -125,11 +125,11 @@ function ProjectileCaster._canRayPierce(cast, raycastResult: RaycastResult, segm
 end
 
 -- override this
-function ProjectileCaster.OnRayHit(_raycastResult: RaycastResult)
+function ProjectileCaster.OnRayHit(_raycastResult: RaycastResult, _segmentVelocity: Vector3)
 end
 
-function ProjectileCaster:_onRayHit(_cast, raycastResult: RaycastResult, _segmentVelocity: Vector3, _cosmeticBulletObject: BasePart)  -- (adapted from FastCast Example Gun)
-    self.OnRayHit(raycastResult)
+function ProjectileCaster:_onRayHit(_cast, raycastResult: RaycastResult, segmentVelocity: Vector3, _cosmeticBulletObject: BasePart)  -- (adapted from FastCast Example Gun)
+    self.OnRayHit(raycastResult, segmentVelocity)
 end
 
 function ProjectileCaster:_onRayPierced(cast, raycastResult: RaycastResult, _segmentVelocity: Vector3, _cosmeticBulletObject: BasePart)
