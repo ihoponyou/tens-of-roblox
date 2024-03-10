@@ -1,8 +1,10 @@
 
 local CollectionService = game:GetService("CollectionService")
 local PathfindingService = game:GetService("PathfindingService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Timer = require(ReplicatedStorage.Packages.Timer)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -11,10 +13,11 @@ local AnimationManager = require(ReplicatedStorage.Source.Modules.AnimationManag
 local Find = require(ReplicatedStorage.Source.Modules.Find)
 local Logger = require(ReplicatedStorage.Source.Extensions.Logger)
 
+local LOCAL_PLAYER = Players.LocalPlayer
 local CHARACTER_FOLDER = ReplicatedStorage.Character
 
 local NonplayerCharacterClient = Component.new({
-	Tag = "NonplayerCharacter",
+	Tag = "NonplayerCharacterA",
 	Extensions = {
 		Logger,
 	},
@@ -22,6 +25,9 @@ local NonplayerCharacterClient = Component.new({
 
 function NonplayerCharacterClient:Construct()
 	self._trove = Trove.new()
+	self._clientComm = self._trove:Construct(Comm.ClientComm, self.Instance, true, "NPC")
+
+	self.UpdatePosition = self._clientComm:GetSignal("UpdatePosition")
 
 	self._path = PathfindingService:CreatePath({
         AgentRadius = 3;
@@ -74,6 +80,11 @@ end
 
 function NonplayerCharacterClient:Stop()
 	self._trove:Destroy()
+end
+
+function NonplayerCharacterClient:RenderSteppedUpdate()
+	if self.Instance:GetNetworkOwner() ~= LOCAL_PLAYER then return end
+	self.UpdatePosition:Fire(self.Instance.PrimaryPart.CFrame)
 end
 
 function NonplayerCharacterClient:_followPath()

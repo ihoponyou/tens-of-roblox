@@ -1,11 +1,11 @@
 
-export type StatBlock = {
-    Damage: number,
-    DeployTime: number,
-    HeadshotMultiplier: number,
-    FullAuto: boolean,
-    Hitscan: boolean,
-}
+-- export type StatBlock = {
+--     Damage: number,
+--     DeployTime: number,
+--     HeadshotMultiplier: number,
+--     FullAuto: boolean,
+--     Hitscan: boolean,
+-- }
 
 local GunConfig = {
     ["AK-47"] = {
@@ -151,8 +151,10 @@ local GunConfig = {
         RoundsPerMinute = 150;
         VerticalRecoil = 15;
         HorizontalRecoil = 5;
+        HasLoopedReload = true;
         MagazineCapacity = 8;
         ReserveMagazines = 5;
+        ClipCapacity = 0; -- if >1, gun uses clips to reload
         Ballistics = {
             BulletSpeed = 1000;
             BulletMaxDistance = 1000;

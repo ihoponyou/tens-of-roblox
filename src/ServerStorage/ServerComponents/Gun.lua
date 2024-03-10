@@ -102,29 +102,53 @@ end
 
 function Gun:_setupAnimationEvents()
     local animationManager = self.Equipment.AnimationManager
+    self._animationTrove = self._trove:Extend()
+
+    local fireTrack: AnimationTrack = animationManager:GetAnimation("Fire")
+
+    self._animationTrove:Connect(fireTrack.Stopped, function()
+        self.CanReload:Set(true)
+    end)
 
     local reloadTrack: AnimationTrack = animationManager:GetAnimation("Reload")
-    self._animTrove = self._trove:Extend()
 
-    self._animTrove:Connect(reloadTrack:GetMarkerReachedSignal("out"), function()
-        if self.Magazine == nil then return end
-        self.Magazine.Transparency = 1
-    end)
-    self._animTrove:Connect(reloadTrack:GetMarkerReachedSignal("in"), function()
-        self:RefillMagazine(self.MagazineCapacity - self.CurrentAmmo)
-        self.CanReload:Set(true)
-        if self.Magazine == nil then return end
-        self.Magazine.Transparency = 0
-    end)
-    self._animTrove:Connect(reloadTrack.Stopped, function()
-        -- could be weird if reload is faster than deploy
-        self.CanFire:Set(true)
-    end)
+    if self.HasLoopedReload then
+        reloadTrack = animationManager:GetAnimation("ReloadAction")
+
+        self._animationTrove:Connect(reloadTrack:GetMarkerReachedSignal("insert"), function()
+            self:SetCurrentAmmo(self.CurrentAmmo + 1)
+            self:SetReserveAmmo(self.ReserveAmmo - 1)
+        end)
+
+        local reloadExitTrack = animationManager:GetAnimation("ReloadExit")
+
+        self._animationTrove:Connect(reloadExitTrack.Stopped, function()
+            self.CanFire:Set(true)
+            self.CanReload:Set(true)
+        end)
+    else
+        self._animationTrove:Connect(reloadTrack:GetMarkerReachedSignal("out"), function()
+            if self.Magazine == nil then return end
+            self.Magazine.Transparency = 1
+        end)
+
+        self._animationTrove:Connect(reloadTrack:GetMarkerReachedSignal("in"), function()
+            self:RefillMagazine(self.MagazineCapacity - self.CurrentAmmo)
+            self.CanReload:Set(true)
+            if self.Magazine == nil then return end
+            self.Magazine.Transparency = 0
+        end)
+
+        self._animationTrove:Connect(reloadTrack.Stopped, function()
+            -- could be weird if reload is faster than deploy
+            self.CanFire:Set(true)
+        end)
+    end
 end
 
 function Gun:_cleanupAnimationEvents()
-    self._animTrove:Destroy()
-    self._animTrove = nil
+    self._animationTrove:Destroy()
+    self._animationTrove = nil
 end
 
 function Gun:SetCurrentAmmo(amount: number)
@@ -210,6 +234,7 @@ function Gun:Fire(player: Player, origin: Vector3, direction: Vector3)
     if self.CurrentAmmo == 0 then return end
 
     self:SetCurrentAmmo(self.CurrentAmmo - 1)
+    self.CanReload:Set(false)
 
     self.Equipment.AnimationManager:PlayAnimation("Fire")
     self.FireEvent:FireExcept(self.Equipment.Owner, origin, direction)
@@ -241,8 +266,32 @@ function Gun:Reload(player: Player)
     self.CanFire:Set(false)
 
     -- print("reloading")
-    self.ReloadEvent:Fire(self.Equipment.Owner)
-    self.Equipment.AnimationManager:PlayAnimation("Reload")
+
+    -- bullets are replenished upon an animation event
+    if self.HasLoopedReload then
+        local reloadEnter: AnimationTrack = self.Equipment.AnimationManager:GetAnimation("ReloadEnter")
+        local reloadExit: AnimationTrack = self.Equipment.AnimationManager:GetAnimation("ReloadExit")
+        local reloadIdle: AnimationTrack = self.Equipment.AnimationManager:GetAnimation("ReloadIdle")
+        local reloadAction: AnimationTrack = self.Equipment.AnimationManager:GetAnimation("ReloadAction")
+        local idle: AnimationTrack = self.Equipment.AnimationManager:GetAnimation("Idle")
+
+        reloadEnter:Play()
+        idle:Stop()
+        reloadIdle:Play()
+        reloadEnter.Stopped:Wait()
+
+        while self.CurrentAmmo < self.MagazineCapacity and self.ReserveAmmo > 0 do
+        	reloadAction:Play()
+        	reloadAction.Stopped:Wait()
+        end
+
+        reloadExit:Play()
+        reloadIdle:Stop()
+        idle:Play()
+    else
+        self.ReloadEvent:Fire(self.Equipment.Owner)
+        self.Equipment.AnimationManager:PlayAnimation("Reload")
+    end
 end
 
 return Gun

@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
+local Comm = require(ReplicatedStorage.Packages.Comm)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Timer = require(ReplicatedStorage.Packages.Timer)
@@ -27,17 +28,22 @@ local NonplayerCharacter = Component.new({
 
 function NonplayerCharacter:Construct()
 	self._trove = Trove.new()
+	self._serverComm = self._trove:Construct(Comm.ServerComm, self.Instance, "NPC")
 
-	-- self.RootPart = Instance.new("Part")
-	-- self.RootPart.Name = "HumanoidRootPart"
-	-- self.RootPart.CFrame = self.Instance:GetPivot()
-    -- self.RootPart.Size = Vector3.new(2, 2, 1)
+	self.RootPart = Instance.new("Part")
+	self.RootPart.Name = "Ghost"
+	self.RootPart.CFrame = self.Instance:GetPivot()
+    self.RootPart.Size = Vector3.new(2, 2, 1)
     -- self.RootPart.Anchored = true
-	-- self.RootPart.CanCollide = false
-	-- self.RootPart.Parent = self.Instance
-	-- self.RootPart.BrickColor = BrickColor.Red()
+	self.RootPart.CanCollide = true
+	self.RootPart.CollisionGroup = "Ghost"
+	self.RootPart.Parent = self.Instance
+	self.RootPart.BrickColor = BrickColor.Red()
 
-	-- self.Instance.PrimaryPart = self.RootPart
+	self.UpdatePosition = self._serverComm:CreateSignal("UpdatePosition", true)
+	self._trove:Connect(self.UpdatePosition, function(player, cframe: CFrame)
+		self.Instance:PivotTo(cframe)
+	end)
 end
 
 function NonplayerCharacter:Stop()
