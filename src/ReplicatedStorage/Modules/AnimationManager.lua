@@ -37,12 +37,15 @@ function AnimationManager:LoadAnimations(anims: {Animation})
 	end
 end
 
-function AnimationManager:GetAnimation(animationName: string): AnimationTrack
+function AnimationManager:GetAnimation(animationName: string): AnimationTrack?
 	if type(animationName) ~= "string" then error("Invalid animation name") end
 
 	local animationTrack = self._animations[animationName]
 
-	if animationTrack == nil then error("No loaded animation with name \""..animationName.."\"") end
+	if animationTrack == nil then
+		warn("No loaded animation with name \""..animationName.."\"")
+		return nil
+	end
 
 	return animationTrack
 end
